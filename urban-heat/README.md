@@ -45,13 +45,15 @@ URBADAPT/
     │   └── Rome/                                    # Split Rome workflow (current v0 logic)
     │       ├── 01_setup_*.ipynb                     # Env + config load, paths
     │       ├── 02_grids_*.ipynb                     # Ref grid + masks
-    │       ├── 03_hazard_*.ipynb                    # WBGT events; tree hazard variant
-    │       ├── 04_ac_surfaces_*.ipynb               # Coverage baseline/policy; kWh/user
-    │       ├── 05_impacts_*.ipynb                   # Age IFs; per-pixel deaths
-    │       ├── 06_costs_trees_*.ipynb               # Trees EAC/PV; O&M vs CAPEX
-    │       ├── 07_costs_ac_*.ipynb                  # AC CAPEX/maint/electricity PV
-    │       ├── 08_cba_summary_*.ipynb               # PV benefits/costs; €/avoided
-    │       └── 09_budget_mix_*.ipynb                # Budget-constrained mixes
+    │       ├── 03_hazard_exposure_*.ipynb           # WBGT events; exposure
+    │       ├── 04_impact_functions_*.ipynb          # Age differentiated IF; per-pixel deaths
+    │       ├── 05_vegetation*.ipynb                 # Vegetation/Tree policy
+    │       ├── 06_AC*.ipynb                         # AC policy; downscaling AC penetration
+    │       ├── 07_costs_vegetation*.ipynb           # Trees EAC/PV; O&M vs CAPEX 
+    │       ├── 08_costs_AC*.ipynb                   # AC CAPEX/maint/electricity PV 
+    │       └── 09_downscale_electricity*.ipynb      # Downscaling AC electricity 
+    │       ├── 10_CBA*.ipynb                        # benefits/costs; €/avoided 
+    │       └── 11_budget_mix*.ipynb                 # Budget-constrained mixes
     │
     ├── outputs/
     │   └── Rome/                                    
