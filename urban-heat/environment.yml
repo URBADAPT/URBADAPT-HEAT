@@ -29,5 +29,6 @@ dependencies:
   - rioxarray
   - rtree
   - libspatialindex
+  - osmnx
 
      
