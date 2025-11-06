@@ -1,0 +1,41 @@
+name: urbanheat
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - pip
+
+  - numpy
+  - pandas
+  - scipy
+  - xarray
+  - dask
+  - netcdf4
+  - h5py
+
+  - matplotlib
+
+  - gdal
+  - fiona
+  - shapely
+  - pyproj
+  - rtree
+  - geopandas
+  - rasterio
+  - rioxarray
+
+  - tqdm
+  - yaml
+
+  - climada-python
+
+  - ipykernel
+  - jupyterlab
+
+  - cftime
+  - bottleneck
+
+  - scikit-learn
+  - numba
+  - pip:
+      # nothing here now
+      - 
