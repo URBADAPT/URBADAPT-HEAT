@@ -1,4 +1,0 @@
-conda env create -f environment.yml
-conda activate urbanheat
-python -m ipykernel install --user --name urbanheat --display-name "Python (urbanheat)"
-jupyter notebook
