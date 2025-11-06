@@ -1,41 +1,44 @@
 name: urbanheat
-channels: [conda-forge]
+channels:
+  - conda-forge
+channel_priority: strict
+
 dependencies:
   - python=3.11
-  - pip
 
   - numpy
   - pandas
   - scipy
   - xarray
   - dask
+  - bottleneck
+  - cftime
+  - numba
+  - scikit-learn
+
   - netcdf4
   - h5py
+  - tqdm
+  - pyyaml
 
   - matplotlib
-
-  - gdal
-  - fiona
-  - shapely
-  - pyproj
-  - rtree
-  - geopandas
-  - rasterio
-  - rioxarray
-
-  - tqdm
-  - yaml
-
-  - climada-python
-
   - ipykernel
   - jupyterlab
 
-  - cftime
-  - bottleneck
+  - gdal>=3.8,<3.9
+  - rasterio>=1.3.9,<1.4
+  - shapely>=2.0,<2.1
+  - fiona>=1.9,<1.10
+  - pyproj>=3.6,<3.7
+  - geopandas>=0.14,<0.15
+  - rioxarray
+  - rtree            
+  - libspatialindex
 
-  - scikit-learn
-  - numba
+  # CLIMADA
+  - climada          
+
+  - pip
+  - setuptools
   - pip:
-      # nothing here now
-      - 
+     
