@@ -3,12 +3,12 @@ channels:
   - conda-forge
 
 dependencies:
-  - python=3.11
-  - pip
-  - numpy
-  - pandas
+  - python=3.10
+  - climada=6.1.0
+  - numpy=1.26.4
+  - pandas=2.1.4
   - scipy
-  - xarray
+  - xarray=2025.6.1
   - dask
   - bottleneck
   - cftime
@@ -21,14 +21,12 @@ dependencies:
   - matplotlib
   - ipykernel
   - jupyterlab
-  - rasterio
+  - rasterio=1.4.3
   - shapely
-  - fiona
-  - pyproj
-  - geopandas
+  - fiona=1.10.1
+  - pyproj=3.7.1
+  - geopandas=1.1.1
   - rioxarray
   - rtree
   - libspatialindex
   - osmnx
-
-     
