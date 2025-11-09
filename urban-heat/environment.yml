@@ -30,3 +30,5 @@ dependencies:
   - rtree
   - libspatialindex
   - osmnx
+  - gdown>=5
+

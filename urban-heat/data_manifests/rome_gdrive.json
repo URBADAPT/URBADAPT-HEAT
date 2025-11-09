@@ -1,0 +1,40 @@
+{
+  "base_subdir": "",
+  "entries": [
+    { "type": "folder", "id": "1wkJQf-xOmBiENFiOAOogUtsLjD8nJmR7", "dest": "CAPZONE" },
+    { "type": "folder", "id": "1zRVyRPbJ16WTbsvVBZvZ2vuHJOPR814h", "dest": "CoolingEff" },
+    { "type": "folder", "id": "1sWI5BGefcevJi5bc0W1nC0a1g8Y3QMNx", "dest": "fua" },
+    { "type": "folder", "id": "1Er3Yx1gpHdCiBZ5qxAnjz4Il_bFQRjkw", "dest": "gviRome" },
+    { "type": "folder", "id": "1AEbblUkB9AigwF8JH5XFSoFU5czYVbId", "dest": "LCZ" },
+    { "type": "folder", "id": "1YHM5uk9oq8yVZCClWMkqB6DUaGgStbfd", "dest": "hazard" },
+
+      { "type": "file", "id": "1S2RsrDNFFSsKUP_5eb85gfXnSDyu07Xp", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2008.nc" },
+{ "type": "file", "id": "18Z64HP70_4pscR33w7lT1MFdUP6DFES6", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2009.nc" },
+{ "type": "file", "id": "1G16Z5e_xBWSy_lykzYpcAzi_Is1M8W47", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2010.nc" },
+{ "type": "file", "id": "1A3h-mzCWAwgoBDCobkLdxE8cSNq5YWHA", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2011.nc" },
+{ "type": "file", "id": "1CeK1XAaih8MRXBm1qCOzXkGsdkfVFjJL", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2012.nc" },
+{ "type": "file", "id": "1csIU48CT7ds63MozyY2SdGPWEsfwtQfu", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2013.nc" },
+{ "type": "file", "id": "17ROSyIikMgjqFWChZOy8vrrzJbro3N1D", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2014.nc" },
+{ "type": "file", "id": "1MkhtwusU78jhP_N3BTl0t8qIq_SY4sV_", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2015.nc" },
+{ "type": "file", "id": "1wqSyWO3D_hdjKo5E1hoXmZwqPVOhRm99", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2016.nc" },
+{ "type": "file", "id": "1Pu44RwiArVHd-2tdsdSGqsXRoH8omlPa", "dest": "UrbClim/UrbClimT2Mmax/T2M_year_daily_max_2017.nc" },
+
+{ "type": "file", "id": "1hjRljMD1wm-qkzvXaZpYe6OjjZn77z2H", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2008.nc" },
+{ "type": "file", "id": "1g8afAGqMyceZzvvjmA5d6JvRC0VbMFlL", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2009.nc" },
+{ "type": "file", "id": "16HQ5XrJlqUx96Ez2AsfyohnqBs_0Jgc4", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2010.nc" },
+{ "type": "file", "id": "1OJOy9I21X4wbOXRzrMCRX_KEG7_rbDLn", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2011.nc" },
+{ "type": "file", "id": "1rYEByjH2v39GI4MgYm7kxPt6xgXEBJh7", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2012.nc" },
+{ "type": "file", "id": "1-j6z_1o3pm99eZhcmrnejedF_Eol3mCY", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2013.nc" },
+{ "type": "file", "id": "1zFFH1ZVNau4DfjhOSowHmOSLAn7NELcM", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2014.nc" },
+{ "type": "file", "id": "1u5-yxA3REQjpsDf4S7G6OzonOpLgAL4M", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2015.nc" },
+{ "type": "file", "id": "1SzBeC-yNjC1hRs4wjTXGcuUClAg-IVxv", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2016.nc" },
+{ "type": "file", "id": "1jmI6ogG8K7UxNIxMK5vtkunsJn312cSa", "dest": "UrbClim/UrbClimWBGTmax/WBGT_year_daily_max_2017.nc" },
+
+
+    { "type": "folder", "id": "1zDwqiIwlU_f42g5GcSHuaGkd3eonyfdH", "dest": "worldpop" },
+
+    { "type": "file", "id": "11daJLURBHFZO5jNBO5YEeuK7bRMPrZrS", "dest": "ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc" },
+    { "type": "file", "id": "1XNUclMDE4zrep0s62lIn8iHgznnI3Rie", "dest": "ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc" },
+    { "type": "file", "id": "1WMX-HhVHJDCTLGwW1S55r7JEaS4-H2Zt", "dest": "Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv" }
+  ]
+}
