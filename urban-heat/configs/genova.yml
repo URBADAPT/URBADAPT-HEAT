@@ -39,3 +39,17 @@ efficacy:
 
 files:                               
   gvi_csv: gviGenova/gvi_Genova.csv
+
+impact_functions:
+  pre_scale_mdd: 1e-3
+  age_params:
+    "<15":   {tau_days: 15.0, gamma: 1.6, impf_id: 1, name: "Heat mortality · <15"}
+    "15-64": {tau_days: 10.0, gamma: 2.0, impf_id: 2, name: "Heat mortality · 15-64"}
+    "65+":   {tau_days: 6.0,  gamma: 2.6, impf_id: 3, name: "Heat mortality · 65+"}
+  baseline_per100k:
+    "<15": 1.7
+    "15-64": 70.0
+    "65+": 3129.0
+  total_target_per100k: 91.0
+  heat_share: 1.0
+  anchor_event: 2050

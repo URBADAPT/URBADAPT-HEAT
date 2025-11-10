@@ -1,33 +1,55 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "272ab22f-ef49-450e-9ab3-70f38df454e7",
-   "metadata": {},
-   "outputs": [],
-   "source": []
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python (climada_env)",
-   "language": "python",
-   "name": "climada_env"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.11.13"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+slug: rome
+city_name: Rome
+base_dir: data/Rome                
+drive_manifest: data_manifests/rome_gdrive.json
+
+layers:                             
+  fua: fua
+  cap: cap
+  cap_wgs84: cap_wgs84
+  regions: regions
+  muni: muni
+
+ac:                                 
+  ssp: 2
+  year: 2050
+  tariff_eur_per_kwh: 0.25
+  capex_per_user: 500.0
+  maint_rate: 0.05
+  lifetime_years: 10
+  gridded_file: ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc
+  penetration_file: ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
+
+trees:                               
+  capex_per_index_pt_eur: 10000000
+  capex_per_tree_eur: 210
+  om_per_tree_per_year_eur: 27
+  lifetime_years: 25
+  ramp_years: 12
+
+cba:
+  discount_rate: 0.03
+  horizon_years: 25
+
+efficacy:                            
+  "<15": 0.20
+  "15-64": 0.30
+  "65+": 0.40
+  default: 0.30
+
+files:                               
+  gvi_csv: gviRome/gvi_Rome.csv
+
+impact_functions:
+  pre_scale_mdd: 1e-3
+  age_params:
+    "<15":   {tau_days: 15.0, gamma: 1.6, impf_id: 1, name: "Heat mortality · <15"}
+    "15-64": {tau_days: 10.0, gamma: 2.0, impf_id: 2, name: "Heat mortality · 15-64"}
+    "65+":   {tau_days: 6.0,  gamma: 2.6, impf_id: 3, name: "Heat mortality · 65+"}
+  baseline_per100k:
+    "<15": 1.7
+    "15-64": 70.0
+    "65+": 3129.0
+  total_target_per100k: 91.0
+  heat_share: 1.0
+  anchor_event: 2050
