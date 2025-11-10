@@ -26,7 +26,8 @@ trees:
   om_per_tree_per_year_eur: 27
   lifetime_years: 25
   ramp_years: 12
-
+  cap_uplift_0_1: 0.12
+  
 cba:
   discount_rate: 0.03
   horizon_years: 25
@@ -39,6 +40,10 @@ efficacy:
 
 files:                               
   gvi_csv: gviRome/gvi_Rome.csv
+  lcz_candidates:
+    - "LCZ/lcz_filter_v3.tif"
+    - "LCZ/lcz_v3.tif"
+  cooling_coeffs_csv: "CoolingEff/outer_2_wbgt_max.csv"
 
 impact_functions:
   pre_scale_mdd: 1e-3
@@ -53,3 +58,19 @@ impact_functions:
   total_target_per100k: 91.0
   heat_share: 1.0
   anchor_event: 2050
+
+osm:
+  query: "Roma, Italia"
+  admin_levels: [10, 8, 7]
+  boundary_tag: "administrative"
+  keep_outside_bucket: true
+  min_samples: 10
+
+urbclim:
+  folder: "UrbClim/UrbClimWBGTmax"
+  variable_candidates: ["wbgt_max","WBGT_max","wbgt","WBGT"]
+  thresh_wbgt: 28.0
+  hot_months: [6, 7, 8, 9]
+  f_bounds: [0.4, 1.0]
+
+cooling_city_aliases: ["rome", "roma"]
