@@ -1,0 +1,41 @@
+slug: genova
+city_name: Genova
+base_dir: data/Genova           
+drive_manifest: data_manifests/genova_gdrive.json
+
+layers:                             
+  fua: fua
+  cap: cap
+  cap_wgs84: cap_wgs84
+  regions: regions
+  muni: muni
+
+ac:                                 
+  ssp: 2
+  year: 2050
+  tariff_eur_per_kwh: 0.25
+  capex_per_user: 500.0
+  maint_rate: 0.05
+  lifetime_years: 10
+  gridded_file: ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc
+  penetration_file: ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
+
+trees:                               
+  capex_per_index_pt_eur: 10000000
+  capex_per_tree_eur: 210
+  om_per_tree_per_year_eur: 27
+  lifetime_years: 25
+  ramp_years: 12
+
+cba:
+  discount_rate: 0.03
+  horizon_years: 25
+
+efficacy:                            
+  "<15": 0.20
+  "15-64": 0.30
+  "65+": 0.40
+  default: 0.30
+
+files:                               
+  gvi_csv: gviGenova/gvi_Genova.csv
