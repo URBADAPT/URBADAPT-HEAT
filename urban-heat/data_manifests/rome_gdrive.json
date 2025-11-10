@@ -53,6 +53,15 @@
     { "type": "file", "id": "1B1H4jqL4iVdTqD5vtEHC6Px2UXV5Y4Co", "dest": "worldpop/ita_t_40_2030_CN_100m_R2025A_v1.tif" },
     { "type": "file", "id": "1SC3S_91h8vJsDQjteiIF4hW1YZXOVS1B", "dest": "worldpop/ita_t_45_2030_CN_100m_R2025A_v1.tif" },
     { "type": "file", "id": "1jBxDJni11jn2hCWjG7zxTwM7aCM338ec", "dest": "worldpop/ita_t_50_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1lpX9k2IFflmkNmF024d7TvAm82SZtgV7", "dest": "worldpop/ita_t_55_2030_CN_100m_R2025A_v1.tif" },
+      { "type": "file", "id": "1C5e6v-6MHGLEEU6n-Jy2QfUwiwaDmMRS", "dest": "worldpop/ita_t_60_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1H_ZBrmctQEVo8IOOR8MUsHCI_RlhkQF-", "dest": "worldpop/ita_t_65_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1zwpYJSlidWyzZGBgcWMQVaFif39qhrJ0", "dest": "worldpop/ita_t_70_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1edCfyBjQeqnxUJ3ExHujTfGIph-9nwdp", "dest": "worldpop/ita_t_75_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1b1Myx66xk0gxhpA47wNgo8IQJ7nsrjkP", "dest": "worldpop/ita_t_80_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1sb_uuwF38J9QlmxWp9-UD6a07oJEwXL0", "dest": "worldpop/ita_t_85_2030_CN_100m_R2025A_v1.tif" },
+    { "type": "file", "id": "1d1Vv95DCrfTj3-fHEaElXeNP2ka-JM4g", "dest": "worldpop/ita_t_90_2030_CN_100m_R2025A_v1.tif" },
+      
 
       { "type": "file", "id": "16u0sdWUJLJjOvi1Oui_DGQcDJK0l9FVk", "dest": "CoolingEff/outer_2_max.csv" },
       { "type": "file", "id": "19zx11PSrGuzVGPNaGQKInDCii1kP39_x", "dest": "CoolingEff/outer_2_mean.csv" },
