@@ -44,6 +44,7 @@ files:
     - "LCZ/lcz_filter_v3.tif"
     - "LCZ/lcz_v3.tif"
   cooling_coeffs_csv: "CoolingEff/outer_2_wbgt_max.csv"
+  income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
 
 impact_functions:
   pre_scale_mdd: 1e-3
@@ -74,3 +75,11 @@ urbclim:
   f_bounds: [0.4, 1.0]
 
 cooling_city_aliases: ["rome", "roma"]
+
+income:
+  city_aliases: ["Roma", "Roma Capitale"]
+  columns:
+    city: "Denominazione Comune"
+    cap: "CAP"
+    taxpayers: "Numero contribuenti"
+    total_income: "Reddito complessivo - Ammontare in euro"
