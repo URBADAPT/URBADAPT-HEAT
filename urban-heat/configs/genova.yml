@@ -45,6 +45,13 @@ files:
     - "LCZ/lcz_v3.tif"
   cooling_coeffs_csv: "CoolingEff/outer_2_wbgt_max.csv"
   income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
+  t2m_mean_daily_nc:
+    dir: "UrbClim/UrbClimT2Mmean"
+    pattern: "T2M_year_daily_mean_*.nc"   # 2008–2017
+  t2m_deltas_csv:
+    2030: "T2MmeanDeltas/T2_mean_Genova_2030.csv"
+    2040: "T2MmeanDeltas/T2_mean_Genova_2040.csv"
+    2050: "T2MmeanDeltas/T2_mean_Genova_2050.csv"
 
 impact_functions:
   pre_scale_mdd: 1e-3

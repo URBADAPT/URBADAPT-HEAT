@@ -68,6 +68,21 @@
     { "type": "file", "id": "1mS_sj-LpBtgzErCpnpV9HOjFcxQi-E9c", "dest": "CoolingEff/outer_2_wbgt_max.csv" }, 
     { "type": "file", "id": "1YgXKKeVyrbHWUJ-Otg8NOf0v7NctGJkD", "dest": "CoolingEff/outer_2_wbgt_mean.csv" }, 
     { "type": "file", "id": "1RnjfzlliVcX8PX0y8b3DfYZYSQ8ut3nr", "dest": "CoolingEff/outer_2_wbgt_min.csv" },
+      
+      { "type": "file", "id": "1P2G0FV1C-Ns-X5qL5fgULxzPTAs3F1Ph", "dest": "T2MmeanDeltas/T2_mean_Genova_2030.csv" },
+      { "type": "file", "id": "1McEkwQ_z1YG0ibsid9_eWCs1zehOQpHL", "dest": "T2MmeanDeltas/T2_mean_Genova_2040.csv" },
+      { "type": "file", "id": "1D206OsqvYEcLBltcMon3_kUU7Nr32cL_", "dest": "T2MmeanDeltas/T2_mean_Genova_2050.csv" },
+      
+      { "type": "file", "id": "1wO4uQppk3wWYdS9g1iVqt7HP3bl_hVfD", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2008.nc"},
+      { "type": "file", "id": "1e9kX6R57NjjJ2EAPbu4qm7ya0xTtHGJU", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2009.nc"},
+      { "type": "file", "id": "1HyDBMfeBJcwlqi7MqRt2AYia-klYJdn5", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2010.nc"},
+      { "type": "file", "id": "1k1MZ8CriaS5nkmzg3MsxCpSyy1vueMGY", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2011.nc"},
+      { "type": "file", "id": "1yIQO71sz3jzBC850QIG-IlLtZRGQtc1t", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2012.nc"},
+      { "type": "file", "id": "15kruWpbvgoArU0tMl_d7ttHxobc3hhwK", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2013.nc"},
+      { "type": "file", "id": "1LW8AqDCLvtZcWheF7Gj_xYat1ixe5mQV", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2014.nc"},
+      { "type": "file", "id": "1moajqt-XhWxyfffS9OvtJl8VqsSCeRDl", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2015.nc"},
+      { "type": "file", "id": "1ZKCeOdgro5_TbQ3DGvmOLegyw34CithB", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2016.nc"},
+      { "type": "file", "id": "1Yg8Hgo0FUZTR55p0ehh1VapCz2NhXnz7", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2017.nc"},
 
     { "type": "file", "id": "1LbjBI1mAHe8GdO0AYov6op2atAbwDSkH", "dest": "ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc" },
     { "type": "file", "id": "1Vv_o2RxuZZIEYYiXc9YJtRBOcyxAq-0l", "dest": "ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc" },
