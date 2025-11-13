@@ -56,9 +56,9 @@ files:
 impact_functions:
   pre_scale_mdd: 1e-3
   age_params:
-    "<15":   {tau_days: 15.0, gamma: 1.6, impf_id: 1, name: "Heat mortality · <15"}
-    "15-64": {tau_days: 10.0, gamma: 2.0, impf_id: 2, name: "Heat mortality · 15-64"}
-    "65+":   {tau_days: 6.0,  gamma: 2.6, impf_id: 3, name: "Heat mortality · 65+"}
+    "<15":   {tau_days: 22.0, gamma: 2.0, impf_id: 1, name: "Heat mortality · <15"} # not days anymore but °C 
+    "15-64": {tau_days: 24.0, gamma: 2.3, impf_id: 2, name: "Heat mortality · 15-64"}
+    "65+":   {tau_days: 23.0, gamma: 2.6, impf_id: 3, name: "Heat mortality · 65+"}
   baseline_per100k:
     "<15": 1.7
     "15-64": 70.0
@@ -73,7 +73,7 @@ osm:
   boundary_tag: "administrative"
   keep_outside_bucket: true
   min_samples: 10
-  exclude_region_ids: []      # none by default
+  exclude_region_ids: []      
 
 urbclim:
   folder: "UrbClim/UrbClimWBGTmax"
