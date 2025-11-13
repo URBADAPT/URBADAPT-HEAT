@@ -59,9 +59,9 @@ files:
 impact_functions:
   pre_scale_mdd: 1e-3
   age_params:
-    "<15":   {tau_days: 22.0, gamma: 2.0, impf_id: 1, name: "Heat mortality · <15"} # it's not tau_days it's tau_C (was just because one YAML for everything)
-    "15-64": {tau_days: 24.0, gamma: 2.3, impf_id: 2, name: "Heat mortality · 15-64"}
-    "65+":   {tau_days: 23.0, gamma: 2.6, impf_id: 3, name: "Heat mortality · 65+"}
+    "<15":   {tau_days: 26.0, gamma: 2.0, impf_id: 1, name: "Heat mortality · <15"} # not tau days
+    "15-64": {tau_days: 25.0, gamma: 2.3, impf_id: 2, name: "Heat mortality · 15-64"}
+    "65+":   {tau_days: 18, gamma: 2.6, impf_id: 3, name: "Heat mortality · 65+"}
   baseline_per100k:
     "<15": 1.7
     "15-64": 70.0
