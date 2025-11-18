@@ -61,7 +61,10 @@
     { "type": "file", "id": "1SVtnSzsEtMSDZAgUup7XBHcctNhit0fO", "dest": "worldpop/ita_t_80_2030_CN_100m_R2025A_v1.tif" }, 
     { "type": "file", "id": "1ctd687z8JEaY-pTCiXvNBrlc3ce9ktBn", "dest": "worldpop/ita_t_85_2030_CN_100m_R2025A_v1.tif" }, 
     { "type": "file", "id": "15UZGbdBKKZ70ZlZf1o3fRN1ydvhvsvIQ", "dest": "worldpop/ita_t_90_2030_CN_100m_R2025A_v1.tif" },
-      
+    { "type": "file", "id": "1Sti13vOqeUs-NB9cTA2k0_BT6mxiJpGi", "dest": "worldpop/FuturePop_SSP2_2030_1km_v0_2.tif" },
+    { "type": "file", "id": "1F4-Jh4DWK1D4y8dxDAYEqJLtSjJen4IN", "dest": "worldpop/FuturePop_SSP2_2040_1km_v0_2.tif" },
+    { "type": "file", "id": "1UHbjepdq3GPowckNtwAwctKC6VK9aNSn", "dest": "worldpop/FuturePop_SSP2_2050_1km_v0_2.tif" },
+
     { "type": "file", "id": "1uAHgTJo3Nl5qemhY8e6tYeaFx7TxW_pX", "dest": "CoolingEff/outer_2_max.csv" }, 
     { "type": "file", "id": "1MYnpHLWum2ErLQV1vk68gGxp5cBy_7fl", "dest": "CoolingEff/outer_2_mean.csv" }, 
     { "type": "file", "id": "1LrZV1yVM-oET6D_bxylnpDvqX3wuNzYS", "dest": "CoolingEff/outer_2_min.csv" }, 

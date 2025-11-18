@@ -21,7 +21,7 @@
     { "type": "file", "id": "1owNaC6yTmZqjKxTZJHNpdO22rh-ShCfV", "dest": "gviRome/gvi_Rome.csv" },
 
     { "type": "file", "id": "19doJEAWZP9LTsxwMFa20G3IjB7OmkxRs", "dest": "LCZ/00_global_map_of_LCZs.png" },
-    { "type": "file", "id": "1beMmx__hlz2VogTzWpNUtvJHwBhphLrA", "dest": "LCZ/lcz_filter_v3.tif" },
+    { "type": "file", "id": "1Iruso28gmMMbiGYVCkX5IhbyMoVXXVSt", "dest": "LCZ/lcz_filter_v3.tif" }, 
     { "type": "file", "id": "1F5kHFh30sFJrOTnFVWQqDSbz_IOXzkHZ", "dest": "LCZ/lcz_v3.tif" },
 
     { "type": "file", "id": "1-5XsXjKP4NK6Pg1yGVz5-ll7A-HXyNCc", "dest": "hazard/impact_geo_curpol_rome_urbclim-WBGT-dayover28_0.5_absolute_2030_0.0010541181798942034.tif" },
@@ -61,7 +61,9 @@
     { "type": "file", "id": "1b1Myx66xk0gxhpA47wNgo8IQJ7nsrjkP", "dest": "worldpop/ita_t_80_2030_CN_100m_R2025A_v1.tif" },
     { "type": "file", "id": "1sb_uuwF38J9QlmxWp9-UD6a07oJEwXL0", "dest": "worldpop/ita_t_85_2030_CN_100m_R2025A_v1.tif" },
     { "type": "file", "id": "1d1Vv95DCrfTj3-fHEaElXeNP2ka-JM4g", "dest": "worldpop/ita_t_90_2030_CN_100m_R2025A_v1.tif" },
-      
+    { "type": "file", "id": "1kvT0q4tqfW9-oQQZP1b3_lussXD-dtmx", "dest": "worldpop/FuturePop_SSP2_2030_1km_v0_2.tif" },
+    { "type": "file", "id": "1d-mqC01bVZ4vXdKTRSE17pNRFbKpyLM0", "dest": "worldpop/FuturePop_SSP2_2040_1km_v0_2.tif" },
+    { "type": "file", "id": "1SPK89O5AVwXutoRc3c9qcB1sF2-IgVkM", "dest": "worldpop/FuturePop_SSP2_2050_1km_v0_2.tif" },
 
       { "type": "file", "id": "16u0sdWUJLJjOvi1Oui_DGQcDJK0l9FVk", "dest": "CoolingEff/outer_2_max.csv" },
       { "type": "file", "id": "19zx11PSrGuzVGPNaGQKInDCii1kP39_x", "dest": "CoolingEff/outer_2_mean.csv" },
