@@ -27,6 +27,7 @@ trees:
   lifetime_years: 25
   ramp_years: 12
   cap_uplift_0_1: 0.12
+  focus_year: 2050
   
 cba:
   discount_rate: 0.03
