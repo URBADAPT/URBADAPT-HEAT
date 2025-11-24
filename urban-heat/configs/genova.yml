@@ -16,7 +16,7 @@ ac:
   tariff_eur_per_kwh: 0.25
   capex_per_user: 500.0
   maint_rate: 0.05
-  lifetime_years: 20
+  lifetime_years: 10
   gridded_file: ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc
   penetration_file: ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
 
