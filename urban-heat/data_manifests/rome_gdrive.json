@@ -87,8 +87,10 @@
       { "type": "file", "id": "1DtVAF2NfUZWgZFPPoNYfdEUfgZp-g6oy", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2016.nc"},
       { "type": "file", "id": "1UOHCzYLQl7D5bnb14pyC9h7lu16Jl-UO", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2017.nc"},
 
-    { "type": "file", "id": "1OSmz6rQyjuek_I-FjvEUl98K0ppzQfgS", "dest": "ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc" },
+      { "type": "file", "id": "1OSmz6rQyjuek_I-FjvEUl98K0ppzQfgS", "dest": "ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc" },
     { "type": "file", "id": "1TwarHJH_y2lKaawvzRIWIvX4WZzLIh8O", "dest": "ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc" },
+    { "type": "file", "id": "1wQ29WhOfMYn2BEaW_dwOeDXhKD2tTKdM", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
+    { "type": "file", "id": "148kOFe12NnQakB5PRWSLnWAr81MPnQy_", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
     { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv" }
   ]
 }

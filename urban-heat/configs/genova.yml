@@ -10,16 +10,35 @@ layers:
   regions: regions
   muni: muni
 
-ac:                                 
+ac:
   ssp: 2
+  years: [2030, 2040, 2050]
   year: 2050
+
+  # AC electricity consumption at NUTS level
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_format: nuts_csv
+  kwh_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  # AC penetration 
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv # or ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
+  penetration_format: nuts_csv # to delete if it's the nc
+  nuts_id: ITC33
+  nuts_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
   tariff_eur_per_kwh: 0.25
   capex_per_user: 500.0
   maint_rate: 0.05
   lifetime_years: 10
-  gridded_file: ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc
-  penetration_file: ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
-
+  
 trees:                               
   capex_per_index_pt_eur: 10000000
   capex_per_tree_eur: 210
