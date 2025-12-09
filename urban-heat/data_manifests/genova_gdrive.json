@@ -24,6 +24,12 @@
     { "type": "file", "id": "1_UFTgXo2BtT4Cp3414QzvHa1_8mSLOH1", "dest": "LCZ/lcz_filter_v3.tif" }, 
     { "type": "file", "id": "17hkRqFt-SKZJzCQWh_uFpLDo-GBqIMt8", "dest": "LCZ/lcz_v3.tif" },
 
+    { "type": "file", "id": "15i_H9_T_I2iKEgI6MNOQYBdqkAqGM2Vq", "dest": "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif" },
+    { "type": "file", "id": "1zXnnuSrKfFfGOv_jGrSBP6R8cwS5Kk9w", "dest": "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff" },
+    { "type": "file", "id": "1XHhhyIf1_4IYpXLJxl6cqmGU44KiS-Sb", "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff" },
+    { "type": "file", "id": "1TJahmBT663A9mrdURecwStnE9BKoiCy6", "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff" },
+    { "type": "file", "id": "1PRjxytqhFnP77OjTB772cNp-ivaTMmeu", "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff" },
+      
     { "type": "file", "id": "1I9lqL4XlV9z-VN60wHUf5RytmwKzYbYt", "dest": "hazard/impact_geo_curpol_genova_urbclim-WBGT-dayover28_0.5_absolute_2030_0.0010541181798942034.tif" },
     { "type": "file", "id": "1M0-R7DChlF7XeaoEg62Cq9tbJUGaVvt_", "dest": "hazard/impact_geo_curpol_genova_urbclim-WBGT-dayover28_0.5_absolute_2050_0.0010541181798942034.tif" },
     { "type": "file", "id": "1j9UzgxqwAIgtUP1SK9m-gZ-dnOn-NFQ2", "dest": "hazard/impact_geo_curpol_genova_urbclim-WBGT-dayover28_0.5_absolute_2070_0.0010541181798942034.tif" },
@@ -64,6 +70,7 @@
     { "type": "file", "id": "1Sti13vOqeUs-NB9cTA2k0_BT6mxiJpGi", "dest": "worldpop/FuturePop_SSP2_2030_1km_v0_2.tif" },
     { "type": "file", "id": "1F4-Jh4DWK1D4y8dxDAYEqJLtSjJen4IN", "dest": "worldpop/FuturePop_SSP2_2040_1km_v0_2.tif" },
     { "type": "file", "id": "1UHbjepdq3GPowckNtwAwctKC6VK9aNSn", "dest": "worldpop/FuturePop_SSP2_2050_1km_v0_2.tif" },
+    { "type": "file", "id": "1y4GFttXFkJ4UijMGyhIQ9cyy54FvNLwg", "dest": "worldpop/wicdf.csv" },
 
     { "type": "file", "id": "1uAHgTJo3Nl5qemhY8e6tYeaFx7TxW_pX", "dest": "CoolingEff/outer_2_max.csv" }, 
     { "type": "file", "id": "1MYnpHLWum2ErLQV1vk68gGxp5cBy_7fl", "dest": "CoolingEff/outer_2_mean.csv" }, 
@@ -75,7 +82,8 @@
       { "type": "file", "id": "1TdIJAv0CW-Pr3Fs3QsnmEm9zMWQlY_zP", "dest": "T2MmeanDeltas/T2_mean_Genova_2030.csv" },
       { "type": "file", "id": "1EkWW3FrMBCqd3tLfNXCA-DGctHkFH-w1", "dest": "T2MmeanDeltas/T2_mean_Genova_2040.csv" },
       { "type": "file", "id": "19Umfh2tJeF2Rx3OnA-cflcq_kAoDM_2m", "dest": "T2MmeanDeltas/T2_mean_Genova_2050.csv" },
-
+      { "type": "file", "id": "1VaHljt-pIjz52v3d7M6AcEN8bdjlovLr", "dest": "T2MmeanDeltas/climate_change_provide_markups_avg.csv" },
+      
       { "type": "file", "id": "1wO4uQppk3wWYdS9g1iVqt7HP3bl_hVfD", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2008.nc"},
       { "type": "file", "id": "1e9kX6R57NjjJ2EAPbu4qm7ya0xTtHGJU", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2009.nc"},
       { "type": "file", "id": "1HyDBMfeBJcwlqi7MqRt2AYia-klYJdn5", "dest": "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_2010.nc"},
@@ -89,8 +97,8 @@
 
       { "type": "file", "id": "1LbjBI1mAHe8GdO0AYov6op2atAbwDSkH", "dest": "ACgridded/ac_kWh_ssp1_ssp2_ssp3_ssp5_2010_2050.nc" },
     { "type": "file", "id": "1Vv_o2RxuZZIEYYiXc9YJtRBOcyxAq-0l", "dest": "ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc" },
-    { "type": "file", "id": "1AMAhqChnIltjvJwhdXLTz9XNSOsG-Qz7", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
-    { "type": "file", "id": "1nMez6p3a1xWVc9NjyaNDxLv2Q28gQ1OW", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
+    { "type": "file", "id": "1kC1rtdg15BBMO2jjucS3D484Mj-7zHiL", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
+    { "type": "file", "id": "1QZw5d4PwvosMhVchLU9FBOuHUtbp1HGS", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
     { "type": "file", "id": "1aCsTFIrhH9i4dxZr-sp0rJ96WSGbFyS1", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv" }
   ]
 }

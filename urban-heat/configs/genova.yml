@@ -1,7 +1,11 @@
-slug: genova
+slug: genova # city name 
 city_name: Genova
 base_dir: data/Genova           
-drive_manifest: data_manifests/genova_gdrive.json
+drive_manifest: data_manifests/genova_gdrive.json # all the data from the drive 
+
+# demo / exposure scenario from Wittgenstein population runs scenarios 
+# available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
+exp_scenario: SSP2  
 
 layers:                             
   fua: fua
@@ -11,7 +15,7 @@ layers:
   muni: muni
 
 ac:
-  ssp: 2
+  ssp: 2 # AC data scenarios could be 1,3,5
   years: [2030, 2040, 2050]
   year: 2050
 
@@ -27,7 +31,7 @@ ac:
   # AC penetration 
   penetration_file: ACgridded/ac_penetration_NUTSregions.csv # or ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
   penetration_format: nuts_csv # to delete if it's the nc
-  nuts_id: ITC33
+  nuts_id: ITI43
   nuts_columns:
     id: NUTS_ID
     scenario: Scenario
@@ -51,6 +55,22 @@ trees:
 cba:
   discount_rate: 0.03
   horizon_years: 25
+
+climate:
+  # which climate scenario to use from climate_change_provide_markups_avg.csv
+  t2m_clim_scen_default: CurPol     # default scenario
+  t2m_clim_scen_options: [CurPol, GS, SP, ssp585] # other scenario available 
+
+  t2m_var: tas
+
+  # optional: years for which to build future T2M (if omitted, we’ll fall back to ac.years)
+  years: [2030, 2040, 2050]
+
+  urbclim_api: # for the API of historical UrbClim data 
+    enabled: true
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Genoa/" 
+    local_dir: "UrbClim/UrbClimT2Mmean"
+    years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
 
 efficacy_scenarios:
   base:
@@ -83,13 +103,13 @@ files:
     - "LCZ/lcz_v3.tif"
   cooling_coeffs_csv: "CoolingEff/outer_2_wbgt_max.csv"
   income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
+  # daily baselines (UrbClim mean daily temperature)
   t2m_mean_daily_nc:
     dir: "UrbClim/UrbClimT2Mmean"
     pattern: "T2M_year_daily_mean_*.nc"   # 2008–2017
-  t2m_deltas_csv:
-    2030: "T2MmeanDeltas/T2_mean_Genova_2030.csv"
-    2040: "T2MmeanDeltas/T2_mean_Genova_2040.csv"
-    2050: "T2MmeanDeltas/T2_mean_Genova_2050.csv"
+
+  # single climate deltas table (long format: city, year, clim_scen, var, month, delta)
+  t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
 
 osm:
   query: "Genova, Italia"
@@ -115,3 +135,17 @@ income:
     cap: "CAP"
     taxpayers: "Numero contribuenti"
     total_income: "Reddito complessivo - Ammontare in euro"
+
+vulnerability: 
+    enabled: true 
+    weights:
+        thermal: 0.333 
+        foreign_born: 0.333
+        unemployment: 0.333 
+    files:
+        ghs_age: "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
+        census_pop: "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"
+        census_oth: "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff"
+        census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
+        census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
+    census_nodata: -9999
