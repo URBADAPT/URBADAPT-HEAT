@@ -33,30 +33,42 @@ URBADAPT/
     │   ├── mix.py                                   # Budget grid-search; trees/AC mixes
     │   ├── plotting.py                              # Standard maps/figures
     │   └── run_city.py                              # Organises a full city run
+    │   └── vulnerability_layer.py                   # Creates SVI based on thermal age of buildings, unemployment shares and people born out of EU 
     │
     ├── configs/                                     # One YAML per city 
     │   ├── rome.yml
     │   └── barcelona.yml
-    │
-    ├── data/
+    │   └── genova.yml    
+    ├── data/                                        # From Drive Synch and Vito API 
     │   └── Rome/
+    │   └── Genova/
+    │   
     ├── notebooks/
     │   ├── 00_run_city.ipynb                        # Thin driver notebook (calls run_city)
-    │   └── Rome/                                    # Split Rome workflow (current v0 logic)
-    │       ├── 01_setup_*.ipynb                     # Env + config load, paths
-    │       ├── 02_grids_*.ipynb                     # Ref grid + masks
-    │       ├── 03_hazard_exposure_*.ipynb           # WBGT events; exposure
-    │       ├── 04_impact_functions_*.ipynb          # Age differentiated IF; per-pixel deaths
-    │       ├── 05_vegetation*.ipynb                 # Vegetation/Tree policy
-    │       ├── 06_AC*.ipynb                         # AC policy; downscaling AC penetration
-    │       ├── 07_costs_vegetation*.ipynb           # Trees EAC/PV; O&M vs CAPEX 
-    │       ├── 08_costs_AC*.ipynb                   # AC CAPEX/maint/electricity PV 
-    │       └── 09_downscale_electricity*.ipynb      # Downscaling AC electricity 
-    │       ├── 10_CBA*.ipynb                        # benefits/costs; €/avoided 
-    │       └── 11_budget_mix*.ipynb                 # Budget-constrained mixes
+    │   └── City Agnostic/                           # Split Rome workflow (current v0 logic)
+    │       └── Rome/ 
+    │           ├── 01_setup_*.ipynb                     # Env + config load, paths
+    │           ├── 02_grids_*.ipynb                     # Ref grid + masks
+    │           ├── 03_hazard_exposure_*.ipynb           # WBGT events; exposure
+    │           ├── 04_impact_functions_*.ipynb          # Age differentiated IF; per-pixel deaths
+    │           ├── 05_AC_*.ipynb                        # AC policy; downscaling AC penetration 
+    │           ├── 06_vegetation_*.ipynb                # Vegetation/Tree policy
+    │           ├── 07_downscale_electricity_*.ipynb     # Downscaling AC electricity 
+    │           ├── 08_CBA_*.ipynb                       # Trees EAC/PV; AC CAPEX/maint/electricity PV; O&M vs CAPEX; benefits/costs; €/avoided; Budget-constrained mixes 
+    │           
+    │       └── Genova/
+    │           ├── 01_setup_*.ipynb                     # Env + config load, paths
+    │           ├── 02_grids_*.ipynb                     # Ref grid + masks
+    │           ├── 03_hazard_exposure_*.ipynb           # WBGT events; exposure
+    │           ├── 04_impact_functions_*.ipynb          # Age differentiated IF; per-pixel deaths
+    │           ├── 05_AC_*.ipynb                        # AC policy; downscaling AC penetration 
+    │           ├── 06_vegetation_*.ipynb                # Vegetation/Tree policy
+    │           ├── 07_downscale_electricity_*.ipynb     # Downscaling AC electricity 
+    │           ├── 08_CBA_*.ipynb                       # Trees EAC/PV; AC CAPEX/maint/electricity PV; O&M vs CAPEX; benefits/costs; €/avoided; Budget-constrained mixes
     │
     ├── outputs/
-    │   └── Rome/                                    
+    │   └── Rome/
+    │   └── Genova/                                  
     │
     ├── pyproject.toml                               
     └── README.md                                    # this file 
