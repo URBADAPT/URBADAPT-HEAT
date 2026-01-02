@@ -16,7 +16,7 @@ layers:
 
 ac:
   ssp: 2 # AC data scenarios could be 1,3,5
-  years: [2030, 2040, 2050]
+  years: [2020, 2030, 2040, 2050]
   year: 2050
 
   # AC electricity consumption at NUTS level
@@ -64,7 +64,7 @@ climate:
   t2m_var: tas
 
   # optional: years for which to build future T2M (if omitted, we’ll fall back to ac.years)
-  years: [2030, 2040, 2050]
+  years: [2020, 2030, 2040, 2050]
 
   urbclim_api: # for the API of historical UrbClim data 
     enabled: true
@@ -73,18 +73,18 @@ climate:
     years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
 
 efficacy_scenarios:
-  base:
+  sera_spain:
+    "<15": 0.10
+    "15-64": 0.14
+    "65+": 0.20
+  moderate:
     "<15": 0.20
     "15-64": 0.30
     "65+": 0.40
-  high:
+  optimistic:
     "<15": 0.30
     "15-64": 0.40
     "65+": 0.55
-  elderly_only:
-    "<15": 0.10
-    "15-64": 0.20
-    "65+": 0.65
   flat_30:
     "<15": 0.30
     "15-64": 0.30
@@ -101,7 +101,7 @@ files:
   lcz_candidates:
     - "LCZ/lcz_filter_v3.tif"
     - "LCZ/lcz_v3.tif"
-  cooling_coeffs_csv: "CoolingEff/outer_2_wbgt_max.csv"
+  cooling_coeffs_csv: "CoolingEff/coefs_GVI_t2m.csv"
   income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
   # daily baselines (UrbClim mean daily temperature)
   t2m_mean_daily_nc:
@@ -148,3 +148,60 @@ vulnerability:
         census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
         census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
     census_nodata: -9999
+
+ews:
+  # Threshold settings
+  # Method: 'fixed' (use threshold_c) or 'percentile' (compute from data)
+  threshold_method: fixed
+  threshold_c: 26.0              # Used if method='fixed'
+  threshold_percentile: 85       # Used if method='percentile'
+  threshold_ref_year: 2020       # Reference year for percentile calc
+  
+  # Warning season (May-September)
+  warning_months: [5, 6, 7, 8, 9]
+  
+  # INTERPRETATION 
+  # 'marginal': conservative - damage functions already embed existing HHWWS effect
+  #             use for realistic cost-effectiveness of NEW investments
+  # 'counterfactual': shows what HHWWS prevents (full literature efficacy)
+  #                   use for policy justification
+  interpretation: marginal
+  
+  # Efficacy scenarios for COUNTERFACTUAL interpretation
+  # (What if no HHWWS existed?)
+  efficacy_counterfactual:
+    low: 0.20      # HHWWS-only (Italy paper: 22%)
+    central: 0.35  # Between HHWWS and full plan
+    high: 0.50     # Full heat plan (Italy paper: 57%)
+  
+  # Efficacy scenarios for MARGINAL interpretation
+  # (Additional benefit from enhancement)
+  efficacy_marginal:
+    low: 0.05      # Modest improvement
+    central: 0.10  # Moderate enhancement
+    high: 0.15     # Ambitious enhancement
+  
+  # Ramp-up period 
+  # Italy paper: effects NOT significant years 0-3, then strong
+  ramp_years: 3
+  ramp_initial_efficacy: 0.10
+  
+  # Cost parameters (EUR, 2020 prices)
+  capex_setup: 140000           # One-time setup
+  opex_per_warning_day: 6000    # Per warning day (system + response)
+  opex_annual_fixed: 50000      # Annual fixed maintenance
+
+# Rome-specific calibration notes:
+# Threshold analysis from NB4:
+#   - Max daily mean T2M: 28.2-28.9°C (never reaches 30°C!)
+#   - 90th percentile: 26.7°C (11-35 warning days, high variability)
+#   - 85th percentile: 26.5°C (45-62 warning days, more stable)
+#   - Italy paper's 30°C threshold gives ZERO warning days!
+#
+# Recommendation: 26°C fixed threshold
+#   - ~57 warning days/year average
+#   - Captures ~70-80% of heat deaths (computed, not assumed)
+#   - Stable across climate scenarios
+
+
+    
