@@ -14,6 +14,15 @@ Building a **generalisable pipeline** to study climate hazards and compare infra
 
 ---
 
+## Diagram 
+
+[![Diagram preview](URBADAPT/urban-heat/notebooks/city_agnostic/January2026/diagram.png)](https://github.com/giacfalk/URBADAPT/blob/main/urban-heat/notebooks/city_agnostic/January2026/diagram.png)
+
+**Open interactive version:** https://github.com/giacfalk/URBADAPT/blob/main/urban-heat/notebooks/city_agnostic/January2026/diagram_0126.html
+**HTML source in repo:** URBADAPT/urban-heat/notebooks/city_agnostic/January2026/diagram_0126.html
+
+---
+
 ## Repository Structure
 
 ```text
