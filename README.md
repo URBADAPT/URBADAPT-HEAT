@@ -16,7 +16,7 @@ Building a **generalisable pipeline** to study climate hazards and compare infra
 
 ## Diagram 
 
-[![Diagram preview](URBADAPT/urban-heat/notebooks/city_agnostic/January2026/diagram.png)](https://github.com/giacfalk/URBADAPT/blob/main/urban-heat/notebooks/city_agnostic/January2026/diagram.png)
+[![Diagram preview](urban-heat/notebooks/city_agnostic/January2026/diagram.png)](urban-heat/notebooks/city_agnostic/January2026/diagram.png)
 
 **Open interactive version:** https://github.com/giacfalk/URBADAPT/blob/main/urban-heat/notebooks/city_agnostic/January2026/diagram_0126.html
 **HTML source in repo:** URBADAPT/urban-heat/notebooks/city_agnostic/January2026/diagram_0126.html
@@ -54,7 +54,16 @@ URBADAPT/
     │   
     ├── notebooks/
     │   ├── 00_run_city.ipynb                        # Thin driver notebook (calls run_city)
-    │   └── City Agnostic/                           # Split Rome workflow (current v0 logic)
+    │   └── City Agnostic/
+    │       └── January2026/
+    │           ├── 01_setup_0126.ipynb                     # Env + config load, paths
+    │           ├── 02_grids_0126.ipynb                     # Ref grid + masks
+    │           ├── 03_hazard_exposure_0126.ipynb           # WBGT events; exposure
+    │           ├── 04_impact_functions_0126.ipynb          # Age differentiated IF; per-pixel deaths
+    │           ├── 05_AC_0126.ipynb                        # AC policy; downscaling AC penetration and AC electricity consumption 
+    │           ├── 06_EWS_0126.ipynb                       # EWS policy
+    │           ├── 07_vegetation_0126.ipynb                # Vegetation policy 
+    │           ├── 08_CBA_0126.ipynb                       # Trees EAC/PV; AC CAPEX/maint/electricity PV; O&M vs CAPEX; benefits/costs; €/avoided; Budget-constrained mixes 
     │       └── Rome/ 
     │           ├── 01_setup_*.ipynb                     # Env + config load, paths
     │           ├── 02_grids_*.ipynb                     # Ref grid + masks
