@@ -150,58 +150,37 @@ vulnerability:
     census_nodata: -9999
 
 ews:
-  # Threshold settings
-  # Method: 'fixed' (use threshold_c) or 'percentile' (compute from data)
-  threshold_method: fixed
-  threshold_c: 26.0              # Used if method='fixed'
-  threshold_percentile: 85       # Used if method='percentile'
-  threshold_ref_year: 2020       # Reference year for percentile calc
-  
-  # Warning season (May-September)
-  warning_months: [5, 6, 7, 8, 9]
-  
-  # INTERPRETATION 
-  # 'marginal': conservative - damage functions already embed existing HHWWS effect
-  #             use for realistic cost-effectiveness of NEW investments
-  # 'counterfactual': shows what HHWWS prevents (full literature efficacy)
-  #                   use for policy justification
+  threshold_method: epi_deaths_file
+  threshold_file: null
+  threshold_key: threshold_deaths_per_day
+  threshold_unit: heat_deaths_per_day
+  target_activation_days: 23
+  threshold_ref_year: 2020
+  warning_months:
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
   interpretation: marginal
-  
-  # Efficacy scenarios for COUNTERFACTUAL interpretation
-  # (What if no HHWWS existed?)
   efficacy_counterfactual:
-    low: 0.20      # HHWWS-only (Italy paper: 22%)
-    central: 0.35  # Between HHWWS and full plan
-    high: 0.50     # Full heat plan (Italy paper: 57%)
-  
-  # Efficacy scenarios for MARGINAL interpretation
-  # (Additional benefit from enhancement)
+    low: 0.2
+    central: 0.35
+    high: 0.5
   efficacy_marginal:
-    low: 0.05      # Modest improvement
-    central: 0.10  # Moderate enhancement
-    high: 0.15     # Ambitious enhancement
-  
-  # Ramp-up period 
-  # Italy paper: effects NOT significant years 0-3, then strong
+    low: 0.05
+    central: 0.1
+    high: 0.15
   ramp_years: 3
-  ramp_initial_efficacy: 0.10
-  
-  # Cost parameters (EUR, 2020 prices)
-  capex_setup: 140000           # One-time setup
-  opex_per_warning_day: 6000    # Per warning day (system + response)
-  opex_annual_fixed: 50000      # Annual fixed maintenance
-
-# Rome-specific calibration notes:
-# Threshold analysis from NB4:
-#   - Max daily mean T2M: 28.2-28.9°C (never reaches 30°C!)
-#   - 90th percentile: 26.7°C (11-35 warning days, high variability)
-#   - 85th percentile: 26.5°C (45-62 warning days, more stable)
-#   - Italy paper's 30°C threshold gives ZERO warning days!
-#
-# Recommendation: 26°C fixed threshold
-#   - ~57 warning days/year average
-#   - Captures ~70-80% of heat deaths (computed, not assumed)
-#   - Stable across climate scenarios
-
-
-    
+  ramp_initial_efficacy: 0.1
+  capex_setup: 0
+  opex_per_warning_day: 6200
+  opex_annual_fixed: 0
+  cost_source: Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)
+  opex_per_warning_day_basic: 7800
+  opex_per_warning_day_enhanced: 14000
+  opex_per_warning_day_incremental: 6200
+  capex_setup_incremental: 0
+  opex_annual_fixed_incremental: 0
+  cost_scale_with_population: true
+  cost_ramp_with_efficacy: true
