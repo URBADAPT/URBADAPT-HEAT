@@ -1,7 +1,7 @@
-slug: rome # city name 
-city_name: Rome 
-base_dir: data/Rome                
-drive_manifest: data_manifests/rome_gdrive.json # all the data from the drive 
+slug: athens # city name 
+city_name: Athens 
+base_dir: data/Athens                
+drive_manifest: data_manifests/athens_gdrive.json # all the data from the drive 
 
 # demo / exposure scenario from Wittgenstein population runs scenarios 
 # available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
@@ -22,16 +22,17 @@ ac:
   # AC electricity consumption at NUTS level
   kwh_file: ACgridded/ac_kwh_NUTSregions.csv
   kwh_format: nuts_csv
+  kwh_nuts_ids: ["EL30", "EL3"]
   kwh_columns:
     id: NUTS_ID
     scenario: Scenario
     year: year
     value: value
 
-  # AC penetration 
-  penetration_file: ACgridded/ac_penetration_NUTSregions.csv # or ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
-  penetration_format: nuts_csv # to delete if it's the nc
-  nuts_id: ITI43
+  # AC penetration
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv
+  penetration_format: nuts_csv
+  penetration_nuts_ids: ["EL30", "EL3"]
   nuts_columns:
     id: NUTS_ID
     scenario: Scenario
@@ -77,12 +78,10 @@ trees:
   focus_year: 2050
 
   # vegetation policy regions (NB07)
-  # Which geographic layer to use for tree allocation
-  # "regions" = use NB05 regions layer (if regions.enabled)
-  # "zones"   = use NB05 zones layer (fallback when regions disabled)
-  veg_regions: regions          # Rome: 15 Municipi (NB05 regions, admin_level=7)
-  veg_region_label: Municipio   # label for plots/tables
-  veg_emulator_bundle: "emulator/bundles/emulator_bundle_rome_quadratic_holdout_safe.json"
+  # Athens: use zones (61 Dimoi, admin_level=7) since regions disabled
+  veg_regions: zones
+  veg_region_label: Dimos
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled7_quadratic_holdout_safe.json"
   
 cba:
   discount_rate: 0.03
@@ -108,15 +107,15 @@ climate:
   t2m_delta_pct_band_default: central
   t2m_delta_pct_band_options: [low, central, high]
 
-  # using surface temperature deltas (ts)
+  # using mean daily temperature (tas)
   t2m_var: tas
 
   # optional: years for which to build future T2M (if omitted, we’ll fall back to ac.years)
   years: [2020, 2030, 2040, 2050]
 
-  urbclim_api: # for the API of historical UrbClim data 
+  urbclim_api: # for the API of historical UrbClim data 2008-2017
     enabled: true
-    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Rome/" 
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Athens/" 
     local_dir: "UrbClim/UrbClimT2Mmean"
     years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
 
@@ -150,7 +149,7 @@ files:
     - "LCZ/lcz_filter_v3.tif"
     - "LCZ/lcz_v3.tif"
   cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
-  income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
+  income_csv: "income/df_gr_athens_income_raster_2013.csv"
   # daily baselines (UrbClim mean daily temperature)
   t2m_mean_daily_nc:
     dir: "UrbClimT2Mmean"
@@ -160,7 +159,7 @@ files:
   t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
 
 osm:
-  query: "Roma, Italia"
+  query: "Athens, Αθήνα"
   admin_levels: [10, 8, 7]
   boundary_tag: "administrative"
   keep_outside_bucket: true
@@ -173,32 +172,35 @@ urbclim:
   hot_months: [6, 7, 8, 9]
   f_bounds: [0.4, 1.0]
 
-cooling_city_aliases: ["rome", "roma"]
+cooling_city_aliases: ["Athens", "Αθήνα"]
 
 income:
-  city_aliases: ["Roma", "Roma Capitale"]
+  city_aliases: ["Athens", "Αθήνα"]
+  format: "raster"                      # raster-based income (lon/lat grid cells)
   columns:
-    city: "Denominazione Comune"    # filter column
-    zone_id: "CAP"                  # spatial unit code (for code-based matching)
-    zone_name: null                 # no name-based matching for Rome
-    income: "Reddito complessivo - Ammontare in euro"  # total income column
-    count: "Numero contribuenti"    # taxpayer count (weighted aggregation)
-    year: null                      # snapshot (no year column)
-  aggregation: "weighted"           # weighted by taxpayer count
+    city: "municipality"                # filter column
+    zone_id: null                       # no zone IDs — raster points spatial-joined to zones
+    zone_name: null                     # no zone names
+    income: "income_main_eur"           # income measure (per-person)
+    count: null                         # no taxpayer count (each raster cell is pre-aggregated)
+    year: "year"                        # year column
+    lon: "lon"                          # longitude column (raster format only)
+    lat: "lat"                          # latitude column (raster format only)
+  aggregation: "mean"                   # spatial mean within each zone
 
 zones:
-  source: "shapefile"               # Rome uses CAP shapefile
-  shapefile: "CAPZONE/CAPZONE.shp"  # path relative to base_dir
-  shapefile_zone_col: "CAP"         # column in shapefile for zone code
-  osm_admin_level: null
-  match_by: "code"                  
-  cache_file: null
+  source: "osm"                         # Athens uses OSM municipalities (dimoi)
+  shapefile: null
+  shapefile_zone_col: null
+  osm_admin_level: 7                    # admin_level=7 = (municipalities) — 64 in Athens FUA
+  match_by: "spatial_join"              # raster income → spatial join to zone polygons
+  cache_file: "zones_athens.gpkg"
 
 regions:
-  enabled: true                     # Rome has Municipi as a separate region level
+  enabled: false                        # Athens FUA has many small municipalities; zones serve as regions
   source: "osm"
-  osm_admin_level: 7                # admin_level for Municipi
-  cache_file: "municipi_rome.gpkg"
+  osm_admin_level: 7
+  cache_file: null
 
 vulnerability: 
     enabled: true 
@@ -215,21 +217,29 @@ vulnerability:
     census_nodata: -9999
 
 ews:
-  # system archetype / trigger architecture 
-  archetype: mature_hhwws
+  # ARCHETYPE B: Upgrade basic threshold system to comprehensive HHAP
+  # Context: Greece currently has basic temperature-threshold alerts
+  # from EMY/GSCP. No epidemiological model, no systematic HHAP.
+  # Bittner et al. 2014: Greece scored 8/20 (non-functional HHAP)
+  # Lowe et al. 2011: Greece absent from 12 EU countries with HEWS
+  # Urban et al. 2025: Greece absent from MCC efficacy analysis
+  #
+  # Policy modeled: establish comprehensive heat-health action plan
+  # including epidemiological forecasting, tiered alerts, targeted
+  # interventions for vulnerable groups, and healthcare protocols.
+  archetype: weak_threshold
   operational_trigger_mode: epi_deaths_file
   warning_season:
     mode: exact_dates
     start_md: "05-01"
     end_md: "09-30"
 
-  # this doesn't exist yet, we could add it 
   alert_tiers:
     levels: ["advisory", "watch", "warning"]
-    source: "Rome HHWWS operational practice (simplified)"
+    source: "Upgrade path from basic threshold alerts to structured HHAP"
   targeting:
-    primary_groups: ["65+", "chronic conditions", "socially isolated"]
-    channels: ["health services", "municipal outreach", "media alerts"]
+    primary_groups: ["65+", "chronic conditions", "outdoor workers"]
+    channels: ["civil protection alerts", "health services", "municipal support"]
   cost_components:
     model_default: pavanello
     source_note: "See pavanello/chiabai subsections below"
@@ -240,73 +250,94 @@ ews:
   threshold_key: threshold_deaths_per_day
   threshold_unit: heat_deaths_per_day
   target_activation_days: 23
-  target_activation_days_options: [15, 23, 30]
+  target_activation_days_options: [23, 30] # sensitivity for notebook 9 
   threshold_ref_year: 2020
   threshold_recalib_interval: 5   # recalibrate every N years (GHHIN guidance)
   threshold_recalib_interval_options: [3, 5, 7]
   warning_months: [5, 6, 7, 8, 9]
 
   # Interpretation 
-  interpretation: marginal
+  # Counterfactual: Greece has no effective HHAP (Bittner 2014: 8/20).
+  # We model the FULL benefit of establishing a comprehensive system.
+  interpretation: counterfactual
 
-  # Efficacy (flat)
+  # Efficacy (counterfactual, flat) 
+  # Sources: Pavanello 2024 
+  #   Takacs 2025 (20% medium / 40% high for new systems),
+  #   Ahmedabad HAP (23% reduction, Knowlton 2014 via Takacs),
+  #   de'Donato 2018 (20-35% Italy overall)
+  # Conservative for Greece: new system, limited institutional capacity,
+  #   no prior epidemiological infrastructure
   efficacy_counterfactual:
-    low: 0.2
-    central: 0.35
-    high: 0.5
+    low: 0.10
+    central: 0.20
+    high: 0.35
 
-  # Age-differentiated marginal efficacy 
-  # Sources: de'Donato Italy 20-35%, Fouillet 2008 France 60% counterfactual,
-  #   Pavanello 22% HHWS-specific, "Long Live the Elderly" 13% targeted (75+),
-  #   Urban et al. 2025: 25.2% Europe-wide, Southern Europe -11.6%
-  # These are MARGINAL (on top of existing HHWS + AC), applied only to warning days
+  # Marginal efficacy (age-differentiated, for sensitivity) 
+  # Not the primary interpretation for Athens (no baseline system to enhance).
+  # Provided for sensitivity if one assumes some baseline effect of EMY alerts.
   efficacy_marginal:
     "<15":   {low: 0.02, central: 0.05, high: 0.08}
     "15-64": {low: 0.03, central: 0.07, high: 0.12}
-    "65+":   {low: 0.08, central: 0.15, high: 0.25}
+    "65+":   {low: 0.05, central: 0.10, high: 0.18}
 
   # Ramp-up 
-  # Italy (Pavanello Figure 4c): effects not significant years 0-3
-  ramp_years: 3
-  ramp_initial_efficacy: 0.10
+  # Longer ramp than Rome (5 years vs 3): building from near-scratch,
+  # institutional capacity needs development. Pavanello 2024 Figure 4c:
+  # Italy's effects not significant in initial years even with existing
+  # infrastructure. Athens starts from weaker base => 5-year ramp.
+  ramp_years: 5
+  ramp_initial_efficacy: 0.05
 
   # Costs 
   # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
-  cost_model: pavanello   # or "chiabai"
+  cost_model: pavanello
 
-  # Pavanello & Valenti 2024 / Ebi 2004: ~$0.014/capita/activation day
+  # Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS):
+  # $0.014/capita/activation day operating costs
   pavanello:
     usd_per_capita_per_day: 0.014
-    eur_usd_rate: 0.92          # approximate EUR/USD
-    cost_source: "Pavanello & Valenti 2024 via Ebi 2004"
+    eur_usd_rate: 0.92
+    cost_source: "Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS)"
 
-  # Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)
+  # Chiabai et al. 2018 (Madrid) Table 4 — for sensitivity analysis
+  # Athens needs FULL system → use basic + enhanced (not incremental)
   chiabai:
     opex_per_warning_day_basic: 7800
     opex_per_warning_day_enhanced: 14000
     opex_per_warning_day_incremental: 6200
-    cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)"
+    cost_source: "Chiabai et al. 2018 (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
 
-  capex_setup: 0
+  # Setup costs (one-time, year 0)
+  # Ebi et al. 2004 via Takacs et al. 2025: around $150k USD (2020) for
+  # system setup in a comparable city (Philadelphia). Includes
+  # epidemiological model development, IT infrastructure, training.
+  # Note: Takacs applies PPP adjustment for India; we use the
+  # original US-based figure as closer to Greek cost levels.
+  capex_setup: 150000
   opex_annual_fixed: 0
   cost_scale_with_population: true
   cost_ramp_with_efficacy: true
 
   # AC-EWS interaction 
-  # As AC penetration rises, residual deaths are among harder-to-reach populations.
-  # EWS marginal efficacy declines. Sera 2020: AC explains only 14-20% of decline.
-  ac_overlap_factor: {low: 0.3, central: 0.5, high: 0.7}
+  # Greece has low AC penetration 
+  # Lower overlap than Italy (30%): fewer deaths already prevented by AC,
+  # so more deaths addressable by EWS.
+  # Sera 2020: AC explains 14-20% of adaptation in Southern Europe.
+  ac_overlap_factor: {low: 0.15, central: 0.30, high: 0.50}
 
   # Mortality displacement (harvesting) 
-  # Fraction of avoided deaths that would have occurred within days-weeks anyway
+  # Physiological phenomenon, not policy-dependent.
+  # Sources: Qiao 2015, Le Tertre 2012 France
   displacement:
     "<15":   {low: 0.05, central: 0.10, high: 0.20}
     "15-64": {low: 0.05, central: 0.10, high: 0.20}
     "65+":   {low: 0.10, central: 0.25, high: 0.40}
 
   # Life-years for cost-effectiveness 
-  # Residual life expectancy by age group (Italy life tables, approximate)
+  # Greece life tables (approximate residual life expectancy by age group)
+  # Greece life expectancy at birth 81 years (Eurostat 2020) => maybe need more calibration 
   residual_life_years:
     "<15": 60
     "15-64": 25
-    "65+": 12
+    "65+": 11

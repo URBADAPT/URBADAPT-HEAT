@@ -1,7 +1,7 @@
-slug: rome # city name 
-city_name: Rome 
-base_dir: data/Rome                
-drive_manifest: data_manifests/rome_gdrive.json # all the data from the drive 
+slug: lisbon # city name 
+city_name: Lisbon 
+base_dir: data/Lisbon                
+drive_manifest: data_manifests/lisbon_gdrive.json # all the data from the drive 
 
 # demo / exposure scenario from Wittgenstein population runs scenarios 
 # available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
@@ -22,16 +22,17 @@ ac:
   # AC electricity consumption at NUTS level
   kwh_file: ACgridded/ac_kwh_NUTSregions.csv
   kwh_format: nuts_csv
+  kwh_nuts_ids: ["PT17", "PT170"]
   kwh_columns:
     id: NUTS_ID
     scenario: Scenario
     year: year
     value: value
 
-  # AC penetration 
-  penetration_file: ACgridded/ac_penetration_NUTSregions.csv # or ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
-  penetration_format: nuts_csv # to delete if it's the nc
-  nuts_id: ITI43
+  # AC penetration
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv
+  penetration_format: nuts_csv
+  penetration_nuts_ids: ["PT17", "PT170"]
   nuts_columns:
     id: NUTS_ID
     scenario: Scenario
@@ -77,12 +78,10 @@ trees:
   focus_year: 2050
 
   # vegetation policy regions (NB07)
-  # Which geographic layer to use for tree allocation
-  # "regions" = use NB05 regions layer (if regions.enabled)
-  # "zones"   = use NB05 zones layer (fallback when regions disabled)
-  veg_regions: regions          # Rome: 15 Municipi (NB05 regions, admin_level=7)
-  veg_region_label: Municipio   # label for plots/tables
-  veg_emulator_bundle: "emulator/bundles/emulator_bundle_rome_quadratic_holdout_safe.json"
+  # Lisbon: use zones (Freguesias, admin_level=8)
+  veg_regions: zones
+  veg_region_label: Freguesia
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled7_quadratic_holdout_safe.json"
   
 cba:
   discount_rate: 0.03
@@ -108,7 +107,7 @@ climate:
   t2m_delta_pct_band_default: central
   t2m_delta_pct_band_options: [low, central, high]
 
-  # using surface temperature deltas (ts)
+  # using  mean daily temperature (tas)
   t2m_var: tas
 
   # optional: years for which to build future T2M (if omitted, we’ll fall back to ac.years)
@@ -116,7 +115,7 @@ climate:
 
   urbclim_api: # for the API of historical UrbClim data 
     enabled: true
-    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Rome/" 
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Lisbon/" 
     local_dir: "UrbClim/UrbClimT2Mmean"
     years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
 
@@ -150,7 +149,7 @@ files:
     - "LCZ/lcz_filter_v3.tif"
     - "LCZ/lcz_v3.tif"
   cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
-  income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
+  income_csv: "income/df_pt_lisbon_freguesia_income_2023.csv"
   # daily baselines (UrbClim mean daily temperature)
   t2m_mean_daily_nc:
     dir: "UrbClimT2Mmean"
@@ -160,7 +159,7 @@ files:
   t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
 
 osm:
-  query: "Roma, Italia"
+  query: "Lisbon, Portugal"
   admin_levels: [10, 8, 7]
   boundary_tag: "administrative"
   keep_outside_bucket: true
@@ -173,32 +172,32 @@ urbclim:
   hot_months: [6, 7, 8, 9]
   f_bounds: [0.4, 1.0]
 
-cooling_city_aliases: ["rome", "roma"]
+cooling_city_aliases: ["lisbon", "lisboa"]
 
 income:
-  city_aliases: ["Roma", "Roma Capitale"]
+  city_aliases: ["Lisbon", "Lisboa"]
   columns:
-    city: "Denominazione Comune"    # filter column
-    zone_id: "CAP"                  # spatial unit code (for code-based matching)
-    zone_name: null                 # no name-based matching for Rome
-    income: "Reddito complessivo - Ammontare in euro"  # total income column
-    count: "Numero contribuenti"    # taxpayer count (weighted aggregation)
-    year: null                      # snapshot (no year column)
-  aggregation: "weighted"           # weighted by taxpayer count
+    city: "municipality"          # filter column
+    zone_id: "freguesia_code"     # spatial unit code (for code-based matching)
+    zone_name: "freguesia"        # spatial unit name (for name-based OSM matching)
+    income: "income_main_eur"     # income measure (already per-capita)
+    count: null                   # taxpayer count (null = pre-aggregated)
+    year: "year"                  # year column (null = single snapshot)
+  aggregation: "mean"             # "weighted" (by count) or "mean"
 
 zones:
-  source: "shapefile"               # Rome uses CAP shapefile
-  shapefile: "CAPZONE/CAPZONE.shp"  # path relative to base_dir
-  shapefile_zone_col: "CAP"         # column in shapefile for zone code
-  osm_admin_level: null
-  match_by: "code"                  
-  cache_file: null
+  source: "osm"                   # "osm" or "shapefile"
+  shapefile: null                 # path if source=shapefile
+  shapefile_zone_col: null        # column in shapefile for zone code
+  osm_admin_level: 8              # admin level for boundaries
+  match_by: "name"                # "name" (normalised) or "code" (exact/padded)
+  cache_file: "freguesia_lisbon.gpkg"
 
 regions:
-  enabled: true                     # Rome has Municipi as a separate region level
+  enabled: false                  # Lisbon uses zones as policy regions (Freguesias)
   source: "osm"
-  osm_admin_level: 7                # admin_level for Municipi
-  cache_file: "municipi_rome.gpkg"
+  osm_admin_level: 7
+  cache_file: null
 
 vulnerability: 
     enabled: true 
@@ -215,21 +214,35 @@ vulnerability:
     census_nodata: -9999
 
 ews:
-  # system archetype / trigger architecture 
-  archetype: mature_hhwws
+  # ARCHETYPE C: Marginal enhancement of mature ICARO system
+  # Context: Portugal's ICARO system operational since 1999 (INSA/IPMA).
+  # Formal contingency plan (DGS) since 2004, updated yearly.
+  # Bittner et al. 2014: Portugal scored 17.5/20 (highest in study)
+  # Lowe et al. 2011: Table 1 confirms ICARO (Tmax/Tmin/ICARUS index)
+  # Urban et al. 2025: Portugal HAF = -10%
+  # Bulhosa 2019 (ULisbon MSc): ICARO uses GATO index with dynamic
+  #   threshold (29-35C), calibrated on 1981/1991 Lisbon heatwaves.
+  #   DLNM proposed as update with better specificity.
+  # Goncalves 2009: Three alert levels (green/yellow/red),
+  #   season May 15-Sep 30, activities include home visits to elderly,
+  #   phone contacts, radio alerts, institutional coordination.
+  #
+  # Policy modeled: marginal enhancement of existing ICARO system
+  # (improved DLNM forecasting per Bulhosa 2019, better targeting
+  # of vulnerable groups, expanded digital communication channels)
+  archetype: mature_hybrid_icaro
   operational_trigger_mode: epi_deaths_file
   warning_season:
     mode: exact_dates
-    start_md: "05-01"
+    start_md: "05-15"
     end_md: "09-30"
-
-  # this doesn't exist yet, we could add it 
+# these are things that we could add, right now don't exist 
   alert_tiers:
-    levels: ["advisory", "watch", "warning"]
-    source: "Rome HHWWS operational practice (simplified)"
+    levels: ["green", "yellow", "red"]
+    source: "ICARO / DGS operational structure"
   targeting:
     primary_groups: ["65+", "chronic conditions", "socially isolated"]
-    channels: ["health services", "municipal outreach", "media alerts"]
+    channels: ["health services", "civil protection", "media and SMS alerts"]
   cost_components:
     model_default: pavanello
     source_note: "See pavanello/chiabai subsections below"
@@ -240,72 +253,87 @@ ews:
   threshold_key: threshold_deaths_per_day
   threshold_unit: heat_deaths_per_day
   target_activation_days: 23
-  target_activation_days_options: [15, 23, 30]
+  target_activation_days_options: [15, 23]
   threshold_ref_year: 2020
   threshold_recalib_interval: 5   # recalibrate every N years (GHHIN guidance)
   threshold_recalib_interval_options: [3, 5, 7]
   warning_months: [5, 6, 7, 8, 9]
 
   # Interpretation 
+  # Marginal: ICARO is already operational and mature (Bittner 17.5/20).
+  # We model only the INCREMENTAL benefit of enhancing the existing system.
   interpretation: marginal
 
-  # Efficacy (flat)
+  # Efficacy (counterfactual — for sensitivity, not primary) 
+  # If Lisbon had NO system and we built one from scratch.
+  # Urban 2025: Portugal HAF -10% (total, not HHWWS-specific)
+  # Pavanello 2024: 22% HHWWS-specific (Italy, similar mature system)
   efficacy_counterfactual:
-    low: 0.2
-    central: 0.35
-    high: 0.5
+    low: 0.10
+    central: 0.20
+    high: 0.35
 
-  # Age-differentiated marginal efficacy 
-  # Sources: de'Donato Italy 20-35%, Fouillet 2008 France 60% counterfactual,
-  #   Pavanello 22% HHWS-specific, "Long Live the Elderly" 13% targeted (75+),
-  #   Urban et al. 2025: 25.2% Europe-wide, Southern Europe -11.6%
-  # These are MARGINAL (on top of existing HHWS + AC), applied only to warning days
+  # Marginal efficacy (primary for Lisbon, age-differentiated) 
+  # Sources: Urban 2025 Portugal -10% total (lower than Italy -11.6%),
+  #   system already highly mature (17.5/20) → diminishing returns.
+  # Enhancement modeled: improved DLNM forecasting (Bulhosa 2019),
+  #   expanded vulnerable-group targeting, digital communication.
+  # Slightly lower than Rome's marginal efficacy: higher maturity
+  #   (17.5/20 vs 15/20) paradoxically means LESS room for improvement.
   efficacy_marginal:
-    "<15":   {low: 0.02, central: 0.05, high: 0.08}
-    "15-64": {low: 0.03, central: 0.07, high: 0.12}
-    "65+":   {low: 0.08, central: 0.15, high: 0.25}
+    "<15":   {low: 0.01, central: 0.03, high: 0.06}
+    "15-64": {low: 0.02, central: 0.05, high: 0.10}
+    "65+":   {low: 0.05, central: 0.10, high: 0.18}
 
   # Ramp-up 
-  # Italy (Pavanello Figure 4c): effects not significant years 0-3
-  ramp_years: 3
-  ramp_initial_efficacy: 0.10
+  # Short ramp: ICARO infrastructure already exists since 1999.
+  # Enhancement leverages existing alert channels, institutional
+  # relationships, and trained health personnel (Goncalves 2009).
+  ramp_years: 2
+  ramp_initial_efficacy: 0.15
 
   # Costs 
   # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
-  cost_model: pavanello   # or "chiabai"
+  cost_model: pavanello
 
-  # Pavanello & Valenti 2024 / Ebi 2004: ~$0.014/capita/activation day
+  # Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS):
+  # $0.014/capita/activation day operating costs
   pavanello:
     usd_per_capita_per_day: 0.014
-    eur_usd_rate: 0.92          # approximate EUR/USD
-    cost_source: "Pavanello & Valenti 2024 via Ebi 2004"
+    eur_usd_rate: 0.92
+    cost_source: "Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS)"
 
-  # Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)
+  # Chiabai et al. 2018 (Madrid) Table 4 — for sensitivity analysis
+  # Lisbon is enhancing existing system → incremental costs apply
   chiabai:
     opex_per_warning_day_basic: 7800
     opex_per_warning_day_enhanced: 14000
     opex_per_warning_day_incremental: 6200
-    cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)"
+    cost_source: "Chiabai et al. 2018 (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
 
+  # No setup costs: ICARO already operational since 1999
   capex_setup: 0
   opex_annual_fixed: 0
   cost_scale_with_population: true
   cost_ramp_with_efficacy: true
 
   # AC-EWS interaction 
-  # As AC penetration rises, residual deaths are among harder-to-reach populations.
-  # EWS marginal efficacy declines. Sera 2020: AC explains only 14-20% of decline.
-  ac_overlap_factor: {low: 0.3, central: 0.5, high: 0.7}
+  # Portugal has very low AC penetration (around 5-10% residential, Eurostat).
+  # Minimal overlap: almost no deaths already prevented by AC,
+  # so EWS addresses a wider pool of at-risk population.
+  # Sera 2020: AC explains only 14-20% of adaptation in Southern Europe.
+  ac_overlap_factor: {low: 0.10, central: 0.20, high: 0.40}
 
   # Mortality displacement (harvesting) 
-  # Fraction of avoided deaths that would have occurred within days-weeks anyway
+  # Physiological phenomenon, not policy-dependent.
   displacement:
     "<15":   {low: 0.05, central: 0.10, high: 0.20}
     "15-64": {low: 0.05, central: 0.10, high: 0.20}
     "65+":   {low: 0.10, central: 0.25, high: 0.40}
 
   # Life-years for cost-effectiveness 
-  # Residual life expectancy by age group (Italy life tables, approximate)
+  # Portugal life tables (approximate residual life expectancy by age group)
+  # Portugal life expectancy at birth around 81.6 years (Eurostat 2020) => could need more calibration
   residual_life_years:
     "<15": 60
     "15-64": 25
