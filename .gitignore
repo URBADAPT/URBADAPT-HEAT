@@ -212,3 +212,4 @@ outputs/
 *.nc
 **/.ipynb_checkpoints/
 .DS_Store
+*.ini
