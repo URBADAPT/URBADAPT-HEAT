@@ -1,6 +1,6 @@
 slug: athens # city name 
 city_name: Athens 
-base_dir: data/Athens                
+base_dir: data/athens                
 drive_manifest: data_manifests/athens_gdrive.json # all the data from the drive 
 
 # demo / exposure scenario from Wittgenstein population runs scenarios 
@@ -78,9 +78,9 @@ trees:
   focus_year: 2050
 
   # vegetation policy regions (NB07)
-  # Athens: use zones (61 Dimoi, admin_level=7) since regions disabled
-  veg_regions: zones
-  veg_region_label: Dimos
+  # Athens: use NB05 regions (7 municipal communities), like Rome uses Municipi
+  veg_regions: regions
+  veg_region_label: Community
   veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled7_quadratic_holdout_safe.json"
   
 cba:
@@ -189,18 +189,22 @@ income:
   aggregation: "mean"                   # spatial mean within each zone
 
 zones:
-  source: "osm"                         # Athens uses OSM municipalities (dimoi)
-  shapefile: null
-  shapefile_zone_col: null
-  osm_admin_level: 7                    # admin_level=7 = (municipalities) — 64 in Athens FUA
+  source: "shapefile"                   # Athens uses official City of Athens districts
+  shapefile: "boundaries/synoikia0/synoikia0.shp"
+  shapefile_zone_col: "name"            # district name (53 zones)
+  osm_admin_level: null
   match_by: "spatial_join"              # raster income → spatial join to zone polygons
-  cache_file: "zones_athens.gpkg"
+  cache_file: "districts_athens.gpkg"
 
 regions:
-  enabled: false                        # Athens FUA has many small municipalities; zones serve as regions
-  source: "osm"
-  osm_admin_level: 7
-  cache_file: null
+  enabled: true                         # Athens uses separate reporting regions, like Rome
+  source: "shapefile"
+  shapefile: "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.shp"
+  shapefile_id_col: "no"               # official 1..7 community IDs
+  shapefile_name_col: "name"           # community label
+  osm_admin_level: null
+  cache_file: "communities_athens.gpkg"
+  raster_cache_file: "communities_on_ref_athens.npz"
 
 vulnerability: 
     enabled: true 
