@@ -1,11 +1,11 @@
 {
   "base_subdir": "",
   "entries": [
-    { "type": "file", "id": "1K00UUliEqMaBXhYQ6eAtyHrtDLlk4agz", "dest": "fua/rome_fua_ghs_4326.dbf" },
-    { "type": "file", "id": "1-C-sn6NyK-hUhejpwcM3TcBQ_IXnoUp9", "dest": "fua/rome_fua_ghs_4326.geojson" },
-    { "type": "file", "id": "1qWOyQ5m1IeLiSOzJQpGxd2FBkAvVzQzY", "dest": "fua/rome_fua_ghs_4326.prj" },
-    { "type": "file", "id": "1lz0QEWxRmRPPAp4nmiCdyKlfPVVtveEB", "dest": "fua/rome_fua_ghs_4326.shp" },
-    { "type": "file", "id": "1vqAjBd0w-YUPkhxm7Km4gdEfLMUI8Vx8", "dest": "fua/rome_fua_ghs_4326.shx" },
+    { "type": "file", "id": "1R9HyfMK0I6kpu_PGWf_mnmZbzxDhCFZG", "dest": "fua/athens_fua_ghs_4326.dbf" },
+    { "type": "file", "id": "1zhTj0ew7iFxmkIXnxK8zJf3wKUZRjHYZ", "dest": "fua/athens_fua_ghs_4326.geojson" },
+    { "type": "file", "id": "1qMGywnPYXUAJI8e3936_R1kq6UiZSCa8", "dest": "fua/athens_fua_ghs_4326.prj" },
+    { "type": "file", "id": "1lnMLjZIkdz8zw7tvy1LUEdKyHeqPz5IL", "dest": "fua/athens_fua_ghs_4326.shp" },
+    { "type": "file", "id": "1LNjfrdZGMcfUmeOwPrF4-vL-GD7NVPp1", "dest": "fua/athens_fua_ghs_4326.shx" },
 
     { "type": "file", "id": "1ir5ETWTbNjwEhsk9eWHjJgevOJs7YZ_T", "dest": "gvi/gvi_356_cities.csv" },
     { "type": "file", "id": "1Y9tKdrqaCMAC8hMW1rcxkv_o-whw4u3P", "dest": "LCZ/00_global_map_of_LCZs.png" },
@@ -24,6 +24,12 @@
 
     { "type": "file", "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
-    { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcomunale_CSV_2023.csv" }
+    { "type": "file", "id": "1AXPeV6Z-lsa6xN8-bzfHGvV8qS5fpn1j", "dest": "income/df_gr_athens_income_raster_2013.csv" }, 
+      
+    { "type": "folder", "id": "1yBArUzoHl9jQrOoj3ax7WYhc3S6ZQp6F", "dest": "boundaries/synoikia0" },
+    { "type": "folder", "id": "1IZvn6XCocpdGYkAHDV12p-t2nPpD2b6j", "dest": "boundaries/geitonies0" },
+    { "type": "folder", "id": "1UXi3j0nLNd_CMO6gZEi1Vg6WTFxS0dlv", "dest":
+"boundaries/dimotikes_koinotites1" }
+
   ]
 }

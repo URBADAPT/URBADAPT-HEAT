@@ -1,11 +1,11 @@
 {
   "base_subdir": "",
   "entries": [
-    { "type": "file", "id": "1K00UUliEqMaBXhYQ6eAtyHrtDLlk4agz", "dest": "fua/rome_fua_ghs_4326.dbf" },
-    { "type": "file", "id": "1-C-sn6NyK-hUhejpwcM3TcBQ_IXnoUp9", "dest": "fua/rome_fua_ghs_4326.geojson" },
-    { "type": "file", "id": "1qWOyQ5m1IeLiSOzJQpGxd2FBkAvVzQzY", "dest": "fua/rome_fua_ghs_4326.prj" },
-    { "type": "file", "id": "1lz0QEWxRmRPPAp4nmiCdyKlfPVVtveEB", "dest": "fua/rome_fua_ghs_4326.shp" },
-    { "type": "file", "id": "1vqAjBd0w-YUPkhxm7Km4gdEfLMUI8Vx8", "dest": "fua/rome_fua_ghs_4326.shx" },
+    { "type": "file", "id": "1ELyZvb_1PA6mkeLspjuZMhTh2KX0isl6", "dest": "fua/lisbon_fua_ghs_4326.dbf" },
+    { "type": "file", "id": "1Az0wCU_vKOyQs9OLq12C7wr_oeTCedkz", "dest": "fua/lisbon_fua_ghs_4326.geojson" },
+    { "type": "file", "id": "1N2hjGmP3_vA57MHQtLAgucg0b490D9nY", "dest": "fua/lisbon_fua_ghs_4326.prj" },
+    { "type": "file", "id": "1wCivRSwtvvcYsPqzpVc4qPB0uiUcaMM4", "dest": "fua/lisbon_fua_ghs_4326.shp" },
+    { "type": "file", "id": "1cQ-6xBwTkcg9cya7sxv6lhMhC8RrMu1E", "dest": "fua/lisbon_fua_ghs_4326.shx" },
 
     { "type": "file", "id": "1ir5ETWTbNjwEhsk9eWHjJgevOJs7YZ_T", "dest": "gvi/gvi_356_cities.csv" },
     { "type": "file", "id": "1Y9tKdrqaCMAC8hMW1rcxkv_o-whw4u3P", "dest": "LCZ/00_global_map_of_LCZs.png" },
@@ -24,6 +24,6 @@
 
     { "type": "file", "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
-    { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcomunale_CSV_2023.csv" }
+    { "type": "file", "id": "1XZ45Uos6NHipMPM-Zg3R41Awm9j_urRR", "dest": "income/df_pt_lisbon_freguesia_income_2023.csv" }
   ]
 }
