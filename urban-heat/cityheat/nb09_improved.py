@@ -1,3 +1,5 @@
+# this is the main uncertainty quantification script
+
 from __future__ import annotations
 
 import argparse
@@ -16,6 +18,19 @@ import rasterio as rio
 import xarray as xr
 import yaml
 from SALib.analyze import pawn
+from cityheat.nbsetup import find_repo_root
+from cityheat.vulnerability_layer import (
+    get_vuln_config,
+    load_vulnerability,
+    compute_svi,
+    _load_drmkc_component_series,
+    _load_gvi_series,
+    _phi_for_year,
+    _project_component_mean,
+    _project_absolute_component_grid,
+    _project_thermal_component,
+    _load_population_array,
+)
 from climada.engine import ImpactCalc
 from climada.entity import Exposures, ImpactFunc, ImpactFuncSet
 from climada.hazard import Centroids, Hazard
@@ -36,12 +51,7 @@ SEED_DEFAULT = 42
 
 
 def _resolve_root() -> Path:
-    root = Path.cwd().resolve()
-    while root != root.parent and not (root / "cityheat").exists():
-        root = root.parent
-    if not (root / "cityheat").exists():
-        root = Path("/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT/urban-heat")
-    return root
+    return find_repo_root(Path(__file__).resolve())
 
 
 def _ensure_runtime_dirs(root: Path) -> None:
@@ -203,6 +213,7 @@ class NB09Improved:
         self._load_ac_inputs()
         self._load_ews_inputs()
         self._load_tree_inputs()
+        self._load_vulnerability_baseline()
         self._build_param_specs()
 
     def P(self, rel: str) -> Path:
@@ -669,6 +680,233 @@ class NB09Improved:
         )
         self.tree_cost_params = _load_json(self.tree_cost_params_path)
 
+    def _load_vulnerability_baseline(self) -> None:
+        """Load baseline vulnerability components and DRMKC/GVI series for on-the-fly SVI recomputation."""
+        self.vuln_cfg = get_vuln_config(self.cfg)
+        dyn_cfg = self.vuln_cfg.get("dynamic", {})
+
+        # Load baseline vulnerability arrays (thermal, foreign_abs, unemp_abs)
+        base_vuln = load_vulnerability(self.int_dir, slug=self.slug)
+        self.vuln_thermal0 = base_vuln["thermal"].astype(np.float32)
+        self.vuln_foreign0_abs = base_vuln.get("foreign_abs", base_vuln["foreign"]).astype(np.float32)
+        self.vuln_unemp0_abs = base_vuln.get("unemp_abs", base_vuln["unemp"]).astype(np.float32)
+
+        # Baseline means (city-mask-weighted)
+        cm = self.city_mask
+        self.vuln_foreign_mean0 = float(np.nanmean(self.vuln_foreign0_abs[cm & np.isfinite(self.vuln_foreign0_abs)]))
+        self.vuln_unemp_mean0 = float(np.nanmean(self.vuln_unemp0_abs[cm & np.isfinite(self.vuln_unemp0_abs)]))
+
+        # Preload population grids for all modeled years
+        self.vuln_pop_grids: dict[tuple[str | None, int], np.ndarray] = {}
+        pop_base_year = int(dyn_cfg.get("population_baseline_year", 2020))
+        self.vuln_pop_base = _load_population_array(self.int_dir, pop_base_year, scenario=None)
+        self.vuln_pop_grids[(None, pop_base_year)] = self.vuln_pop_base
+        anchor_year = int(dyn_cfg.get("drmkc", {}).get("anchor_year", 2030))
+
+        # Load direct worldpop years
+        for year_str in self.expo_manifest.get("direct_worldpop", {}).keys():
+            year = int(year_str)
+            if (None, year) not in self.vuln_pop_grids:
+                try:
+                    self.vuln_pop_grids[(None, year)] = _load_population_array(self.int_dir, year, scenario=None)
+                except FileNotFoundError:
+                    pass
+
+        # Load scenario years
+        for scen, year_map in self.expo_manifest.get("scenarios", {}).items():
+            for year_str in year_map.keys():
+                year = int(year_str)
+                key = (str(scen), year)
+                if key not in self.vuln_pop_grids:
+                    try:
+                        self.vuln_pop_grids[key] = _load_population_array(self.int_dir, year, scenario=scen)
+                    except FileNotFoundError:
+                        pass
+
+        # Load DRMKC component series
+        base_path = self.base
+        self.vuln_drmkc_foreign = _load_drmkc_component_series(self.vuln_cfg, "foreign_born", base_path=base_path)
+        self.vuln_drmkc_unemp = _load_drmkc_component_series(self.vuln_cfg, "unemployment", base_path=base_path)
+
+        # Load GVI series (one per exposure SSP)
+        self.vuln_gvi_cache: dict[str, dict] = {}
+        for ssp in self.exp_ssp_options:
+            self.vuln_gvi_cache[str(ssp)] = _load_gvi_series(self.vuln_cfg, str(ssp), self.cfg, base_path=base_path)
+
+        # Vulnerability config defaults for parameter ranges
+        self.vuln_k_default = float(dyn_cfg.get("k", {}).get("default", 0.80))
+        self.vuln_phi_2050_default = float(dyn_cfg.get("phi", {}).get("default_2050", 0.80))
+        fb_proj = dyn_cfg.get("foreign_born_projection", {})
+        ue_proj = dyn_cfg.get("unemployment_projection", {})
+        self.vuln_drmkc_fb_default = float(fb_proj.get("drmkc_scale", 0.04))
+        self.vuln_drmkc_ue_default = float(ue_proj.get("drmkc_scale", 0.08))
+        self.vuln_gvi_fb_default = float(fb_proj.get("gvi_scale", 0.35))
+        self.vuln_gvi_ue_default = float(ue_proj.get("gvi_scale", 0.50))
+        therm_proj = dyn_cfg.get("thermal_projection", {})
+        self.vuln_retrofit_default = float(therm_proj.get("retrofit_rate_per_year", 0.01))
+
+    def recompute_projected_svi(
+        self,
+        year: int,
+        scenario: str | None,
+        sample: dict[str, Any],
+    ) -> dict[str, np.ndarray]:
+        """Recompute projected SVI for a given year using sampled vulnerability parameters.
+
+        Returns a dict with keys: svi, thermal, foreign, unemp.
+        """
+        from copy import deepcopy
+
+        # Build a modified vuln_cfg with the sampled parameters
+        vuln_cfg = deepcopy(self.vuln_cfg)
+        dyn_cfg = vuln_cfg["dynamic"]
+
+        k_val = float(sample["VULN_K"])
+        phi_2050 = float(sample["VULN_PHI_2050"])
+        drmkc_fb = float(sample["VULN_DRMKC_SCALE_FB"])
+        drmkc_ue = float(sample["VULN_DRMKC_SCALE_UE"])
+        gvi_fb = float(sample["VULN_GVI_SCALE_FB"])
+        gvi_ue = float(sample["VULN_GVI_SCALE_UE"])
+        retrofit_rate = float(sample["VULN_RETROFIT_RATE"])
+
+        dyn_cfg["k"] = {"default": k_val, "foreign_born": k_val, "unemployment": k_val}
+        # Keep phi_2030 at config default; only vary phi_2050
+        phi_2030_default = float(self.vuln_cfg.get("dynamic", {}).get("phi", {}).get("default_2030", 0.95))
+        dyn_cfg["phi"] = {
+            "default_2030": phi_2030_default,
+            "default_2050": phi_2050,
+            "foreign_born_2030": phi_2030_default,
+            "foreign_born_2050": phi_2050,
+            "unemployment_2030": phi_2030_default,
+            "unemployment_2050": phi_2050,
+        }
+        dyn_cfg["foreign_born_projection"]["drmkc_scale"] = drmkc_fb
+        dyn_cfg["foreign_born_projection"]["gvi_scale"] = gvi_fb
+        dyn_cfg["unemployment_projection"]["drmkc_scale"] = drmkc_ue
+        dyn_cfg["unemployment_projection"]["gvi_scale"] = gvi_ue
+        dyn_cfg["thermal_projection"]["retrofit_rate_per_year"] = retrofit_rate
+
+        anchor_year = int(dyn_cfg.get("drmkc", {}).get("anchor_year", 2030))
+
+        # Resolve population grid for this year/scenario
+        if year <= anchor_year or scenario is None:
+            pop_key = (None, year)
+        else:
+            pop_key = (str(scenario), year)
+        if pop_key not in self.vuln_pop_grids:
+            # Fallback: try direct year without scenario
+            pop_key = (None, year)
+        if pop_key not in self.vuln_pop_grids:
+            # Last resort: nearest available grid by year
+            pop_key = min(self.vuln_pop_grids.keys(), key=lambda k: abs(k[1] - year))
+            import warnings
+            warnings.warn(
+                f"Vulnerability pop grid missing for year={year}, scenario={scenario}; "
+                f"falling back to {pop_key}.",
+                stacklevel=2,
+            )
+        pop_target = self.vuln_pop_grids[pop_key]
+
+        # Resolve GVI series for long-run projection
+        gvi_series = {}
+        if scenario is not None and year > anchor_year:
+            gvi_series = self.vuln_gvi_cache.get(str(scenario), {})
+
+        # Recompute thermal component
+        thermal = _project_thermal_component(
+            self.vuln_thermal0, self.vuln_pop_base, pop_target,
+            self.city_mask, year, scenario, vuln_cfg,
+        )
+
+        # Recompute foreign_born component
+        phi_fb = _phi_for_year(dyn_cfg, "foreign_born", year)
+        foreign_mean_new = _project_component_mean(
+            self.vuln_foreign_mean0, year, "foreign_born", scenario,
+            vuln_cfg, self.cfg, self.vuln_drmkc_foreign, gvi_series,
+        )
+        foreign = _project_absolute_component_grid(
+            self.vuln_foreign0_abs, self.vuln_foreign_mean0, foreign_mean_new,
+            phi_fb, self.city_mask,
+        )
+
+        # Recompute unemployment component
+        phi_ue = _phi_for_year(dyn_cfg, "unemployment", year)
+        unemp_mean_new = _project_component_mean(
+            self.vuln_unemp_mean0, year, "unemployment", scenario,
+            vuln_cfg, self.cfg, self.vuln_drmkc_unemp, gvi_series,
+        )
+        unemp = _project_absolute_component_grid(
+            self.vuln_unemp0_abs, self.vuln_unemp_mean0, unemp_mean_new,
+            phi_ue, self.city_mask,
+        )
+
+        # Compute composite SVI with config weights (not sampled)
+        svi = compute_svi(thermal, foreign, unemp, self.city_mask, self.vuln_cfg["weights"])
+
+        return {"svi": svi, "thermal": thermal, "foreign": foreign, "unemp": unemp}
+
+    def compute_vulnerability_metrics(
+        self,
+        year: int,
+        scenario: str | None,
+        sample: dict[str, Any],
+        pop_grid: np.ndarray | None = None,
+    ) -> dict[str, float]:
+        """Compute summary vulnerability metrics for a single year/scenario/sample draw."""
+        vuln = self.recompute_projected_svi(year, scenario, sample)
+        cm = self.city_mask
+        svi = vuln["svi"]
+        valid = cm & np.isfinite(svi)
+        svi_vals = svi[valid]
+
+        if svi_vals.size == 0:
+            return {
+                **{k: np.nan for k in [
+                    "svi_mean", "svi_p10", "svi_p90", "svi_p90_p10_gap",
+                    "pop_weighted_svi", "thermal_mean", "foreign_born_mean", "unemp_mean",
+                ]},
+                "pop_weighted_svi_is_weighted": False,
+            }
+
+        svi_p10 = float(np.nanpercentile(svi_vals, 10))
+        svi_p90 = float(np.nanpercentile(svi_vals, 90))
+
+        # Population-weighted SVI
+        pop_weighted = False
+        if pop_grid is not None:
+            pop_v = pop_grid[valid].astype(float)
+            pop_sum = float(np.nansum(pop_v))
+            if pop_sum > 0:
+                pw_svi = float(np.nansum(svi_vals * pop_v) / pop_sum)
+                pop_weighted = True
+            else:
+                pw_svi = float(np.nanmean(svi_vals))
+        else:
+            pw_svi = float(np.nanmean(svi_vals))
+        if not pop_weighted:
+            import warnings
+            warnings.warn(
+                f"pop_weighted_svi for year={year} scenario={scenario} is unweighted "
+                f"({'no population grid available' if pop_grid is None else 'population grid sums to zero'}).",
+                stacklevel=2,
+            )
+
+        def _comp_mean(arr: np.ndarray) -> float:
+            m = cm & np.isfinite(arr)
+            return float(np.nanmean(arr[m])) if np.any(m) else np.nan
+
+        return {
+            "svi_mean": float(np.nanmean(svi_vals)),
+            "svi_p10": svi_p10,
+            "svi_p90": svi_p90,
+            "svi_p90_p10_gap": svi_p90 - svi_p10,
+            "pop_weighted_svi": pw_svi,
+            "pop_weighted_svi_is_weighted": pop_weighted,
+            "thermal_mean": _comp_mean(vuln["thermal"]),
+            "foreign_born_mean": _comp_mean(vuln["foreign"]),
+            "unemp_mean": _comp_mean(vuln["unemp"]),
+        }
+
     def _build_param_specs(self) -> None:
         self.param_specs = [
             ParamSpec("YEAR_IDX", "choice", options=list(range(len(self.years)))),
@@ -710,6 +948,14 @@ class NB09Improved:
             ParamSpec("EWS_TARGET_DAYS_IDX", "choice", options=list(range(len(self.ews_target_days_options)))),
             ParamSpec("EWS_RECALIB_YEARS_IDX", "choice", options=list(range(len(self.ews_recalib_options)))),
             ParamSpec("EWS_COST_MODEL_IDX", "choice", options=list(range(len(self.ews_cost_model_options)))),
+            # Vulnerability projection parameters (Level A: uncertainty only, does not affect mortality)
+            ParamSpec("VULN_K", "uniform", low=0.55, high=0.95),
+            ParamSpec("VULN_PHI_2050", "uniform", low=0.50, high=0.90),
+            ParamSpec("VULN_DRMKC_SCALE_FB", "uniform", low=0.02, high=0.08),
+            ParamSpec("VULN_DRMKC_SCALE_UE", "uniform", low=0.04, high=0.16),
+            ParamSpec("VULN_GVI_SCALE_FB", "uniform", low=0.15, high=0.55),
+            ParamSpec("VULN_GVI_SCALE_UE", "uniform", low=0.25, high=0.75),
+            ParamSpec("VULN_RETROFIT_RATE", "uniform", low=0.005, high=0.020),
         ]
         self.problem = {
             "num_vars": len(self.param_specs),
@@ -1239,6 +1485,29 @@ class NB09Improved:
             "ews_cost_per_net_death_25y_pv": pv_cost_total / net_avoided_pv if net_avoided_pv > 0 else np.inf,
             "ews_cost_model": sample["ews_cost_model"],
         }
+
+        # ── Vulnerability output metrics (Level A: does not affect mortality) ──
+        exp_ssp = self.exp_ssp_options[int(sample["EXP_SSP_IDX"])] if self.exp_ssp_options else None
+        anchor_yr = int(self.vuln_cfg.get("dynamic", {}).get("drmkc", {}).get("anchor_year", 2030))
+        vuln_scen = exp_ssp if sample_year > anchor_yr else None
+        pop_key = (vuln_scen, sample_year) if vuln_scen else (None, sample_year)
+        vuln_met = self.compute_vulnerability_metrics(
+            sample_year, vuln_scen, sample,
+            pop_grid=self.vuln_pop_grids.get(pop_key),
+        )
+        for k, v in vuln_met.items():
+            result[f"vuln_{k}"] = v
+
+        # Fixed 2050 horizon vulnerability
+        vuln_2050_scen = exp_ssp  # 2050 > anchor_year → always scenario-dependent
+        pop_key_2050 = (vuln_2050_scen, 2050) if vuln_2050_scen else (None, 2050)
+        vuln_2050 = self.compute_vulnerability_metrics(
+            2050, vuln_2050_scen, sample,
+            pop_grid=self.vuln_pop_grids.get(pop_key_2050),
+        )
+        for k, v in vuln_2050.items():
+            result[f"vuln_2050_{k}"] = v
+
         result["_anchor_years"] = anchor_years
         result["_anchor_results"] = anchor_results
         result["_years_all"] = years_all
@@ -1253,6 +1522,7 @@ class NB09Improved:
         sample_rows: list[dict[str, Any]] = []
         impact_rows: list[dict[str, Any]] = []
         cba_rows: list[dict[str, Any]] = []
+        vuln_rows: list[dict[str, Any]] = []
 
         for idx, raw_row in raw_samples.iterrows():
             out = self.evaluate_sample(raw_row)
@@ -1276,11 +1546,25 @@ class NB09Improved:
                     "ews_life_years_saved_25y_cum": out["ews_life_years_saved_25y_cum"],
                 }
             )
+            vuln_rows.append({
+                "sample_idx": idx,
+                "year": decoded["year"],
+                "exp_ssp": self.exp_ssp_options[int(raw_row["EXP_SSP_IDX"])] if self.exp_ssp_options else None,
+                "VULN_K": float(raw_row["VULN_K"]),
+                "VULN_PHI_2050": float(raw_row["VULN_PHI_2050"]),
+                "VULN_DRMKC_SCALE_FB": float(raw_row["VULN_DRMKC_SCALE_FB"]),
+                "VULN_DRMKC_SCALE_UE": float(raw_row["VULN_DRMKC_SCALE_UE"]),
+                "VULN_GVI_SCALE_FB": float(raw_row["VULN_GVI_SCALE_FB"]),
+                "VULN_GVI_SCALE_UE": float(raw_row["VULN_GVI_SCALE_UE"]),
+                "VULN_RETROFIT_RATE": float(raw_row["VULN_RETROFIT_RATE"]),
+                **{k: v for k, v in out.items() if str(k).startswith("vuln_")},
+            })
             print(f"[{self.slug}] sample {idx + 1}/{n}: year={sample_row['year']} aai={out['aai_agg']:.3f}")
 
         samples_df = pd.DataFrame(sample_rows)
         impact_df = pd.DataFrame(impact_rows)
         cba_df = pd.DataFrame(cba_rows)
+        vuln_df = pd.DataFrame(vuln_rows)
 
         sens_aai_df = _pawn_table(self.problem, x, {"aai_agg": samples_df["aai_agg"].to_numpy(float)})
         sens_freq_df = _pawn_table(
@@ -1298,8 +1582,20 @@ class NB09Improved:
             },
         )
 
-        paths = self.save_outputs(samples_df, impact_df, cba_df, sens_aai_df, sens_freq_df, sens_cba_df)
-        self.make_figures(samples_df, sens_aai_df, sens_cba_df)
+        # Vulnerability PAWN sensitivity
+        vuln_pawn_outputs: dict[str, np.ndarray] = {}
+        for col in [
+            "vuln_svi_mean", "vuln_svi_p90_p10_gap", "vuln_pop_weighted_svi",
+            "vuln_2050_svi_mean", "vuln_2050_svi_p90_p10_gap", "vuln_2050_pop_weighted_svi",
+        ]:
+            if col in samples_df.columns:
+                vals = samples_df[col].to_numpy(float)
+                if np.any(np.isfinite(vals)):
+                    vuln_pawn_outputs[col] = vals
+        sens_vuln_df = _pawn_table(self.problem, x, vuln_pawn_outputs) if vuln_pawn_outputs else pd.DataFrame()
+
+        paths = self.save_outputs(samples_df, impact_df, cba_df, vuln_df, sens_aai_df, sens_freq_df, sens_cba_df, sens_vuln_df)
+        self.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
         return paths
 
     def save_outputs(
@@ -1307,18 +1603,22 @@ class NB09Improved:
         samples_df: pd.DataFrame,
         impact_df: pd.DataFrame,
         cba_df: pd.DataFrame,
+        vuln_df: pd.DataFrame,
         sens_aai_df: pd.DataFrame,
         sens_freq_df: pd.DataFrame,
         sens_cba_df: pd.DataFrame,
+        sens_vuln_df: pd.DataFrame,
     ) -> dict[str, Path]:
         paths = {
             "samples": self.unc_dir / f"unc_samples_{self.slug}_improved.csv",
             "impact": self.unc_dir / f"unc_impact_summary_{self.slug}_improved.csv",
             "freq": self.unc_dir / f"unc_freq_curve_{self.slug}_improved.csv",
             "cba": self.unc_dir / f"unc_cba_ews_{self.slug}_improved.csv",
+            "vuln": self.unc_dir / f"unc_vulnerability_{self.slug}_improved.csv",
             "sens_aai": self.unc_dir / f"sens_aai_agg_{self.slug}_improved.csv",
             "sens_freq": self.unc_dir / f"sens_freq_curve_{self.slug}_improved.csv",
             "sens_cba": self.unc_dir / f"sens_cba_ews_{self.slug}_improved.csv",
+            "sens_vuln": self.unc_dir / f"sens_vulnerability_{self.slug}_improved.csv",
             "meta": self.unc_dir / f"uq_dimensions_{self.slug}_improved.json",
             "bundle": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved.h5",
             "bundle_sens": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved_with_sensitivity.h5",
@@ -1327,9 +1627,12 @@ class NB09Improved:
         impact_df.to_csv(paths["impact"], index=False)
         impact_df[[f"rp{rp}" for rp in RETURN_PERIODS]].to_csv(paths["freq"], index=False)
         cba_df.to_csv(paths["cba"], index=False)
+        vuln_df.to_csv(paths["vuln"], index=False)
         sens_aai_df.to_csv(paths["sens_aai"], index=False)
         sens_freq_df.to_csv(paths["sens_freq"], index=False)
         sens_cba_df.to_csv(paths["sens_cba"], index=False)
+        if not sens_vuln_df.empty:
+            sens_vuln_df.to_csv(paths["sens_vuln"], index=False)
 
         meta = {
             "city": self.city,
@@ -1353,12 +1656,22 @@ class NB09Improved:
             "cop_enabled_options": self.cop_enabled_options,
             "tree_ramp_options": self.tree_ramp_options,
             "tree_start_age_options": self.tree_start_age_options,
+            "vuln_param_ranges": {
+                "VULN_K": [0.55, 0.95],
+                "VULN_PHI_2050": [0.50, 0.90],
+                "VULN_DRMKC_SCALE_FB": [0.02, 0.08],
+                "VULN_DRMKC_SCALE_UE": [0.04, 0.16],
+                "VULN_GVI_SCALE_FB": [0.15, 0.55],
+                "VULN_GVI_SCALE_UE": [0.25, 0.75],
+                "VULN_RETROFIT_RATE": [0.005, 0.020],
+            },
             "notes": [
                 "Future T2M bands are sampled from across-GCM band tables, while tas uses avg(pct45,pct55) within each model upstream.",
                 "Hazard structural modifiers are applied as spatially explicit daily raster adjustments for trees and waste heat.",
                 "EWS is applied with event-level warning-day logic calibrated on the sampled reference-year mortality distribution.",
                 "Threshold recalibration is represented as stepwise population-scaled updates at the sampled interval.",
                 "CBA uncertainty currently adds the sampled EWS 25-year cost model and cost-effectiveness outputs next to the impact outputs.",
+                "Vulnerability projection uncertainty (Level A): 7 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
                 "Original March2026/NB09 outputs remain untouched; all improved artifacts are saved in tables/uncertainty_improved.",
             ],
         }
@@ -1369,16 +1682,20 @@ class NB09Improved:
             store["samples"] = samples_df
             store["impact"] = impact_df
             store["cba_ews"] = cba_df
+            store["vulnerability"] = vuln_df
         with pd.HDFStore(str(paths["bundle_sens"]), mode="w") as store:
             store["samples"] = samples_df
             store["impact"] = impact_df
             store["cba_ews"] = cba_df
+            store["vulnerability"] = vuln_df
             store["sens_aai"] = sens_aai_df
             store["sens_freq"] = sens_freq_df
             store["sens_cba"] = sens_cba_df
+            if not sens_vuln_df.empty:
+                store["sens_vuln"] = sens_vuln_df
         return paths
 
-    def make_figures(self, samples_df: pd.DataFrame, sens_aai_df: pd.DataFrame, sens_cba_df: pd.DataFrame) -> None:
+    def make_figures(self, samples_df: pd.DataFrame, sens_aai_df: pd.DataFrame, sens_cba_df: pd.DataFrame, sens_vuln_df: pd.DataFrame | None = None) -> None:
         fig, ax = plt.subplots(figsize=(8, 4))
         aai = samples_df["aai_agg"].to_numpy(float)
         ax.hist(aai, bins=40, alpha=0.7, color="#3A7CA5", edgecolor="white")
@@ -1471,6 +1788,68 @@ class NB09Improved:
         plt.savefig(self.unc_dir / f"unc_freq_curve_{self.slug}_improved.png", dpi=160)
         plt.close(fig)
 
+        # Vulnerability figures 
+        if "vuln_svi_mean" in samples_df.columns:
+            svi_vals = samples_df["vuln_svi_mean"].dropna().to_numpy(float)
+            if svi_vals.size > 0:
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.hist(svi_vals, bins=40, alpha=0.7, color="#2D6A4F", edgecolor="white")
+                ax.axvline(np.percentile(svi_vals, 5), color="crimson", ls=":", lw=1.2)
+                ax.axvline(np.percentile(svi_vals, 50), color="crimson", ls="--", lw=1.2)
+                ax.axvline(np.percentile(svi_vals, 95), color="crimson", ls=":", lw=1.2)
+                ax.set_title(f"{self.city} - SVI mean distribution (improved)")
+                ax.set_xlabel("SVI mean")
+                ax.set_ylabel("Count")
+                plt.tight_layout()
+                plt.savefig(self.unc_dir / f"unc_distribution_vuln_svi_mean_{self.slug}_improved.png", dpi=160)
+                plt.close(fig)
+
+        if "vuln_2050_svi_mean" in samples_df.columns:
+            svi_2050 = samples_df["vuln_2050_svi_mean"].dropna().to_numpy(float)
+            if svi_2050.size > 0:
+                fig, ax = plt.subplots(figsize=(8, 4))
+                ax.hist(svi_2050, bins=40, alpha=0.7, color="#40916C", edgecolor="white")
+                ax.axvline(np.percentile(svi_2050, 5), color="crimson", ls=":", lw=1.2)
+                ax.axvline(np.percentile(svi_2050, 50), color="crimson", ls="--", lw=1.2)
+                ax.axvline(np.percentile(svi_2050, 95), color="crimson", ls=":", lw=1.2)
+                ax.set_title(f"{self.city} - SVI mean 2050 distribution (improved)")
+                ax.set_xlabel("SVI mean (2050)")
+                ax.set_ylabel("Count")
+                plt.tight_layout()
+                plt.savefig(self.unc_dir / f"unc_distribution_vuln_2050_svi_mean_{self.slug}_improved.png", dpi=160)
+                plt.close(fig)
+
+        if sens_vuln_df is not None and not sens_vuln_df.empty:
+            mean_vuln = sens_vuln_df[sens_vuln_df["si"].astype(str).str.lower() == "mean"].copy()
+            if mean_vuln.empty:
+                mean_vuln = sens_vuln_df.copy()
+            # Tornado for vuln_2050_svi_p90_p10_gap (most policy-relevant)
+            gap_col = "vuln_2050_svi_p90_p10_gap"
+            if gap_col in mean_vuln.columns:
+                top_vuln = mean_vuln.sort_values(gap_col, ascending=False).head(12)
+                fig, ax = plt.subplots(figsize=(8, 5))
+                plot_df = top_vuln.iloc[::-1]
+                ax.barh(plot_df["param"].astype(str), plot_df[gap_col].astype(float), color="#2D6A4F")
+                ax.set_xlabel("PAWN sensitivity (mean)")
+                ax.set_title(f"{self.city} - Tornado (SVI P90-P10 gap 2050, improved)")
+                ax.grid(axis="x", alpha=0.3)
+                plt.tight_layout()
+                plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_gap_{self.slug}_improved.png", dpi=160)
+                plt.close(fig)
+            # Tornado for vuln_2050_svi_mean
+            mean_col = "vuln_2050_svi_mean"
+            if mean_col in mean_vuln.columns:
+                top_vuln2 = mean_vuln.sort_values(mean_col, ascending=False).head(12)
+                fig, ax = plt.subplots(figsize=(8, 5))
+                plot_df = top_vuln2.iloc[::-1]
+                ax.barh(plot_df["param"].astype(str), plot_df[mean_col].astype(float), color="#40916C")
+                ax.set_xlabel("PAWN sensitivity (mean)")
+                ax.set_title(f"{self.city} - Tornado (SVI mean 2050, improved)")
+                ax.grid(axis="x", alpha=0.3)
+                plt.tight_layout()
+                plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_mean_{self.slug}_improved.png", dpi=160)
+                plt.close(fig)
+
 
 def regenerate_saved_figures(city: str) -> Path:
     slug = city.strip().lower()
@@ -1478,7 +1857,9 @@ def regenerate_saved_figures(city: str) -> Path:
     samples_df = pd.read_csv(runner.unc_dir / f"unc_samples_{runner.slug}_improved.csv")
     sens_aai_df = pd.read_csv(runner.unc_dir / f"sens_aai_agg_{runner.slug}_improved.csv")
     sens_cba_df = pd.read_csv(runner.unc_dir / f"sens_cba_ews_{runner.slug}_improved.csv")
-    runner.make_figures(samples_df, sens_aai_df, sens_cba_df)
+    sens_vuln_path = runner.unc_dir / f"sens_vulnerability_{runner.slug}_improved.csv"
+    sens_vuln_df = pd.read_csv(sens_vuln_path) if sens_vuln_path.exists() else pd.DataFrame()
+    runner.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
     return runner.unc_dir
 
 
