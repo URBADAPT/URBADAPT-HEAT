@@ -1,5 +1,7 @@
 slug: athens # city name 
 city_name: Athens 
+wp_iso3: GRC
+wp_country: Greece
 base_dir: data/athens                
 drive_manifest: data_manifests/athens_gdrive.json # all the data from the drive 
 
@@ -219,6 +221,48 @@ vulnerability:
         census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
         census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
     census_nodata: -9999
+    dynamic:
+        enabled: true   # DRMKC and GVI inputs are now in place; projected vulnerability is the active workflow
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            # Conservative city-core anchor matching the current Athens policy focus.
+            region_id: "EL303"
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "GRC"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # Athens: strongest persistence because the baseline pattern is structurally old and slower to turn over
+        k:
+            default: 0.90
+            foreign_born: 0.90
+            unemployment: 0.90
+        phi:
+            default_2030: 0.95
+            default_2050: 0.85
+            foreign_born_2030: 0.96
+            foreign_born_2050: 0.85
+            unemployment_2030: 0.94
+            unemployment_2050: 0.80
+        thermal_projection:
+            retrofit_rate_per_year: 0.008
+            new_build_vulnerability: 0.18
+            growth_sensitivity: 0.60
+            growth_cap: 0.25
 
 ews:
   # ARCHETYPE B: Upgrade basic threshold system to comprehensive HHAP

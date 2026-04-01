@@ -1,5 +1,7 @@
 slug: lisbon # city name 
 city_name: Lisbon 
+wp_iso3: PRT
+wp_country: Portugal
 base_dir: data/Lisbon                
 drive_manifest: data_manifests/lisbon_gdrive.json # all the data from the drive 
 
@@ -212,6 +214,50 @@ vulnerability:
         census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
         census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
     census_nodata: -9999
+    dynamic:
+        enabled: true   # DRMKC and GVI inputs are now in place; projected vulnerability is the active workflow
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            # Use the current DRMKC NUTS3 code that contains the Lisbon municipality
+            # and its subcity policy zones. PT170 is a legacy code and is not present
+            # in the exported DRMKC vulnerability table.
+            region_id: "PT1A0"
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "PRT"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # Lisbon: allow somewhat faster convergence because recent redevelopment pressure is stronger
+        k:
+            default: 0.72
+            foreign_born: 0.70
+            unemployment: 0.75
+        phi:
+            default_2030: 0.88
+            default_2050: 0.65
+            foreign_born_2030: 0.88
+            foreign_born_2050: 0.65
+            unemployment_2030: 0.86
+            unemployment_2050: 0.60
+        thermal_projection:
+            retrofit_rate_per_year: 0.012
+            new_build_vulnerability: 0.14
+            growth_sensitivity: 0.80
+            growth_cap: 0.35
 
 ews:
   # ARCHETYPE C: Marginal enhancement of mature ICARO system

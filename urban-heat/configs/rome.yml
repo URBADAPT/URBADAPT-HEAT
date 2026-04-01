@@ -1,5 +1,7 @@
 slug: rome # city name 
 city_name: Rome 
+wp_iso3: ITA
+wp_country: Italy
 base_dir: data/Rome                
 drive_manifest: data_manifests/rome_gdrive.json # all the data from the drive 
 
@@ -213,6 +215,48 @@ vulnerability:
         census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
         census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
     census_nodata: -9999
+    dynamic:
+        enabled: true   # DRMKC and GVI inputs are now in place; projected vulnerability is the active workflow
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            region_id: "ITI43"
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "ITA"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # Rome: moderate-long persistence of regional social patterns through 2050
+        k:
+            default: 0.85
+            foreign_born: 0.85
+            unemployment: 0.85
+        # Keep most neighborhood pattern in 2030, then allow partial smoothing by 2050
+        phi:
+            default_2030: 0.92
+            default_2050: 0.75
+            foreign_born_2030: 0.92
+            foreign_born_2050: 0.75
+            unemployment_2030: 0.90
+            unemployment_2050: 0.70
+        thermal_projection:
+            retrofit_rate_per_year: 0.011
+            new_build_vulnerability: 0.15
+            growth_sensitivity: 0.70
+            growth_cap: 0.30
 
 ews:
   # system archetype / trigger architecture 
