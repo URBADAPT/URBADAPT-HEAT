@@ -259,7 +259,7 @@ def main():
         df_all.drop(columns=["n_gcms"]).to_csv(args.single_output, index=False)
         print(f"\nCombined CSV: {args.single_output}")
 
-    # Diagnostic: show JJA spread for tas to verify
+    # diagnostic: show JJA spread for tas to verify
     print("\n── Diagnostic: JJA tas deltas (central band, CurPol, 2050) ──")
     for city in args.cities:
         urban_heat = Path(__file__).resolve().parent.parent
