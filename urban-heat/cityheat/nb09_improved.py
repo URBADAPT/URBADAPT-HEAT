@@ -96,6 +96,36 @@ def _ecdf(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
+def _summarize_sensitivity(
+    df: pd.DataFrame | None,
+    target: str,
+    *,
+    si: str,
+    exclude_params: set[str] | None = None,
+) -> pd.DataFrame:
+    if df is None or df.empty or "param" not in df.columns or target not in df.columns:
+        return pd.DataFrame(columns=["param", target])
+
+    work = df.copy()
+    if "si" in work.columns:
+        mask = work["si"].astype(str).str.lower() == si.lower()
+        if mask.any():
+            work = work.loc[mask].copy()
+    work["param"] = work["param"].astype(str)
+    work[target] = pd.to_numeric(work[target], errors="coerce")
+    work = work.dropna(subset=["param", target])
+    if exclude_params:
+        work = work.loc[~work["param"].isin(exclude_params)].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["param", target])
+    return (
+        work.groupby("param", as_index=False)[target]
+        .mean()
+        .sort_values(target, ascending=False)
+        .reset_index(drop=True)
+    )
+
+
 def _bool_options_with_baseline(options: list[Any], baseline: bool) -> list[bool]:
     out: list[bool] = []
     for x in [baseline] + list(options):
@@ -1820,15 +1850,16 @@ class NB09Improved:
                 plt.close(fig)
 
         if sens_vuln_df is not None and not sens_vuln_df.empty:
-            mean_vuln = sens_vuln_df[sens_vuln_df["si"].astype(str).str.lower() == "mean"].copy()
-            if mean_vuln.empty:
-                mean_vuln = sens_vuln_df.copy()
-            # Tornado for vuln_2050_svi_p90_p10_gap (most policy-relevant)
             gap_col = "vuln_2050_svi_p90_p10_gap"
-            if gap_col in mean_vuln.columns:
-                top_vuln = mean_vuln.sort_values(gap_col, ascending=False).head(12)
+            gap_summary = _summarize_sensitivity(
+                sens_vuln_df,
+                gap_col,
+                si="mean",
+                exclude_params={"YEAR_IDX"},
+            )
+            if not gap_summary.empty:
                 fig, ax = plt.subplots(figsize=(8, 5))
-                plot_df = top_vuln.iloc[::-1]
+                plot_df = gap_summary.head(12).iloc[::-1]
                 ax.barh(plot_df["param"].astype(str), plot_df[gap_col].astype(float), color="#2D6A4F")
                 ax.set_xlabel("PAWN sensitivity (mean)")
                 ax.set_title(f"{self.city} - Tornado (SVI P90-P10 gap 2050, improved)")
@@ -1836,12 +1867,17 @@ class NB09Improved:
                 plt.tight_layout()
                 plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_gap_{self.slug}_improved.png", dpi=160)
                 plt.close(fig)
-            # Tornado for vuln_2050_svi_mean
+
             mean_col = "vuln_2050_svi_mean"
-            if mean_col in mean_vuln.columns:
-                top_vuln2 = mean_vuln.sort_values(mean_col, ascending=False).head(12)
+            mean_summary = _summarize_sensitivity(
+                sens_vuln_df,
+                mean_col,
+                si="mean",
+                exclude_params={"YEAR_IDX"},
+            )
+            if not mean_summary.empty:
                 fig, ax = plt.subplots(figsize=(8, 5))
-                plot_df = top_vuln2.iloc[::-1]
+                plot_df = mean_summary.head(12).iloc[::-1]
                 ax.barh(plot_df["param"].astype(str), plot_df[mean_col].astype(float), color="#40916C")
                 ax.set_xlabel("PAWN sensitivity (mean)")
                 ax.set_title(f"{self.city} - Tornado (SVI mean 2050, improved)")

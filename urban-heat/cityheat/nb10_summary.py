@@ -322,6 +322,36 @@ def _select_sensitivity_column(df: pd.DataFrame, preferred: Iterable[str]) -> st
     return None
 
 
+def _summarize_sensitivity(
+    df: pd.DataFrame | None,
+    target: str,
+    *,
+    si: str,
+    exclude_params: Iterable[str] = (),
+) -> pd.DataFrame:
+    if df is None or df.empty or "param" not in df.columns or target not in df.columns:
+        return pd.DataFrame(columns=["param", target])
+
+    work = df.copy()
+    if "si" in work.columns:
+        mask = work["si"].astype(str).str.lower() == si.lower()
+        if mask.any():
+            work = work.loc[mask].copy()
+    work["param"] = work["param"].astype(str)
+    work[target] = pd.to_numeric(work[target], errors="coerce")
+    work = work.dropna(subset=["param", target])
+    if exclude_params:
+        work = work.loc[~work["param"].isin(set(exclude_params))].copy()
+    if work.empty:
+        return pd.DataFrame(columns=["param", target])
+    return (
+        work.groupby("param", as_index=False)[target]
+        .mean()
+        .sort_values(target, ascending=False)
+        .reset_index(drop=True)
+    )
+
+
 def _compute_vulnerability_diagnostics(
     sp: SummaryPaths,
     scenario: str | None,
@@ -909,17 +939,38 @@ def plot_section_7_uncertainty(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Pa
         _placeholder(axes[3], "EWS/CBA sensitivities", "CBA/EWS sensitivity CSV unavailable")
 
     if vuln_sens is not None:
-        target = _select_sensitivity_column(
-            vuln_sens if "si" not in vuln_sens.columns else vuln_sens[vuln_sens["si"] == "median"],
-            (),
+        preferred_targets = (
+            "vuln_2050_svi_p90_p10_gap",
+            "vuln_2050_svi_mean",
+            "vuln_2050_pop_weighted_svi",
+            "vuln_svi_p90_p10_gap",
+            "vuln_svi_mean",
+            "vuln_pop_weighted_svi",
         )
-        df_plot = vuln_sens if "si" not in vuln_sens.columns else vuln_sens[vuln_sens["si"] == "median"]
-        if target is not None and "param" in df_plot.columns:
-            top = df_plot.dropna(subset=[target]).nlargest(10, target).sort_values(target)
-            axes[4].barh(top["param"], top[target], color="#c084fc", alpha=0.9)
-            axes[4].set_title("Vulnerability sensitivities")
-            axes[4].set_xlabel("PAWN median")
-            axes[4].grid(axis="x", alpha=0.2)
+        target = _select_sensitivity_column(vuln_sens, preferred_targets)
+        title_map = {
+            "vuln_2050_svi_p90_p10_gap": "Vulnerability sensitivities\n(2050 SVI gap)",
+            "vuln_2050_svi_mean": "Vulnerability sensitivities\n(2050 SVI mean)",
+            "vuln_2050_pop_weighted_svi": "Vulnerability sensitivities\n(2050 pop-weighted SVI)",
+            "vuln_svi_p90_p10_gap": "Vulnerability sensitivities\n(SVI gap)",
+            "vuln_svi_mean": "Vulnerability sensitivities\n(SVI mean)",
+            "vuln_pop_weighted_svi": "Vulnerability sensitivities\n(pop-weighted SVI)",
+        }
+        if target is not None:
+            summary = _summarize_sensitivity(
+                vuln_sens,
+                target,
+                si="median",
+                exclude_params={"YEAR_IDX"},
+            )
+            if not summary.empty:
+                top = summary.head(10).sort_values(target)
+                axes[4].barh(top["param"], top[target], color="#c084fc", alpha=0.9)
+                axes[4].set_title(title_map.get(target, "Vulnerability sensitivities"))
+                axes[4].set_xlabel("PAWN median")
+                axes[4].grid(axis="x", alpha=0.2)
+            else:
+                _placeholder(axes[4], "Vulnerability sensitivities", "No aggregated vulnerability sensitivities")
         else:
             _placeholder(axes[4], "Vulnerability sensitivities", "No populated vulnerability target")
 
