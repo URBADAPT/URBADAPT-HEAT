@@ -46,7 +46,7 @@ TREF_OPTIONS = [18.0, 20.0, 22.0, 24.0, 26.0]
 TREF_BASE = 20.0
 RETURN_PERIODS = [2, 5, 10, 20]
 HORIZON_YEARS = 25
-DISCOUNT_RATE = 0.03
+DISCOUNT_RATE_DEFAULT = 0.03
 SEED_DEFAULT = 42
 
 
@@ -174,6 +174,58 @@ def _scale_pattern_to_mean_masked(
     return out
 
 
+def _weighted_mean(values: np.ndarray, weights: np.ndarray) -> float:
+    values = np.asarray(values, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    valid = np.isfinite(values) & np.isfinite(weights) & (weights > 0)
+    if not np.any(valid):
+        return 0.0
+    return float(np.average(values[valid], weights=weights[valid]))
+
+
+def _scale_pattern_to_weighted_mean(
+    pattern: np.ndarray,
+    weights: np.ndarray,
+    target_mean: float,
+    upper: float | None = None,
+) -> np.ndarray:
+    pattern = np.asarray(pattern, dtype=np.float32)
+    weights = np.asarray(weights, dtype=float)
+    target_mean = float(target_mean)
+    out = np.zeros_like(pattern, dtype=np.float32)
+
+    active = np.isfinite(pattern) & np.isfinite(weights) & (weights > 0)
+    if not np.any(active) or target_mean <= 0.0:
+        return out
+
+    active_pattern = pattern[active].astype(float)
+    active_weights = weights[active].astype(float)
+    if not np.any(active_pattern > 0):
+        out[active] = target_mean
+        if upper is not None:
+            out = np.clip(out, 0.0, float(upper))
+        return out.astype(np.float32)
+
+    lo = 0.0
+    hi = max(target_mean / max(_weighted_mean(active_pattern, active_weights), 1e-6) * 2.0, 2.0)
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        arr = active_pattern * mid
+        if upper is not None:
+            arr = np.clip(arr, 0.0, float(upper))
+        mean_val = _weighted_mean(arr, active_weights)
+        if mean_val < target_mean:
+            lo = mid
+        else:
+            hi = mid
+
+    scaled = active_pattern * hi
+    if upper is not None:
+        scaled = np.clip(scaled, 0.0, float(upper))
+    out[active] = scaled.astype(np.float32)
+    return out.astype(np.float32)
+
+
 def _pawn_table(problem: dict[str, Any], x: np.ndarray, metric_map: dict[str, np.ndarray]) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
     for metric, y in metric_map.items():
@@ -200,6 +252,92 @@ def _freq_curve_from_daily(daily_impacts: np.ndarray, rps: list[int]) -> dict[st
         q = float(np.clip(1.0 - 1.0 / float(rp), 0.0, 1.0))
         out[f"rp{int(rp)}"] = float(np.quantile(vals, q)) if vals.size else np.nan
     return out
+
+
+def _safe_ratio(num: float, den: float) -> float:
+    return float(num) / float(den) if float(den) > 0 else np.inf
+
+
+def _pv_capex_with_replacements(
+    new_users_t: np.ndarray,
+    capex_per_user: float,
+    lifetime_years: int,
+    discount_rate: float,
+) -> float:
+    """Present value of cohort-based AC CAPEX with replacement cycles."""
+    new_users_t = np.asarray(new_users_t, dtype=float)
+    horizon = int(new_users_t.size)
+    life = max(int(lifetime_years), 1)
+    r = float(discount_rate)
+    pv = 0.0
+    for start_idx, cohort in enumerate(new_users_t):
+        cohort = float(cohort)
+        if cohort <= 0:
+            continue
+        pay_idx = int(start_idx)
+        while pay_idx < horizon:
+            pv += cohort * float(capex_per_user) / ((1.0 + r) ** float(pay_idx))
+            pay_idx += life
+    return float(pv)
+
+
+def _cohort_rollout_maturity_factor(
+    years: int,
+    ramp_years: int,
+    *,
+    start_age_years: int = 0,
+    lifetime_years: int | None = None,
+) -> np.ndarray:
+    """Cohort-based maturity factor used for tree O&M/cooling rollout."""
+    years = int(years)
+    if years <= 0:
+        return np.zeros(0, dtype=float)
+    plant_share = np.ones(years, dtype=float) / float(years)
+    max_age = years if lifetime_years is None else min(years, max(int(lifetime_years), 1))
+    ages = np.arange(max_age + 1, dtype=float)
+    maturity = np.minimum((ages + float(start_age_years)) / max(float(ramp_years), 1.0), 1.0)
+    maturity[0] = 0.0
+    return np.convolve(plant_share, maturity)[:years]
+
+
+def _npv_capex_linear(
+    delta_index_total: float,
+    years: int,
+    discount_rate: float,
+    capex_per_index_pt: float,
+) -> float:
+    """Present value of tree CAPEX assuming linear annual rollout."""
+    years = int(years)
+    if years <= 0:
+        return 0.0
+    inc = float(delta_index_total) / float(years)
+    r = float(discount_rate)
+    pv = 0.0
+    for t_idx in range(years):
+        pv += float(capex_per_index_pt) * inc / ((1.0 + r) ** float(t_idx))
+    return float(pv)
+
+
+def _npv_om_cohorts_scaled(
+    delta_index_total: float,
+    years: int,
+    discount_rate: float,
+    om_per_index_per_year: float,
+    ramp_years: int,
+    lifetime_years: int,
+    start_age_years: int,
+) -> tuple[float, np.ndarray]:
+    """Present value of tree O&M with cohort-based maturity scaling."""
+    factor = _cohort_rollout_maturity_factor(
+        years,
+        ramp_years,
+        start_age_years=start_age_years,
+        lifetime_years=lifetime_years,
+    )
+    om_stream = float(om_per_index_per_year) * float(delta_index_total) * factor
+    discount = (1.0 + float(discount_rate)) ** np.arange(int(years), dtype=float)
+    pv = float(np.sum(om_stream / discount))
+    return pv, om_stream
 
 
 @dataclass
@@ -569,12 +707,44 @@ class NB09Improved:
             for _, row in by_year.iterrows():
                 self.pen_lookup[(ssp, int(row["year"]))] = float(row["value"])
 
+        kwh_file = self.P(ac_cfg.get("kwh_file", ""))
+        if not kwh_file.exists():
+            raise FileNotFoundError(f"Missing AC kWh file: {kwh_file}")
+        kwh_df = pd.read_csv(kwh_file)
+        kwh_cols = ac_cfg.get("kwh_columns", {})
+        kwh_col_id = kwh_cols.get("id", "NUTS_ID")
+        kwh_col_scen = kwh_cols.get("scenario", "Scenario")
+        kwh_col_year = kwh_cols.get("year", "year")
+        kwh_col_val = kwh_cols.get("value", "value")
+        if ac_cfg.get("kwh_nuts_ids"):
+            kwh_target_ids = [str(x) for x in ac_cfg.get("kwh_nuts_ids", [])]
+        else:
+            kwh_target_ids = target_ids
+        kwh_city = kwh_df[kwh_df[kwh_col_id].astype(str).isin(kwh_target_ids)].copy()
+        if kwh_city.empty:
+            raise ValueError(f"No AC kWh rows matched IDs {kwh_target_ids} in {kwh_file}")
+
+        self.kwh_lookup: dict[tuple[int, int], float] = {}
+        for ssp in self.ac_ssp_options:
+            scen_label = f"SSP{ssp}"
+            sub = kwh_city[kwh_city[kwh_col_scen].astype(str).str.upper() == scen_label.upper()].copy()
+            if sub.empty:
+                continue
+            by_year = sub.groupby(kwh_col_year, as_index=False)[kwh_col_val].mean().rename(columns={kwh_col_year: "year", kwh_col_val: "value"})
+            for _, row in by_year.iterrows():
+                self.kwh_lookup[(ssp, int(row["year"]))] = float(row["value"])
+
         self.wh_enabled_default = bool(self.wh_cfg.get("enabled", True))
         self.wh_enabled_options = _bool_options_with_baseline(
             self.wh_cfg.get("enabled_options", [False, True]), self.wh_enabled_default
         )
         self.wh_lut_options = list(self.wh_cfg.get("lut_case_options", ["low", "central", "high"]))
         self.wh_ratio_min, self.wh_ratio_max = map(float, self.wh_cfg.get("dailymean_from_night_range", [0.33, 0.67]))
+        activation_cfg = self.wh_cfg.get("activation", {})
+        self.wh_activation_method = str(activation_cfg.get("method", "kou_cdd_share")).lower()
+        self.wh_activation_metric = str(activation_cfg.get("temperature_metric", "citymean_dailymean")).lower()
+        self.wh_t_on_c = float(activation_cfg.get("t_on_c", 18.0))
+        self.wh_t_full_c = float(activation_cfg.get("t_full_c", 25.0))
         self.wh_lut = {float(k): v for k, v in self.wh_cfg.get("lut", {}).items()}
         if not self.wh_lut:
             self.wh_lut = {
@@ -610,19 +780,33 @@ class NB09Improved:
             cov_base_3d = cov_npz["coverage_base"][None, ...].astype(np.float32)
         else:
             raise KeyError(f"Could not find baseline coverage arrays in {cov_path}")
+        if "coverage_policy_3d" in cov_npz.files:
+            cov_policy_3d = cov_npz["coverage_policy_3d"].astype(np.float32)
+        elif "coverage_policy" in cov_npz.files:
+            cov_policy_3d = cov_npz["coverage_policy"][None, ...].astype(np.float32)
+        else:
+            cov_policy_3d = cov_base_3d.copy()
         self.coverage_years = cov_years
-        self.coverage_pattern_by_year: dict[int, np.ndarray] = {}
-        for idx, y in enumerate(cov_years):
-            arr = cov_base_3d[idx if cov_base_3d.shape[0] > 1 else 0]
-            row_vals = arr.ravel()[self.row_cols].astype(np.float32)
-            masked = row_vals[self.row_is_city]
-            mean_val = float(masked.mean()) if masked.size else 0.0
-            if mean_val <= 0:
-                pattern = np.ones_like(row_vals, dtype=np.float32)
-            else:
-                pattern = np.zeros_like(row_vals, dtype=np.float32)
-                pattern[self.row_is_city] = (masked / mean_val).astype(np.float32)
-            self.coverage_pattern_by_year[int(y)] = pattern
+        self.coverage_pattern_by_mode_year: dict[str, dict[int, np.ndarray]] = {"base": {}, "policy": {}}
+        self.coverage_mean_by_mode_year: dict[str, dict[int, float]] = {"base": {}, "policy": {}}
+
+        def _store_coverage(mode: str, cube: np.ndarray) -> None:
+            for idx, y in enumerate(cov_years):
+                arr = cube[idx if cube.shape[0] > 1 else 0]
+                row_vals = arr.ravel()[self.row_cols].astype(np.float32)
+                masked = row_vals[self.row_is_city]
+                mean_val = float(masked.mean()) if masked.size else 0.0
+                if mean_val <= 0:
+                    pattern = np.ones_like(row_vals, dtype=np.float32)
+                else:
+                    pattern = np.zeros_like(row_vals, dtype=np.float32)
+                    pattern[self.row_is_city] = (masked / mean_val).astype(np.float32)
+                self.coverage_pattern_by_mode_year[mode][int(y)] = pattern
+                self.coverage_mean_by_mode_year[mode][int(y)] = mean_val
+
+        _store_coverage("base", cov_base_3d)
+        _store_coverage("policy", cov_policy_3d)
+        self.coverage_pattern_by_year = self.coverage_pattern_by_mode_year["base"]
 
         self.ac_cost_params_path = self._find_first_existing(
             [self.int_dir / f"ac_cost_params_{self.slug}.json", self.int_dir / f"ac_costs_{self.slug}.json"]
@@ -709,6 +893,55 @@ class NB09Improved:
             [self.int_dir / f"tree_cost_params_{self.slug}.json", self.tab_dir / f"tree_cost_params_{self.slug}.json"]
         )
         self.tree_cost_params = _load_json(self.tree_cost_params_path)
+
+        # Electricity feedback (Falchetta, De Cian and Lunghi 2026)
+        self.elec_fb_cfg = self.cfg.get("electricity_feedback", {})
+        self.elec_fb_enabled = bool(self.elec_fb_cfg.get("enabled", False))
+        self.elec_fb_pct_per_point = float(self.elec_fb_cfg.get("pct_reduction_per_gvi_point", 0.008))
+        self.elec_fb_summer_months = int(self.elec_fb_cfg.get("summer_months", 3))
+        self.elec_fb_co2_per_kwh = float(self.elec_fb_cfg.get("co2_intensity_gCO2_per_kwh", 372))
+        self.elec_fb_ac_summary = None
+        self.elec_fb_cov_yearly = None
+        self.elec_fb_dgvi_by_region = None
+        if self.elec_fb_enabled:
+            cov_yearly_path = self.out_dir / f"{self.slug}_muni_cov_yearly.csv"
+            if cov_yearly_path.exists():
+                self.elec_fb_cov_yearly = pd.read_csv(cov_yearly_path)
+            ac_summary_path = self.out_dir / f"{self.slug}_muni_ac_consumption_summary.csv"
+            if ac_summary_path.exists():
+                self.elec_fb_ac_summary = pd.read_csv(ac_summary_path)
+            # Load region-level dGVI from trees table
+            trees_cfg = self.cfg.get("trees", {})
+            veg_label = str(trees_cfg.get("veg_region_label", "region")).lower()
+            dgvi_path = self.tab_dir / f"{self.slug}_trees_{veg_label}.csv"
+            if dgvi_path.exists():
+                dgvi_df = pd.read_csv(dgvi_path)
+                id_col = "region_id" if "region_id" in dgvi_df.columns else dgvi_df.columns[0]
+                dgvi_col = "dGVI_points" if "dGVI_points" in dgvi_df.columns else "dGVI"
+                self.elec_fb_dgvi_by_region = dict(zip(dgvi_df[id_col].astype(int), dgvi_df[dgvi_col].astype(float)))
+
+        # Precompute city-mean monthly dT2M for lambda_y (tree-cooled AC utilization)
+        # tree_month_maps: (12, n_row_cols) — dT2M at each centroid for each month
+        self.tree_dT2M_citymean_monthly = np.array([
+            float(self.tree_month_maps[m][self.row_is_city].mean()) for m in range(12)
+        ], dtype=float)  # shape (12,), negative = cooling
+
+        # Precompute pop-weighted mean dGVI for city-level reduction
+        self.elec_fb_pw_dgvi = 0.0
+        if self.elec_fb_enabled and self.elec_fb_dgvi_by_region and self.elec_fb_ac_summary is not None:
+            ac_df = self.elec_fb_ac_summary
+            first_year = ac_df["year"].min()
+            yr_df = ac_df[ac_df["year"] == first_year]
+            total_pop = 0.0
+            weighted_dgvi = 0.0
+            for _, row in yr_df.iterrows():
+                mid = int(row["muni_id"])
+                pop = float(row.get("pop_muni", row.get("users_muni", 0)))
+                dgvi = self.elec_fb_dgvi_by_region.get(mid, 0.0)
+                weighted_dgvi += pop * max(dgvi, 0.0)
+                total_pop += pop
+            if total_pop > 0:
+                self.elec_fb_pw_dgvi = weighted_dgvi / total_pop
 
     def _load_vulnerability_baseline(self) -> None:
         """Load baseline vulnerability components and DRMKC/GVI series for on-the-fly SVI recomputation."""
@@ -978,6 +1211,15 @@ class NB09Improved:
             ParamSpec("EWS_TARGET_DAYS_IDX", "choice", options=list(range(len(self.ews_target_days_options)))),
             ParamSpec("EWS_RECALIB_YEARS_IDX", "choice", options=list(range(len(self.ews_recalib_options)))),
             ParamSpec("EWS_COST_MODEL_IDX", "choice", options=list(range(len(self.ews_cost_model_options)))),
+            ParamSpec("DISCOUNT_RATE_IDX", "choice", options=[0.02, 0.03, 0.05]),
+            ParamSpec("AC_CAPEX_PER_USER_IDX", "choice", options=[350.0, 500.0, 650.0]),
+            ParamSpec("AC_TARIFF_EUR_PER_KWH_IDX", "choice", options=[0.21, 0.25, 0.29]),
+            ParamSpec("AC_LIFETIME_YEARS_IDX", "choice", options=[8, 10, 12]),
+            ParamSpec("TREE_CAPEX_PER_TREE_IDX", "choice", options=[168.0, 210.0, 252.0]),
+            ParamSpec("TREE_OM_PER_TREE_YR_IDX", "choice", options=[27.0, 135.0]),
+            # Electricity feedback (Falchetta et al. 2026)
+            ParamSpec("ELEC_FEEDBACK_ENABLED_IDX", "choice", options=[0, 1]),
+            ParamSpec("ELEC_COEFF_SCALE", "uniform", low=0.50, high=1.50),
             # Vulnerability projection parameters (Level A: uncertainty only, does not affect mortality)
             ParamSpec("VULN_K", "uniform", low=0.55, high=0.95),
             ParamSpec("VULN_PHI_2050", "uniform", low=0.50, high=0.90),
@@ -1031,6 +1273,23 @@ class NB09Improved:
             return float(self.pen_lookup[(2, nearest)])
         return 0.0
 
+    def get_kwh_per_user(self, ssp: int, year: int) -> float:
+        ssp = int(ssp)
+        year = int(year)
+        if (ssp, year) in self.kwh_lookup:
+            return float(self.kwh_lookup[(ssp, year)])
+        if (2, year) in self.kwh_lookup:
+            return float(self.kwh_lookup[(2, year)])
+        ys_ssp = sorted(y for (s, y) in self.kwh_lookup if s == ssp)
+        if ys_ssp:
+            nearest = min(ys_ssp, key=lambda yy: abs(yy - year))
+            return float(self.kwh_lookup[(ssp, nearest)])
+        ys_2 = sorted(y for (s, y) in self.kwh_lookup if s == 2)
+        if ys_2:
+            nearest = min(ys_2, key=lambda yy: abs(yy - year))
+            return float(self.kwh_lookup[(2, nearest)])
+        return 0.0
+
     def dT_night_from_penetration(self, pen: float, case: str) -> float:
         pen_points = np.array(sorted(self.wh_lut.keys()), dtype=float)
         dT_points = np.array([float(self.wh_lut[p][case]) for p in pen_points], dtype=float)
@@ -1040,21 +1299,171 @@ class NB09Improved:
         alpha = float(cop_sens) * float(dT_night) * (1.0 + 1.0 / self.cop_ref) / self.cop_ref
         return 1.0 + alpha
 
-    def interpolate_coverage_pattern(self, year: int) -> np.ndarray:
+    def waste_heat_activity_share(self, citymean_daily: np.ndarray) -> float:
+        if self.wh_activation_method != "kou_cdd_share":
+            return 1.0
+        arr = np.asarray(citymean_daily, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        if arr.size == 0:
+            return 0.0
+        denom = float(self.wh_t_full_c - self.wh_t_on_c)
+        if denom <= 0:
+            return float(np.mean((arr > self.wh_t_on_c).astype(float)))
+        activity = np.clip((arr - self.wh_t_on_c) / denom, 0.0, 1.0)
+        return float(activity.mean())
+
+    def interpolate_coverage_pattern(self, year: int, mode: str = "base") -> np.ndarray:
         year = int(year)
-        if year in self.coverage_pattern_by_year:
-            return self.coverage_pattern_by_year[year]
-        anchor_years = np.array(sorted(self.coverage_pattern_by_year.keys()), dtype=int)
-        stack = np.vstack([self.coverage_pattern_by_year[y][None, :] for y in anchor_years]).astype(np.float32)
+        mode_key = "policy" if str(mode).lower() == "policy" else "base"
+        pattern_map = self.coverage_pattern_by_mode_year[mode_key]
+        if year in pattern_map:
+            return pattern_map[year]
+        anchor_years = np.array(sorted(pattern_map.keys()), dtype=int)
+        stack = np.vstack([pattern_map[y][None, :] for y in anchor_years]).astype(np.float32)
         out = np.empty(self.n_city, dtype=np.float32)
         for idx in range(self.n_city):
             out[idx] = np.interp(year, anchor_years, stack[:, idx])
         return out
 
-    def coverage_for_sample(self, year: int, ac_ssp: int) -> np.ndarray:
-        pattern = self.interpolate_coverage_pattern(year)
-        target_mean = self.get_penetration(ac_ssp, year)
+    def interpolate_coverage_mean(self, year: int, mode: str = "base") -> float:
+        year = int(year)
+        mode_key = "policy" if str(mode).lower() == "policy" else "base"
+        mean_map = self.coverage_mean_by_mode_year[mode_key]
+        if year in mean_map:
+            return float(mean_map[year])
+        anchor_years = np.array(sorted(mean_map.keys()), dtype=int)
+        vals = np.array([mean_map[y] for y in anchor_years], dtype=float)
+        return float(np.interp(year, anchor_years.astype(float), vals))
+
+    def coverage_mean_for_mode(self, year: int, ac_ssp: int, mode: str = "base") -> float:
+        base_mean = float(self.get_penetration(ac_ssp, year))
+        if str(mode).lower() != "policy":
+            return base_mean
+        delta_mean = self.interpolate_coverage_mean(year, "policy") - self.interpolate_coverage_mean(year, "base")
+        return float(np.clip(base_mean + float(delta_mean), 0.0, 0.98))
+
+    def coverage_for_sample(self, year: int, ac_ssp: int, mode: str = "base") -> np.ndarray:
+        pattern = self.interpolate_coverage_pattern(year, mode=mode)
+        target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode=mode)
         return _scale_pattern_to_mean_masked(pattern, self.row_is_city, target_mean, upper=0.98)
+
+    def build_muni_ac_cost_frame(
+        self,
+        sample: dict[str, Any],
+        years_all: np.ndarray,
+        pop_25y: np.ndarray,
+    ) -> pd.DataFrame | None:
+        if self.elec_fb_cov_yearly is None or self.elec_fb_ac_summary is None:
+            return None
+
+        cov_src = self.elec_fb_cov_yearly.copy()
+        kwh_src = self.elec_fb_ac_summary.copy()
+        if "muni_id" not in cov_src.columns or "muni_id" not in kwh_src.columns:
+            return None
+
+        cov_src = cov_src.loc[cov_src["muni_id"].astype(int) > 0].copy()
+        kwh_src = kwh_src.loc[kwh_src["muni_id"].astype(int) > 0].copy()
+        if cov_src.empty or kwh_src.empty:
+            return None
+
+        years_all = np.asarray(years_all, dtype=int)
+        pop_25y = np.asarray(pop_25y, dtype=float)
+        if years_all.size == 0 or pop_25y.size != years_all.size or pop_25y[0] <= 0:
+            return None
+
+        pop_scale_t = pop_25y / max(pop_25y[0], 1e-9)
+
+        cov_rows: list[dict[str, float]] = []
+        for muni_id, g in cov_src.groupby("muni_id"):
+            g = g.sort_values("year")
+            known_years = g["year"].to_numpy(int)
+            known_base = g["ac_base_muni"].to_numpy(float)
+            known_pol = g["ac_policy_muni"].to_numpy(float)
+            pop_2020 = float(g["pop_muni"].iloc[0])
+
+            base_raw_t = np.interp(years_all, known_years, known_base)
+            pol_raw_t = np.interp(years_all, known_years, known_pol)
+            base_raw_t[years_all <= known_years[0]] = known_base[0]
+            base_raw_t[years_all >= known_years[-1]] = known_base[-1]
+            pol_raw_t[years_all <= known_years[0]] = known_pol[0]
+            pol_raw_t[years_all >= known_years[-1]] = known_pol[-1]
+
+            for year, base_raw, pol_raw, pop_scale in zip(years_all, base_raw_t, pol_raw_t, pop_scale_t):
+                cov_rows.append(
+                    {
+                        "year": int(year),
+                        "muni_id": int(muni_id),
+                        "pop_muni": float(pop_2020 * pop_scale),
+                        "base_share_raw": float(np.clip(base_raw, 0.0, 0.98)),
+                        "policy_share_raw": float(np.clip(pol_raw, 0.0, 0.98)),
+                    }
+                )
+
+        kwh_rows: list[dict[str, float]] = []
+        for muni_id, g in kwh_src.groupby("muni_id"):
+            g = g.sort_values("year")
+            known_years = g["year"].to_numpy(int)
+            vals = g["kwh_per_user_muni"].to_numpy(float)
+            kwh_interp = np.interp(years_all, known_years, vals)
+            kwh_interp[years_all <= known_years[0]] = vals[0]
+            kwh_interp[years_all >= known_years[-1]] = vals[-1]
+            for year, value in zip(years_all, kwh_interp):
+                kwh_rows.append(
+                    {
+                        "year": int(year),
+                        "muni_id": int(muni_id),
+                        "kwh_per_user_raw": float(max(value, 0.0)),
+                    }
+                )
+
+        cov_yearly = pd.DataFrame(cov_rows)
+        muni_kwh_full = pd.DataFrame(kwh_rows)
+        cov_yearly = cov_yearly.merge(muni_kwh_full, on=["year", "muni_id"], how="left")
+        cov_yearly["kwh_per_user_raw"] = cov_yearly["kwh_per_user_raw"].fillna(0.0)
+
+        if self.elec_fb_dgvi_by_region:
+            cov_yearly["dGVI"] = cov_yearly["muni_id"].map(self.elec_fb_dgvi_by_region).fillna(0.0)
+        else:
+            cov_yearly["dGVI"] = 0.0
+
+        for year in years_all:
+            mask = cov_yearly["year"] == int(year)
+            weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float)
+
+            base_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="base")
+            policy_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="policy")
+
+            cov_yearly.loc[mask, "base_share_t"] = _scale_pattern_to_weighted_mean(
+                cov_yearly.loc[mask, "base_share_raw"].to_numpy(float),
+                weights,
+                base_target,
+                upper=0.98,
+            )
+            cov_yearly.loc[mask, "policy_share_t"] = _scale_pattern_to_weighted_mean(
+                cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float),
+                weights,
+                policy_target,
+                upper=0.98,
+            )
+
+            user_weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float) * np.maximum(
+                cov_yearly.loc[mask, "base_share_t"].to_numpy(float),
+                1e-9,
+            )
+            target_kwh = self.get_kwh_per_user(sample["ac_ssp"], int(year))
+            cov_yearly.loc[mask, "kwh_per_user_t"] = _scale_pattern_to_weighted_mean(
+                cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float),
+                user_weights,
+                target_kwh,
+                upper=None,
+            )
+
+        cov_yearly["base_share_t"] = cov_yearly["base_share_t"].astype(float).clip(0.0, 0.98)
+        cov_yearly["policy_share_t"] = cov_yearly["policy_share_t"].astype(float).clip(0.0, 0.98)
+        cov_yearly["policy_share_t"] = np.maximum(cov_yearly["policy_share_t"], cov_yearly["base_share_t"])
+        cov_yearly["dshare_t"] = (cov_yearly["policy_share_t"] - cov_yearly["base_share_t"]).clip(0.0, 1.0)
+        cov_yearly["kwh_per_user_t"] = cov_yearly["kwh_per_user_t"].astype(float).clip(lower=0.0)
+        return cov_yearly
 
     def load_exposure_cached(self, path: Path) -> Exposures:
         key = str(path)
@@ -1107,9 +1516,10 @@ class NB09Improved:
         paa_scale: float,
         ac_ssp: int,
         ac_eff_scen: str,
+        ac_mode: str = "base",
     ) -> ImpactFuncSet:
         block = self.load_if_block(family, year)
-        pen = float(self.get_penetration(ac_ssp, year))
+        pen = float(self.coverage_mean_for_mode(year, ac_ssp, mode=ac_mode))
         ac_eff_map = self.cfg["efficacy_scenarios"][ac_eff_scen]
         funcs: list[ImpactFunc] = []
         for age in AGE_ORDER:
@@ -1154,6 +1564,9 @@ class NB09Improved:
         tree_cap_uplift: float,
         tree_ramp_years: int,
         tree_start_age: int,
+        ac_mode: str = "base",
+        wh_mode: str | None = None,
+        tree_enabled: bool = True,
     ) -> Hazard:
         months = self.months_by_year[year]
         n_days = len(months)
@@ -1166,16 +1579,19 @@ class NB09Improved:
             clim_adj = self.clim_day_anom_gcm.get((str(clim_scen), str(gcm_model), year), np.zeros(n_days, dtype=np.float32))
         else:
             clim_adj = self.clim_day_anom_bands.get((str(clim_scen), str(clim_band).lower(), year), np.zeros(n_days, dtype=np.float32))
+        citymean_pre_wh = self.ref_citymean_by_year[year] + mode_adj + clim_adj
+        wh_activity_share = self.waste_heat_activity_share(citymean_pre_wh)
 
-        coverage = self.coverage_for_sample(year, ac_ssp)
-        pen = float(self.get_penetration(ac_ssp, year))
+        wh_mode_use = str(wh_mode or ac_mode)
+        coverage = self.coverage_for_sample(year, ac_ssp, mode=wh_mode_use)
+        pen = float(self.coverage_mean_for_mode(year, ac_ssp, mode=wh_mode_use))
         dT_night = self.dT_night_from_penetration(pen, wh_case) if wh_enabled else 0.0
         if wh_enabled and cop_enabled:
             cop_sens = float(self.cop_sens.get(cop_case, self.cop_sens.get("central", 0.065)))
             amp = self.cop_amplification_factor(dT_night, cop_sens)
         else:
             amp = 1.0
-        wh_city_scalar = float(wh_ratio) * float(dT_night) * float(amp) if wh_enabled else 0.0
+        wh_city_scalar = float(wh_activity_share) * float(wh_ratio) * float(dT_night) * float(amp) if wh_enabled else 0.0
         if wh_city_scalar != 0.0 and coverage.size:
             coverage_mean = float(coverage[self.row_is_city].mean())
             wh_pattern = coverage / max(coverage_mean, 1e-6)
@@ -1184,7 +1600,7 @@ class NB09Improved:
 
         maturity = self.tree_maturity_factor(year, tree_ramp_years, tree_start_age)
         cap_ratio = float(tree_cap_uplift) / max(self.tree_base_cap, 1e-6)
-        tree_scale = float(tree_coeff_scale) * cap_ratio * float(maturity)
+        tree_scale = float(tree_coeff_scale) * cap_ratio * float(maturity) if tree_enabled else 0.0
 
         for row in range(n_days):
             a, b = indptr[row], indptr[row + 1]
@@ -1247,6 +1663,11 @@ class NB09Improved:
         sample: dict[str, Any],
         threshold_ref: float | None = None,
         pop_totals: dict[int, float] | None = None,
+        *,
+        ac_mode: str = "base",
+        wh_mode: str | None = None,
+        tree_enabled: bool = True,
+        ews_enabled: bool = True,
     ) -> dict[str, Any]:
         exp_path = self.exposure_path_for_year(year, sample["EXP_SSP_IDX"])
         scale = float(sample["EXP_TOTAL_SCALE"])
@@ -1258,6 +1679,7 @@ class NB09Improved:
             clim_source=sample["clim_source"],
             gcm_model=sample["gcm_model"],
             ac_ssp=sample["ac_ssp"],
+            ac_mode=ac_mode,
             wh_case=sample["wh_case"],
             wh_ratio=sample["WH_RATIO"],
             cop_case=sample["cop_case"],
@@ -1267,6 +1689,8 @@ class NB09Improved:
             tree_cap_uplift=sample["TREE_CAP_UPLIFT"],
             tree_ramp_years=sample["tree_ramp_years"],
             tree_start_age=sample["tree_start_age"],
+            wh_mode=wh_mode,
+            tree_enabled=tree_enabled,
         )
         ifs = self.build_if_set_ac_only(
             family=sample["if_family"],
@@ -1279,6 +1703,7 @@ class NB09Improved:
             paa_scale=sample["PAA_SCALE"],
             ac_ssp=sample["ac_ssp"],
             ac_eff_scen=sample["ac_eff_scenario"],
+            ac_mode=ac_mode,
         )
 
         age_impacts: dict[str, np.ndarray] = {}
@@ -1294,12 +1719,12 @@ class NB09Improved:
         dates = self.dates_by_year[year]
         season_mask = _season_mask_by_md(dates, self.season_start_md, self.season_end_md)
 
-        pen = float(self.get_penetration(sample["ac_ssp"], year))
+        pen = float(self.coverage_mean_for_mode(year, sample["ac_ssp"], mode=ac_mode))
         overlap = float(self.ews_overlap.get(sample["ews_overlap_level"], self.ews_overlap.get("central", 0.3)))
         ac_penalty = float(np.clip(1.0 - overlap * pen, 0.0, 1.0))
         ramp_factor = self.ramp_factor(year, sample["ews_ramp_years"])
 
-        if threshold_ref is None:
+        if (threshold_ref is None) or (not ews_enabled):
             threshold_year = np.nan
             warning_mask = np.zeros_like(daily_total, dtype=bool)
         else:
@@ -1361,6 +1786,105 @@ class NB09Improved:
             "pop_total": self.pop_total_for_exposure(exp_path, scale),
         }
 
+    def evaluate_branch_anchors(
+        self,
+        sample: dict[str, Any],
+        *,
+        ac_mode: str = "base",
+        wh_mode: str | None = None,
+        tree_enabled: bool = True,
+        ews_enabled: bool = False,
+    ) -> tuple[dict[int, dict[str, Any]], dict[int, float], float | None]:
+        anchor_results: dict[int, dict[str, Any]] = {}
+        pop_totals: dict[int, float] = {}
+
+        if not ews_enabled:
+            for year in self.years:
+                res = self.evaluate_year(
+                    year,
+                    sample,
+                    threshold_ref=None,
+                    pop_totals={},
+                    ac_mode=ac_mode,
+                    wh_mode=wh_mode,
+                    tree_enabled=tree_enabled,
+                    ews_enabled=False,
+                )
+                anchor_results[year] = res
+                pop_totals[year] = res["pop_total"]
+            return anchor_results, pop_totals, None
+
+        ref_year = self.ews_threshold_ref_year if self.ews_threshold_ref_year in self.years else min(self.years)
+        eval_order = [ref_year] + [y for y in self.years if y != ref_year]
+        prelim_ref = self.evaluate_year(
+            ref_year,
+            sample,
+            threshold_ref=None,
+            pop_totals={},
+            ac_mode=ac_mode,
+            wh_mode=wh_mode,
+            tree_enabled=tree_enabled,
+            ews_enabled=False,
+        )
+        anchor_results[ref_year] = prelim_ref
+        pop_totals[ref_year] = prelim_ref["pop_total"]
+        season_ref = _season_mask_by_md(self.dates_by_year[ref_year], self.season_start_md, self.season_end_md)
+        threshold_ref = _safe_quantile_threshold(prelim_ref["daily_base_total"][season_ref], sample["ews_target_days"])
+
+        anchor_results[ref_year] = self.evaluate_year(
+            ref_year,
+            sample,
+            threshold_ref=threshold_ref,
+            pop_totals={ref_year: prelim_ref["pop_total"]},
+            ac_mode=ac_mode,
+            wh_mode=wh_mode,
+            tree_enabled=tree_enabled,
+            ews_enabled=True,
+        )
+        pop_totals[ref_year] = anchor_results[ref_year]["pop_total"]
+        for year in eval_order[1:]:
+            res = self.evaluate_year(
+                year,
+                sample,
+                threshold_ref=threshold_ref,
+                pop_totals={**pop_totals, year: 0.0},
+                ac_mode=ac_mode,
+                wh_mode=wh_mode,
+                tree_enabled=tree_enabled,
+                ews_enabled=True,
+            )
+            anchor_results[year] = res
+            pop_totals[year] = res["pop_total"]
+
+        for year in self.years:
+            anchor_results[year] = self.evaluate_year(
+                year,
+                sample,
+                threshold_ref=threshold_ref,
+                pop_totals=pop_totals,
+                ac_mode=ac_mode,
+                wh_mode=wh_mode,
+                tree_enabled=tree_enabled,
+                ews_enabled=True,
+            )
+        return anchor_results, pop_totals, threshold_ref
+
+    def interpolate_branch_annuals(
+        self,
+        anchor_results: dict[int, dict[str, Any]],
+        pop_totals: dict[int, float],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        anchor_years = np.array(self.years, dtype=int)
+        years_all = np.arange(min(self.years), min(self.years) + HORIZON_YEARS, dtype=int)
+        annual_anchor = np.array(
+            [float(np.asarray(anchor_results[y]["daily_residual_total"], dtype=float).sum()) for y in self.years],
+            dtype=float,
+        )
+        pop_anchor = np.array([float(pop_totals[y]) for y in self.years], dtype=float)
+        annual_25y = _interp_1d_years(anchor_years, annual_anchor, years_all)
+        pop_25y = _interp_1d_years(anchor_years, pop_anchor, years_all)
+        return years_all, annual_25y, pop_25y, annual_anchor
+
     def _age_key(self, age: str) -> str:
         return {"<15": "lt15", "15-64": "15_64", "65+": "65p"}[age]
 
@@ -1397,42 +1921,283 @@ class NB09Improved:
             "ews_target_days": self.ews_target_days_options[int(row["EWS_TARGET_DAYS_IDX"])],
             "ews_recalib_years": self.ews_recalib_options[int(row["EWS_RECALIB_YEARS_IDX"])],
             "ews_cost_model": self.ews_cost_model_options[int(row["EWS_COST_MODEL_IDX"])],
+            "discount_rate": [0.02, 0.03, 0.05][int(row["DISCOUNT_RATE_IDX"])],
+            "ac_capex_per_user": [350.0, 500.0, 650.0][int(row["AC_CAPEX_PER_USER_IDX"])],
+            "ac_tariff_eur_per_kwh": [0.21, 0.25, 0.29][int(row["AC_TARIFF_EUR_PER_KWH_IDX"])],
+            "ac_lifetime_years": [8, 10, 12][int(row["AC_LIFETIME_YEARS_IDX"])],
+            "tree_capex_per_tree": [168.0, 210.0, 252.0][int(row["TREE_CAPEX_PER_TREE_IDX"])],
+            "tree_om_per_tree_yr": [27.0, 135.0][int(row["TREE_OM_PER_TREE_YR_IDX"])],
+            "elec_feedback_enabled": bool(int(row["ELEC_FEEDBACK_ENABLED_IDX"])),
+            "elec_coeff_scale": float(row["ELEC_COEFF_SCALE"]),
         }
+
+    def compute_ac_cost_metrics(
+        self,
+        sample: dict[str, Any],
+        years_all: np.ndarray,
+        pop_25y: np.ndarray,
+    ) -> dict[str, float]:
+        r = float(sample["discount_rate"])
+        t_index = np.arange(len(years_all), dtype=float)
+        maint_rate = float(self.ac_cost_params.get("maint_rate", self.ac_cfg.get("maint_rate", 0.05)))
+        maint_per_user_yr = float(
+            self.ac_cost_params.get(
+                "maint_per_user_yr",
+                maint_rate * float(sample["ac_capex_per_user"]),
+            )
+        )
+        discount_factors = (1.0 + r) ** t_index
+        tariff = float(sample["ac_tariff_eur_per_kwh"])
+
+        cost_frame = self.build_muni_ac_cost_frame(sample, years_all, pop_25y)
+        if cost_frame is None:
+            base_share_t = np.array(
+                [self.coverage_mean_for_mode(int(y), sample["ac_ssp"], mode="base") for y in years_all],
+                dtype=float,
+            )
+            policy_share_t = np.array(
+                [self.coverage_mean_for_mode(int(y), sample["ac_ssp"], mode="policy") for y in years_all],
+                dtype=float,
+            )
+            users_base_t = np.asarray(pop_25y, dtype=float) * base_share_t
+            users_policy_t = np.asarray(pop_25y, dtype=float) * policy_share_t
+            kwh_per_user_t = np.array([self.get_kwh_per_user(sample["ac_ssp"], int(y)) for y in years_all], dtype=float)
+
+            ramp_years = int(sample["tree_ramp_years"])
+            start_age = int(sample["tree_start_age"])
+            maturity_t = _cohort_rollout_maturity_factor(len(years_all), ramp_years, start_age_years=start_age)
+            veg_reduction_t = np.zeros(len(years_all), dtype=float)
+            if sample.get("elec_feedback_enabled", False) and self.elec_fb_pw_dgvi > 0:
+                pct_per_pt = self.elec_fb_pct_per_point * float(sample.get("elec_coeff_scale", 1.0))
+                summer_frac = self.elec_fb_summer_months / 12.0
+                veg_reduction_t = pct_per_pt * self.elec_fb_pw_dgvi * summer_frac * maturity_t
+            kwh_per_user_with_trees_t = kwh_per_user_t * (1.0 - veg_reduction_t)
+
+            kwh_base_t = np.maximum(users_base_t, 0.0) * kwh_per_user_t
+            kwh_policy_t = np.maximum(users_policy_t, 0.0) * kwh_per_user_t
+            kwh_base_with_trees_t = np.maximum(users_base_t, 0.0) * kwh_per_user_with_trees_t
+            kwh_policy_with_trees_t = np.maximum(users_policy_t, 0.0) * kwh_per_user_with_trees_t
+        else:
+            ramp_years = int(sample["tree_ramp_years"])
+            start_age = int(sample["tree_start_age"])
+            maturity_t = _cohort_rollout_maturity_factor(len(years_all), ramp_years, start_age_years=start_age)
+            maturity_map = {int(year): float(mat) for year, mat in zip(years_all, maturity_t)}
+
+            cost_frame = cost_frame.copy()
+            cost_frame["maturity_t"] = cost_frame["year"].map(maturity_map).fillna(0.0).astype(float)
+            pct_per_pt = self.elec_fb_pct_per_point * float(sample.get("elec_coeff_scale", 1.0))
+            summer_frac = self.elec_fb_summer_months / 12.0
+            if sample.get("elec_feedback_enabled", False):
+                cost_frame["veg_reduction"] = (
+                    pct_per_pt
+                    * cost_frame["dGVI"].clip(lower=0.0).astype(float)
+                    * summer_frac
+                    * cost_frame["maturity_t"]
+                )
+            else:
+                cost_frame["veg_reduction"] = 0.0
+            cost_frame["kwh_per_user_with_trees"] = cost_frame["kwh_per_user_t"] * (1.0 - cost_frame["veg_reduction"])
+
+            users_base_t = (
+                cost_frame.assign(users=lambda d: d["pop_muni"] * d["base_share_t"])
+                .groupby("year")["users"]
+                .sum()
+                .reindex(years_all, fill_value=0.0)
+                .to_numpy(float)
+            )
+            users_policy_t = (
+                cost_frame.assign(users=lambda d: d["pop_muni"] * d["policy_share_t"])
+                .groupby("year")["users"]
+                .sum()
+                .reindex(years_all, fill_value=0.0)
+                .to_numpy(float)
+            )
+            kwh_base_t = (
+                cost_frame.assign(kwh=lambda d: d["pop_muni"] * d["base_share_t"] * d["kwh_per_user_t"])
+                .groupby("year")["kwh"]
+                .sum()
+                .reindex(years_all, fill_value=0.0)
+                .to_numpy(float)
+            )
+            kwh_policy_t = (
+                cost_frame.assign(kwh=lambda d: d["pop_muni"] * d["policy_share_t"] * d["kwh_per_user_t"])
+                .groupby("year")["kwh"]
+                .sum()
+                .reindex(years_all, fill_value=0.0)
+                .to_numpy(float)
+            )
+            kwh_base_with_trees_t = (
+                cost_frame.assign(kwh=lambda d: d["pop_muni"] * d["base_share_t"] * d["kwh_per_user_with_trees"])
+                .groupby("year")["kwh"]
+                .sum()
+                .reindex(years_all, fill_value=0.0)
+                .to_numpy(float)
+            )
+            kwh_policy_with_trees_t = (
+                cost_frame.assign(kwh=lambda d: d["pop_muni"] * d["policy_share_t"] * d["kwh_per_user_with_trees"])
+                .groupby("year")["kwh"]
+                .sum()
+                .reindex(years_all, fill_value=0.0)
+                .to_numpy(float)
+            )
+
+        added_users_t = np.maximum(users_policy_t - users_base_t, 0.0)
+        new_users_t = np.empty_like(added_users_t)
+        new_users_t[0] = added_users_t[0]
+        new_users_t[1:] = np.maximum(added_users_t[1:] - added_users_t[:-1], 0.0)
+
+        pv_capex = _pv_capex_with_replacements(
+            new_users_t,
+            float(sample["ac_capex_per_user"]),
+            int(sample["ac_lifetime_years"]),
+            r,
+        )
+        pv_maint = float(np.sum((np.maximum(added_users_t, 0.0) * maint_per_user_yr) / discount_factors))
+
+        kwh_inc_standalone_t = kwh_policy_t - kwh_base_t
+        kwh_inc_with_trees_t = kwh_policy_with_trees_t - kwh_base_with_trees_t
+
+        pv_elec_standalone = float(np.sum((np.maximum(kwh_inc_standalone_t, 0.0) * tariff) / discount_factors))
+        pv_elec_with_trees = float(np.sum((np.maximum(kwh_inc_with_trees_t, 0.0) * tariff) / discount_factors))
+        pv_total_standalone = pv_capex + pv_maint + pv_elec_standalone
+        pv_total_with_trees = pv_capex + pv_maint + pv_elec_with_trees
+
+        kwh_saved_base_users_t = kwh_base_t - kwh_base_with_trees_t
+        kwh_saved_all_t = kwh_policy_t - kwh_policy_with_trees_t
+        pv_veg_eur_base = float(np.sum(kwh_saved_base_users_t * tariff / discount_factors))
+        pv_veg_eur_all = float(np.sum(kwh_saved_all_t * tariff / discount_factors))
+        cum_veg_kwh_base = float(kwh_saved_base_users_t.sum())
+        cum_veg_kwh_all = float(kwh_saved_all_t.sum())
+        cum_veg_co2_base_t = cum_veg_kwh_base * self.elec_fb_co2_per_kwh / 1e6
+        cum_veg_co2_all_t = cum_veg_kwh_all * self.elec_fb_co2_per_kwh / 1e6
+
+        return {
+            "ac_pv_capex_25y": pv_capex,
+            "ac_pv_maint_25y": pv_maint,
+            "ac_pv_elec_25y": pv_elec_standalone,
+            "ac_pv_elec_with_trees_25y": pv_elec_with_trees,
+            "ac_pv_elec_no_veg_25y": pv_elec_standalone,
+            "ac_pv_elec_veg_saving": pv_elec_standalone - pv_elec_with_trees,
+            "ac_pv_cost_25y": pv_total_standalone,
+            "ac_pv_cost_with_trees_25y": pv_total_with_trees,
+            "ac_added_users_final": float(added_users_t[-1]) if added_users_t.size else 0.0,
+            "elec_pv_savings": pv_veg_eur_all,
+            "elec_kwh_25y": cum_veg_kwh_all,
+            "elec_co2_t_25y": cum_veg_co2_all_t,
+            "tree_elec_pv_savings_base_users": pv_veg_eur_base,
+            "tree_elec_pv_savings_all_users": pv_veg_eur_all,
+            "tree_elec_kwh_base_users_25y": cum_veg_kwh_base,
+            "tree_elec_kwh_all_users_25y": cum_veg_kwh_all,
+            "tree_elec_co2_base_users_t_25y": cum_veg_co2_base_t,
+            "tree_elec_co2_all_users_t_25y": cum_veg_co2_all_t,
+        }
+
+    def compute_tree_cost_metrics(self, sample: dict[str, Any]) -> dict[str, float]:
+        trees_cfg = self.cfg.get("trees", {})
+        years = HORIZON_YEARS
+        r = float(sample["discount_rate"])
+
+        base_capex_per_tree = float(
+            self.tree_cost_params.get("capex_per_tree", trees_cfg.get("capex_per_tree_eur", sample["tree_capex_per_tree"]))
+        )
+        base_capex_per_index = float(
+            self.tree_cost_params.get(
+                "capex_per_index_pt",
+                trees_cfg.get("capex_per_index_pt_eur", 0.0),
+            )
+        )
+        capex_scale = float(sample["tree_capex_per_tree"]) / max(base_capex_per_tree, 1e-6)
+        capex_per_index = base_capex_per_index * capex_scale if base_capex_per_index > 0 else float(sample["tree_capex_per_tree"])
+
+        base_om_per_tree = float(
+            self.tree_cost_params.get("om_per_tree_yr", trees_cfg.get("om_per_tree_per_year_eur", sample["tree_om_per_tree_yr"]))
+        )
+        base_om_per_index = float(
+            self.tree_cost_params.get(
+                "om_per_index_pt_yr",
+                (base_om_per_tree / max(base_capex_per_tree, 1e-6)) * base_capex_per_index if base_capex_per_index > 0 else 0.0,
+            )
+        )
+        om_scale = float(sample["tree_om_per_tree_yr"]) / max(base_om_per_tree, 1e-6)
+        om_per_index = base_om_per_index * om_scale
+
+        delta_index_total = float(
+            self.tree_cost_params.get(
+                "delta_index_total",
+                self.tree_cost_params.get("delta_gvi_total", self.tree_cost_params.get("total_dGVI_points", 0.0)),
+            )
+        )
+        lifetime = int(self.tree_cost_params.get("lifetime_years", trees_cfg.get("lifetime_years", HORIZON_YEARS)))
+        pv_capex = _npv_capex_linear(delta_index_total, years, r, capex_per_index)
+        pv_om, _ = _npv_om_cohorts_scaled(
+            delta_index_total,
+            years,
+            r,
+            om_per_index,
+            int(sample["tree_ramp_years"]),
+            lifetime,
+            int(sample["tree_start_age"]),
+        )
+        return {
+            "tree_pv_capex_25y": pv_capex,
+            "tree_pv_om_25y": pv_om,
+            "tree_pv_cost_25y": pv_capex + pv_om,
+            "tree_delta_index_total": delta_index_total,
+        }
+
+    def compute_lambda_y(self, sample: dict[str, Any], years_all: np.ndarray) -> np.ndarray:
+        """Compute lambda_y: tree-cooled AC utilization scaling factor for waste heat.
+
+        lambda_y = s_tree(y) / s_base(y), where s = CDD-based activity share.
+        Trees cool the urban canopy → lower hazard → reduced AC utilization → less waste heat.
+        """
+        T = len(years_all)
+        lambda_y = np.ones(T, dtype=float)
+
+        ramp_years = int(sample["tree_ramp_years"])
+        start_age = int(sample["tree_start_age"])
+        tree_scale = float(sample.get("TREE_COEFF_SCALE", 1.0))
+
+        dT2M_monthly = self.tree_dT2M_citymean_monthly * tree_scale  # scale by UQ coefficient
+
+        anchor_lambdas = {}
+        for year in self.years:
+            citymean = self.ref_citymean_by_year.get(year)
+            if citymean is None:
+                continue
+            months = self.months_by_year.get(year)
+            if months is None:
+                continue
+
+            ys = year - int(years_all[0])
+            maturity = min(max((ys + start_age) / ramp_years, 0.0), 1.0)
+
+            # Apply monthly tree cooling scaled by maturity
+            dT_daily = np.array([dT2M_monthly[m - 1] * maturity for m in months], dtype=float)
+            T_tree = citymean.astype(float) + dT_daily  # cooling (negative dT)
+
+            s_base = self.waste_heat_activity_share(citymean)
+            s_tree = self.waste_heat_activity_share(T_tree)
+
+            anchor_lambdas[year] = np.clip(s_tree / max(s_base, 1e-9), 0.0, 1.0)
+
+        if anchor_lambdas:
+            anchor_yrs = np.array(sorted(anchor_lambdas.keys()), dtype=float)
+            anchor_vals = np.array([anchor_lambdas[int(y)] for y in anchor_yrs], dtype=float)
+            lambda_y = np.interp(years_all.astype(float), anchor_yrs, anchor_vals)
+            lambda_y = np.clip(lambda_y, 0.0, 1.0)
+
+        return lambda_y
 
     def evaluate_sample(self, raw_row: pd.Series) -> dict[str, Any]:
         sample = self.sample_dict(raw_row)
 
-        anchor_results: dict[int, dict[str, Any]] = {}
-        pop_totals: dict[int, float] = {}
-        ref_year = self.ews_threshold_ref_year if self.ews_threshold_ref_year in self.years else min(self.years)
-
-        # Compute the reference-year burden first so threshold calibration responds to the sampled hazard + IF setup.
-        eval_order = [ref_year] + [y for y in self.years if y != ref_year]
-        prelim_ref = self.evaluate_year(ref_year, sample, threshold_ref=None, pop_totals={})
-        anchor_results[ref_year] = prelim_ref
-        pop_totals[ref_year] = prelim_ref["pop_total"]
-        threshold_ref = _safe_quantile_threshold(
-            prelim_ref["daily_base_total"][prelim_ref["daily_base_total"] >= 0][prelim_ref["warning_mask"] | _season_mask_by_md(self.dates_by_year[ref_year], self.season_start_md, self.season_end_md)],
-            sample["ews_target_days"],
+        anchor_results, pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            tree_enabled=True,
+            ews_enabled=True,
         )
-        # The reference threshold uses only in-season days.
-        season_ref = _season_mask_by_md(self.dates_by_year[ref_year], self.season_start_md, self.season_end_md)
-        threshold_ref = _safe_quantile_threshold(prelim_ref["daily_base_total"][season_ref], sample["ews_target_days"])
-
-        # Re-evaluate the reference year and all remaining anchors with the event-level warning logic.
-        anchor_results[ref_year] = self.evaluate_year(ref_year, sample, threshold_ref=threshold_ref, pop_totals={ref_year: prelim_ref["pop_total"]})
-        pop_totals[ref_year] = anchor_results[ref_year]["pop_total"]
-        for year in eval_order[1:]:
-            res = self.evaluate_year(year, sample, threshold_ref=threshold_ref, pop_totals={**pop_totals, year: 0.0})
-            anchor_results[year] = res
-            pop_totals[year] = res["pop_total"]
-
-        # Reapply stepwise threshold scaling now that all anchor populations are known.
-        for year in self.years:
-            if year == ref_year:
-                anchor_results[year] = self.evaluate_year(year, sample, threshold_ref=threshold_ref, pop_totals=pop_totals)
-            else:
-                anchor_results[year] = self.evaluate_year(year, sample, threshold_ref=threshold_ref, pop_totals=pop_totals)
 
         sample_year = int(sample["year"])
         year_res = anchor_results[sample_year]
@@ -1462,6 +2227,7 @@ class NB09Improved:
         ramp_25y = np.array([self.ramp_factor(y, sample["ews_ramp_years"]) for y in years_all], dtype=float)
         cost_ramp_25y = ramp_25y if bool(self.ews_cfg.get("cost_ramp_with_efficacy", False)) else np.ones_like(ramp_25y)
         pop_ref = float(np.interp(self.ews_threshold_ref_year, anchor_years.astype(float), pop_anchor))
+        discount_rate = float(sample["discount_rate"])
 
         capex = float(self.ews_cfg.get("capex_setup", 0.0))
         opex_fixed = float(self.ews_cfg.get("opex_annual_fixed", 0.0))
@@ -1487,7 +2253,7 @@ class NB09Improved:
         cost_capex_25y[0] = capex
         cost_opex_fixed_25y = opex_fixed * cost_ramp_25y
         cost_total_25y = cost_capex_25y + cost_opex_fixed_25y + cost_opex_var_25y
-        discount_factors = (1.0 + DISCOUNT_RATE) ** t_index
+        discount_factors = (1.0 + discount_rate) ** t_index
         cost_pv_25y = cost_total_25y / discount_factors
         net_pv_25y = net_25y / discount_factors
         lys_pv_25y = lys_25y / discount_factors
@@ -1514,6 +2280,118 @@ class NB09Improved:
             "ews_cost_per_net_death_25y_cum": pv_cost_total / net_avoided_cum if net_avoided_cum > 0 else np.inf,
             "ews_cost_per_net_death_25y_pv": pv_cost_total / net_avoided_pv if net_avoided_pv > 0 else np.inf,
             "ews_cost_model": sample["ews_cost_model"],
+        }
+
+        ref_anchor_results, ref_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            wh_mode="base",
+            tree_enabled=False,
+            ews_enabled=False,
+        )
+        ac_gross_anchor_results, ac_gross_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="policy",
+            wh_mode="base",
+            tree_enabled=False,
+            ews_enabled=False,
+        )
+        ac_net_anchor_results, ac_net_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="policy",
+            wh_mode="policy",
+            tree_enabled=False,
+            ews_enabled=False,
+        )
+        tree_anchor_results, tree_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            wh_mode="base",
+            tree_enabled=True,
+            ews_enabled=False,
+        )
+        ews_policy_anchor_results, ews_policy_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            wh_mode="base",
+            tree_enabled=False,
+            ews_enabled=True,
+        )
+
+        _, ref_annual_25y, ref_pop_25y, _ = self.interpolate_branch_annuals(ref_anchor_results, ref_pop_totals)
+        _, ac_gross_annual_25y, _, _ = self.interpolate_branch_annuals(ac_gross_anchor_results, ac_gross_pop_totals)
+        _, ac_net_annual_25y, _, _ = self.interpolate_branch_annuals(ac_net_anchor_results, ac_net_pop_totals)
+        _, tree_annual_25y, _, _ = self.interpolate_branch_annuals(tree_anchor_results, tree_pop_totals)
+        _, ews_policy_annual_25y, _, _ = self.interpolate_branch_annuals(ews_policy_anchor_results, ews_policy_pop_totals)
+
+        ac_gross_avoided_25y = ref_annual_25y - ac_gross_annual_25y
+        ac_net_avoided_25y = ref_annual_25y - ac_net_annual_25y
+        ac_penalty_raw_25y = ac_gross_avoided_25y - ac_net_avoided_25y  # standalone AC (no trees)
+        tree_avoided_25y = ref_annual_25y - tree_annual_25y
+        ews_reference_avoided_25y = ref_annual_25y - ews_policy_annual_25y
+
+        # Lambda_y: tree-cooled waste-heat correction for the explicit AC+trees interaction branch.
+        lambda_y_25y = self.compute_lambda_y(sample, years_all)
+        ac_penalty_with_trees_25y = ac_penalty_raw_25y * lambda_y_25y
+        ac_net_with_trees_25y = ac_gross_avoided_25y - ac_penalty_with_trees_25y
+
+        # AC costs: standalone AC plus explicit AC+trees interaction on electricity costs.
+        ac_costs = self.compute_ac_cost_metrics(sample, years_all, ref_pop_25y)
+        tree_costs = self.compute_tree_cost_metrics(sample)
+        ac_gross_avoided_cum = float(ac_gross_avoided_25y.sum())
+        ac_net_avoided_cum = float(ac_net_avoided_25y.sum())
+        ac_net_with_trees_cum = float(ac_net_with_trees_25y.sum())
+        tree_avoided_cum = float(tree_avoided_25y.sum())
+
+        result.update(ac_costs)
+        result.update(
+            {
+                "ac_gross_avoided_deaths_25y_cum": ac_gross_avoided_cum,
+                "ac_net_avoided_deaths_25y_cum": ac_net_avoided_cum,
+                "ac_waste_heat_penalty_25y_cum": float(ac_penalty_raw_25y.sum()),
+                "ac_waste_heat_penalty_raw_25y_cum": float(ac_penalty_raw_25y.sum()),
+                "ac_cost_per_gross_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_25y"], ac_gross_avoided_cum),
+                "ac_cost_per_net_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_25y"], ac_net_avoided_cum),
+                "ac_with_trees_net_avoided_deaths_25y_cum": ac_net_with_trees_cum,
+                "ac_with_trees_waste_heat_penalty_25y_cum": float(ac_penalty_with_trees_25y.sum()),
+                "ac_with_trees_cost_per_gross_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_with_trees_25y"], ac_gross_avoided_cum),
+                "ac_with_trees_cost_per_net_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_with_trees_25y"], ac_net_with_trees_cum),
+                "lambda_y_mean": float(lambda_y_25y.mean()),
+            }
+        )
+        result.update(tree_costs)
+        result.update(
+            {
+                "tree_avoided_deaths_25y_cum": tree_avoided_cum,
+                "tree_cost_per_death_25y_cum": _safe_ratio(tree_costs["tree_pv_cost_25y"], tree_avoided_cum),
+            }
+        )
+
+        # Vegetation-electricity outputs are reported as explicit tree co-benefits, not netted into tree CBA by default.
+        result["tree_elec_cost_coverage_base_users_pct"] = (
+            100.0 * ac_costs.get("tree_elec_pv_savings_base_users", 0.0) / max(tree_costs["tree_pv_cost_25y"], 1e-6)
+        )
+        result["tree_elec_cost_coverage_all_users_pct"] = (
+            100.0 * ac_costs.get("tree_elec_pv_savings_all_users", 0.0) / max(tree_costs["tree_pv_cost_25y"], 1e-6)
+        )
+        result["elec_feedback_enabled"] = sample.get("elec_feedback_enabled", False)
+        result["elec_coeff_scale"] = sample.get("elec_coeff_scale", 1.0)
+
+        result["_policy_branch_annuals"] = {
+            "reference": ref_annual_25y,
+            "ac_policy_gross": ac_gross_annual_25y,
+            "ac_policy_net": ac_net_annual_25y,
+            "tree_policy": tree_annual_25y,
+            "ews_policy": ews_policy_annual_25y,
+        }
+        result["_policy_branch_effects"] = {
+            "ac_gross_avoided_25y": ac_gross_avoided_25y,
+            "ac_net_avoided_25y": ac_net_avoided_25y,
+            "ac_net_with_trees_25y": ac_net_with_trees_25y,
+            "ac_penalty_raw_25y": ac_penalty_raw_25y,
+            "ac_penalty_with_trees_25y": ac_penalty_with_trees_25y,
+            "tree_avoided_25y": tree_avoided_25y,
+            "ews_reference_avoided_25y": ews_reference_avoided_25y,
         }
 
         # ── Vulnerability output metrics (Level A: does not affect mortality) ──
@@ -1551,7 +2429,9 @@ class NB09Improved:
         raw_samples, x = self.sample_parameters(n, seed)
         sample_rows: list[dict[str, Any]] = []
         impact_rows: list[dict[str, Any]] = []
-        cba_rows: list[dict[str, Any]] = []
+        cba_ews_rows: list[dict[str, Any]] = []
+        cba_ac_rows: list[dict[str, Any]] = []
+        cba_tree_rows: list[dict[str, Any]] = []
         vuln_rows: list[dict[str, Any]] = []
 
         for idx, raw_row in raw_samples.iterrows():
@@ -1566,7 +2446,7 @@ class NB09Improved:
                     **{f"rp{rp}": out[f"rp{rp}"] for rp in RETURN_PERIODS},
                 }
             )
-            cba_rows.append(
+            cba_ews_rows.append(
                 {
                     "ews_pv_cost_25y": out["ews_pv_cost_25y"],
                     "ews_net_avoided_deaths_25y_cum": out["ews_net_avoided_deaths_25y_cum"],
@@ -1574,6 +2454,44 @@ class NB09Improved:
                     "ews_cost_per_net_death_25y_cum": out["ews_cost_per_net_death_25y_cum"],
                     "ews_cost_per_net_death_25y_pv": out["ews_cost_per_net_death_25y_pv"],
                     "ews_life_years_saved_25y_cum": out["ews_life_years_saved_25y_cum"],
+                }
+            )
+            cba_ac_rows.append(
+                {
+                    "ac_pv_capex_25y": out["ac_pv_capex_25y"],
+                    "ac_pv_maint_25y": out["ac_pv_maint_25y"],
+                    "ac_pv_elec_25y": out["ac_pv_elec_25y"],
+                    "ac_pv_elec_with_trees_25y": out["ac_pv_elec_with_trees_25y"],
+                    "ac_pv_cost_25y": out["ac_pv_cost_25y"],
+                    "ac_pv_cost_with_trees_25y": out["ac_pv_cost_with_trees_25y"],
+                    "ac_added_users_final": out["ac_added_users_final"],
+                    "ac_gross_avoided_deaths_25y_cum": out["ac_gross_avoided_deaths_25y_cum"],
+                    "ac_net_avoided_deaths_25y_cum": out["ac_net_avoided_deaths_25y_cum"],
+                    "ac_waste_heat_penalty_25y_cum": out["ac_waste_heat_penalty_25y_cum"],
+                    "ac_cost_per_gross_death_25y_cum": out["ac_cost_per_gross_death_25y_cum"],
+                    "ac_cost_per_net_death_25y_cum": out["ac_cost_per_net_death_25y_cum"],
+                    "ac_with_trees_net_avoided_deaths_25y_cum": out["ac_with_trees_net_avoided_deaths_25y_cum"],
+                    "ac_with_trees_waste_heat_penalty_25y_cum": out["ac_with_trees_waste_heat_penalty_25y_cum"],
+                    "ac_with_trees_cost_per_net_death_25y_cum": out["ac_with_trees_cost_per_net_death_25y_cum"],
+                }
+            )
+            cba_tree_rows.append(
+                {
+                    "tree_pv_capex_25y": out["tree_pv_capex_25y"],
+                    "tree_pv_om_25y": out["tree_pv_om_25y"],
+                    "tree_pv_cost_25y": out["tree_pv_cost_25y"],
+                    "tree_avoided_deaths_25y_cum": out["tree_avoided_deaths_25y_cum"],
+                    "tree_cost_per_death_25y_cum": out["tree_cost_per_death_25y_cum"],
+                    "tree_elec_pv_savings_base_users": out["tree_elec_pv_savings_base_users"],
+                    "tree_elec_pv_savings_all_users": out["tree_elec_pv_savings_all_users"],
+                    "tree_elec_kwh_base_users_25y": out["tree_elec_kwh_base_users_25y"],
+                    "tree_elec_kwh_all_users_25y": out["tree_elec_kwh_all_users_25y"],
+                    "tree_elec_co2_base_users_t_25y": out["tree_elec_co2_base_users_t_25y"],
+                    "tree_elec_co2_all_users_t_25y": out["tree_elec_co2_all_users_t_25y"],
+                    "tree_elec_cost_coverage_base_users_pct": out["tree_elec_cost_coverage_base_users_pct"],
+                    "tree_elec_cost_coverage_all_users_pct": out["tree_elec_cost_coverage_all_users_pct"],
+                    "elec_feedback_enabled": out["elec_feedback_enabled"],
+                    "elec_coeff_scale": out["elec_coeff_scale"],
                 }
             )
             vuln_rows.append({
@@ -1593,7 +2511,9 @@ class NB09Improved:
 
         samples_df = pd.DataFrame(sample_rows)
         impact_df = pd.DataFrame(impact_rows)
-        cba_df = pd.DataFrame(cba_rows)
+        cba_ews_df = pd.DataFrame(cba_ews_rows)
+        cba_ac_df = pd.DataFrame(cba_ac_rows)
+        cba_tree_df = pd.DataFrame(cba_tree_rows)
         vuln_df = pd.DataFrame(vuln_rows)
 
         sens_aai_df = _pawn_table(self.problem, x, {"aai_agg": samples_df["aai_agg"].to_numpy(float)})
@@ -1611,6 +2531,25 @@ class NB09Improved:
                 "ews_cost_per_net_death_25y_cum": samples_df["ews_cost_per_net_death_25y_cum"].to_numpy(float),
             },
         )
+        sens_cba_ac_df = _pawn_table(
+            self.problem,
+            x,
+            {
+                "ac_pv_cost_25y": samples_df["ac_pv_cost_25y"].to_numpy(float),
+                "ac_gross_avoided_deaths_25y_cum": samples_df["ac_gross_avoided_deaths_25y_cum"].to_numpy(float),
+                "ac_net_avoided_deaths_25y_cum": samples_df["ac_net_avoided_deaths_25y_cum"].to_numpy(float),
+                "ac_cost_per_net_death_25y_cum": samples_df["ac_cost_per_net_death_25y_cum"].replace([np.inf, -np.inf], np.nan).fillna(0.0).to_numpy(float),
+            },
+        )
+        sens_cba_tree_df = _pawn_table(
+            self.problem,
+            x,
+            {
+                "tree_pv_cost_25y": samples_df["tree_pv_cost_25y"].to_numpy(float),
+                "tree_avoided_deaths_25y_cum": samples_df["tree_avoided_deaths_25y_cum"].to_numpy(float),
+                "tree_cost_per_death_25y_cum": samples_df["tree_cost_per_death_25y_cum"].replace([np.inf, -np.inf], np.nan).fillna(0.0).to_numpy(float),
+            },
+        )
 
         # Vulnerability PAWN sensitivity
         vuln_pawn_outputs: dict[str, np.ndarray] = {}
@@ -1624,7 +2563,20 @@ class NB09Improved:
                     vuln_pawn_outputs[col] = vals
         sens_vuln_df = _pawn_table(self.problem, x, vuln_pawn_outputs) if vuln_pawn_outputs else pd.DataFrame()
 
-        paths = self.save_outputs(samples_df, impact_df, cba_df, vuln_df, sens_aai_df, sens_freq_df, sens_cba_df, sens_vuln_df)
+        paths = self.save_outputs(
+            samples_df,
+            impact_df,
+            cba_ews_df,
+            cba_ac_df,
+            cba_tree_df,
+            vuln_df,
+            sens_aai_df,
+            sens_freq_df,
+            sens_cba_df,
+            sens_cba_ac_df,
+            sens_cba_tree_df,
+            sens_vuln_df,
+        )
         self.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
         return paths
 
@@ -1632,11 +2584,15 @@ class NB09Improved:
         self,
         samples_df: pd.DataFrame,
         impact_df: pd.DataFrame,
-        cba_df: pd.DataFrame,
+        cba_ews_df: pd.DataFrame,
+        cba_ac_df: pd.DataFrame,
+        cba_tree_df: pd.DataFrame,
         vuln_df: pd.DataFrame,
         sens_aai_df: pd.DataFrame,
         sens_freq_df: pd.DataFrame,
         sens_cba_df: pd.DataFrame,
+        sens_cba_ac_df: pd.DataFrame,
+        sens_cba_tree_df: pd.DataFrame,
         sens_vuln_df: pd.DataFrame,
     ) -> dict[str, Path]:
         paths = {
@@ -1644,10 +2600,14 @@ class NB09Improved:
             "impact": self.unc_dir / f"unc_impact_summary_{self.slug}_improved.csv",
             "freq": self.unc_dir / f"unc_freq_curve_{self.slug}_improved.csv",
             "cba": self.unc_dir / f"unc_cba_ews_{self.slug}_improved.csv",
+            "cba_ac": self.unc_dir / f"unc_cba_ac_{self.slug}_improved.csv",
+            "cba_trees": self.unc_dir / f"unc_cba_trees_{self.slug}_improved.csv",
             "vuln": self.unc_dir / f"unc_vulnerability_{self.slug}_improved.csv",
             "sens_aai": self.unc_dir / f"sens_aai_agg_{self.slug}_improved.csv",
             "sens_freq": self.unc_dir / f"sens_freq_curve_{self.slug}_improved.csv",
             "sens_cba": self.unc_dir / f"sens_cba_ews_{self.slug}_improved.csv",
+            "sens_cba_ac": self.unc_dir / f"sens_cba_ac_{self.slug}_improved.csv",
+            "sens_cba_trees": self.unc_dir / f"sens_cba_trees_{self.slug}_improved.csv",
             "sens_vuln": self.unc_dir / f"sens_vulnerability_{self.slug}_improved.csv",
             "meta": self.unc_dir / f"uq_dimensions_{self.slug}_improved.json",
             "bundle": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved.h5",
@@ -1656,11 +2616,15 @@ class NB09Improved:
         samples_df.to_csv(paths["samples"], index=False)
         impact_df.to_csv(paths["impact"], index=False)
         impact_df[[f"rp{rp}" for rp in RETURN_PERIODS]].to_csv(paths["freq"], index=False)
-        cba_df.to_csv(paths["cba"], index=False)
+        cba_ews_df.to_csv(paths["cba"], index=False)
+        cba_ac_df.to_csv(paths["cba_ac"], index=False)
+        cba_tree_df.to_csv(paths["cba_trees"], index=False)
         vuln_df.to_csv(paths["vuln"], index=False)
         sens_aai_df.to_csv(paths["sens_aai"], index=False)
         sens_freq_df.to_csv(paths["sens_freq"], index=False)
         sens_cba_df.to_csv(paths["sens_cba"], index=False)
+        sens_cba_ac_df.to_csv(paths["sens_cba_ac"], index=False)
+        sens_cba_tree_df.to_csv(paths["sens_cba_trees"], index=False)
         if not sens_vuln_df.empty:
             sens_vuln_df.to_csv(paths["sens_vuln"], index=False)
 
@@ -1686,6 +2650,14 @@ class NB09Improved:
             "cop_enabled_options": self.cop_enabled_options,
             "tree_ramp_options": self.tree_ramp_options,
             "tree_start_age_options": self.tree_start_age_options,
+            "economic_options": {
+                "discount_rate": [0.02, 0.03, 0.05],
+                "ac_capex_per_user": [350.0, 500.0, 650.0],
+                "ac_tariff_eur_per_kwh": [0.21, 0.25, 0.29],
+                "ac_lifetime_years": [8, 10, 12],
+                "tree_capex_per_tree": [168.0, 210.0, 252.0],
+                "tree_om_per_tree_yr": [27.0, 135.0],
+            },
             "vuln_param_ranges": {
                 "VULN_K": [0.55, 0.95],
                 "VULN_PHI_2050": [0.50, 0.90],
@@ -1700,7 +2672,9 @@ class NB09Improved:
                 "Hazard structural modifiers are applied as spatially explicit daily raster adjustments for trees and waste heat.",
                 "EWS is applied with event-level warning-day logic calibrated on the sampled reference-year mortality distribution.",
                 "Threshold recalibration is represented as stepwise population-scaled updates at the sampled interval.",
-                "CBA uncertainty currently adds the sampled EWS 25-year cost model and cost-effectiveness outputs next to the impact outputs.",
+                "CBA uncertainty now samples discounting plus AC/tree cost parameters in the same global sample as the impact-chain uncertainty.",
+                "AC CBA is evaluated as policy AC versus current/autonomous AC under the same sampled hazard, exposure, IF and vulnerability settings.",
+                "Tree CBA is evaluated as tree policy versus the same sampled no-tree reference branch.",
                 "Vulnerability projection uncertainty (Level A): 7 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
                 "Original March2026/NB09 outputs remain untouched; all improved artifacts are saved in tables/uncertainty_improved.",
             ],
@@ -1711,16 +2685,22 @@ class NB09Improved:
         with pd.HDFStore(str(paths["bundle"]), mode="w") as store:
             store["samples"] = samples_df
             store["impact"] = impact_df
-            store["cba_ews"] = cba_df
+            store["cba_ews"] = cba_ews_df
+            store["cba_ac"] = cba_ac_df
+            store["cba_trees"] = cba_tree_df
             store["vulnerability"] = vuln_df
         with pd.HDFStore(str(paths["bundle_sens"]), mode="w") as store:
             store["samples"] = samples_df
             store["impact"] = impact_df
-            store["cba_ews"] = cba_df
+            store["cba_ews"] = cba_ews_df
+            store["cba_ac"] = cba_ac_df
+            store["cba_trees"] = cba_tree_df
             store["vulnerability"] = vuln_df
             store["sens_aai"] = sens_aai_df
             store["sens_freq"] = sens_freq_df
             store["sens_cba"] = sens_cba_df
+            store["sens_cba_ac"] = sens_cba_ac_df
+            store["sens_cba_trees"] = sens_cba_tree_df
             if not sens_vuln_df.empty:
                 store["sens_vuln"] = sens_vuln_df
         return paths

@@ -52,6 +52,11 @@ ac:
     lut_case_options: [low, central, high]
     dailymean_from_night_default: 0.50
     dailymean_from_night_range: [0.33, 0.67]  # for UQ sampling
+    activation:
+      method: kou_cdd_share
+      temperature_metric: citymean_dailymean
+      t_on_c: 18.0
+      t_full_c: 25.0
 
     # Salamanca 2014 LUT: penetration → nighttime ΔT (°C)
     lut:
@@ -86,6 +91,15 @@ trees:
   veg_region_label: Municipio   # label for plots/tables
   veg_emulator_bundle: "emulator/bundles/emulator_bundle_rome_quadratic_holdout_safe.json"
   
+electricity_feedback:
+  enabled: true
+  source: "Falchetta_DeCian_Lunghi_2026"
+  # Reduced-form: % reduction in summer AC electricity per GVI point
+  # Calibrated from paper Figure 5 at ~30°C: 0.8%/point
+  pct_reduction_per_gvi_point: 0.008
+  summer_months: 3                    # Number of summer months (JJA)
+  co2_intensity_gCO2_per_kwh: 372     # Italy (paper value)
+
 cba:
   discount_rate: 0.03
   horizon_years: 25
