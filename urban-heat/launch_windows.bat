@@ -3,7 +3,7 @@ setlocal
 
 REM === CONFIGURA QUI ===
 set "ENV_NAME=urbanheat"
-set "PROJECT_DIR=H:\Il mio Drive\adaptation_infrastructure_database\URBADAPT\urban-heat"
+set "PROJECT_DIR=G:\Il mio Drive\adaptation_infrastructure_database\URBADAPT\urban-heat"
 set "ENV_FILE=%PROJECT_DIR%\environment.yml"
 
 REM === INIZIALIZZA CONDA PER I FILE .BAT ===
@@ -50,7 +50,7 @@ IF "%JUST_CREATED%"=="1" (
 )
 
 REM === AVVIA JUPYTER NOTEBOOK ===
-jupyter notebook
+jupyter-lab
 
 REM === LASCIA LA FINESTRA APERTA PER VEDERE EVENTUALI ERRORI ===
 pause
