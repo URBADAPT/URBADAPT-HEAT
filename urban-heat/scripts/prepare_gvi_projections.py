@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
         "--iso3",
         action="append",
         default=[],
-        help="ISO3 country code to keep. Repeatable. Defaults to ITA/GRC/PRT if omitted.",
+        help="ISO3 country code to keep. Repeatable. Defaults to ITA/GRC/PRT/DNK if omitted.",
     )
     parser.add_argument(
         "--max-year",
@@ -59,7 +59,7 @@ def main() -> None:
     if missing:
         raise KeyError(f"Missing required source columns: {sorted(missing)}")
 
-    keep_iso3 = [x.upper() for x in (args.iso3 or ["ITA", "GRC", "PRT"])]
+    keep_iso3 = [x.upper() for x in (args.iso3 or ["ITA", "GRC", "PRT", "DNK"])]
 
     ssp_map = {
         1: "SSP1",

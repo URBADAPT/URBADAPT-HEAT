@@ -226,6 +226,7 @@ vulnerability:
         thermal: 0.333 
         foreign_born: 0.333
         unemployment: 0.333 
+    svi_min_valid_components: 2
     files:
         ghs_age: "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
         census_pop: "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"

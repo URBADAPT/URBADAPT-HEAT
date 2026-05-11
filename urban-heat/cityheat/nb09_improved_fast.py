@@ -10,8 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+_DEFAULT_RUNTIME_ROOT = Path(__file__).resolve().parents[1]
+os.environ.setdefault("MPLCONFIGDIR", str(_DEFAULT_RUNTIME_ROOT / "outputs" / ".mpl"))
+os.environ.setdefault("XDG_CACHE_HOME", str(_DEFAULT_RUNTIME_ROOT / "outputs" / ".cache"))
+
 import geopandas as gpd
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio as rio
@@ -378,7 +381,7 @@ class ParamSpec:
     high: float | None = None
 
 
-class NB09Improved:
+class NB09ImprovedFast:
     def __init__(self, slug: str):
         self.root = _resolve_root()
         _ensure_runtime_dirs(self.root)
@@ -402,7 +405,7 @@ class NB09Improved:
         self.out = self.root / "outputs" / self.slug
         self.int_dir = self.out / "interim"
         self.tab_dir = self.out / "tables"
-        self.unc_dir = self.tab_dir / "uncertainty_improved"
+        self.unc_dir = self.tab_dir / "uncertainty_improved_fast"
         self.unc_dir.mkdir(parents=True, exist_ok=True)
 
         self.exp_cache: dict[str, Exposures] = {}
@@ -588,6 +591,7 @@ class NB09Improved:
         if not self.baseline_modes:
             raise FileNotFoundError("No fully-available tagged baseline mode found for all modeled years.")
         self.ref_mode = "climatology_mean" if "climatology_mean" in self.baseline_modes else self.baseline_modes[0]
+        self._used_fixed_city_pattern = False
 
         self.base_matrix_by_year: dict[int, sparse.csr_matrix] = {}
         self.ref_citymean_by_year: dict[int, np.ndarray] = {}
@@ -601,7 +605,16 @@ class NB09Improved:
             self.ref_citymean_by_year[y] = citymean
             mat = np.nan_to_num(arr, nan=0.0).reshape(arr.shape[0], -1).astype(np.float32)
             csr = sparse.csr_matrix(mat)
-            self._assert_city_pattern(csr)
+            try:
+                self._assert_city_pattern(csr)
+            except ValueError:
+                if self.slug != "copenhagen":
+                    raise
+                if not self._used_fixed_city_pattern:
+                    self.row_cols = np.where(self.city_mask.ravel())[0].astype(np.int32)
+                    self.row_is_city = np.ones(len(self.row_cols), dtype=bool)
+                    self._used_fixed_city_pattern = True
+                csr = self._csr_with_fixed_row_cols(mat, self.row_cols)
             self.base_matrix_by_year[y] = csr
 
         for mode in self.baseline_modes:
@@ -626,11 +639,39 @@ class NB09Improved:
                 raise ValueError("Base matrix sparse column pattern is not stable across rows.")
 
     def _load_nc_time_yx(self, path: Path) -> np.ndarray:
-        ds = xr.open_dataset(path)
-        vname = "T2M" if "T2M" in ds.data_vars else list(ds.data_vars)[0]
-        arr = ds[vname].transpose("time", "y", "x").values.astype(np.float32)
-        ds.close()
-        return arr
+        errors: list[str] = []
+        for engine in (None, "netcdf4", "h5netcdf", "scipy"):
+            ds = None
+            try:
+                if engine is None:
+                    ds = xr.open_dataset(path)
+                else:
+                    ds = xr.open_dataset(path, engine=engine)
+                vname = "T2M" if "T2M" in ds.data_vars else list(ds.data_vars)[0]
+                arr = ds[vname].transpose("time", "y", "x").values.astype(np.float32)
+                ds.close()
+                return arr
+            except Exception as exc:
+                errors.append(f"{engine or 'auto'} -> {type(exc).__name__}: {exc}")
+                if ds is not None:
+                    try:
+                        ds.close()
+                    except Exception:
+                        pass
+
+        joined = "\n".join(errors)
+        raise RuntimeError(f"Failed to open NetCDF hazard file: {path}\nTried engines:\n{joined}")
+
+    @staticmethod
+    def _csr_with_fixed_row_cols(mat: np.ndarray, row_cols: np.ndarray) -> sparse.csr_matrix:
+        n_days, n_cells = mat.shape
+        rc = np.asarray(row_cols, dtype=np.int32)
+        if rc.size == 0:
+            return sparse.csr_matrix((n_days, n_cells), dtype=np.float32)
+        vals = mat[:, rc].reshape(-1).astype(np.float32, copy=False)
+        rows = np.repeat(np.arange(n_days, dtype=np.int32), rc.size)
+        cols = np.tile(rc, n_days)
+        return sparse.csr_matrix((vals, (rows, cols)), shape=(n_days, n_cells), dtype=np.float32)
 
     def _load_climate_inputs(self) -> None:
         t2m_var = self.clim_cfg.get("t2m_var", "tas")
@@ -2031,6 +2072,8 @@ class NB09Improved:
             "daily_base_total": daily_total,
             "daily_residual_total": residual_total,
             "age_impacts": age_impacts,
+            "season_mask": season_mask,
+            "event_day_mask": event_day_mask,
             "warning_mask": warning_mask,
             "warning_days": int(warning_mask.sum()),
             "threshold": float(threshold_year),
@@ -2043,9 +2086,132 @@ class NB09Improved:
             "net_avoided": float(sum(net_by_age.values())),
             "life_years_saved": float(sum(lys_by_age.values())),
             "ac_penalty": ac_penalty,
+            "ac_mode": str(ac_mode),
             "ramp_factor": ramp_factor,
             "pop_total": self.pop_total_for_exposure(exp_path, scale),
         }
+
+    def _apply_ews_to_base_year(
+        self,
+        *,
+        year: int,
+        sample: dict[str, Any],
+        base_res: dict[str, Any],
+        pop_totals: dict[int, float],
+        threshold_ref: float | None,
+        ac_mode: str,
+    ) -> dict[str, Any]:
+        daily_total = np.asarray(base_res["daily_base_total"], dtype=float)
+        age_impacts = base_res["age_impacts"]
+        season_mask = np.asarray(
+            base_res.get("season_mask", _season_mask_by_md(self.dates_by_year[year], self.season_start_md, self.season_end_md)),
+            dtype=bool,
+        )
+        event_day_mask = np.asarray(base_res.get("event_day_mask", np.zeros_like(daily_total, dtype=bool)), dtype=bool)
+
+        if self.ews_uses_event_mask_warning():
+            threshold_year = np.nan
+            warning_mask = season_mask & event_day_mask
+        elif threshold_ref is None:
+            threshold_year = np.nan
+            warning_mask = np.zeros_like(daily_total, dtype=bool)
+        else:
+            threshold_year = self.threshold_for_year(year, threshold_ref, sample["ews_recalib_years"], pop_totals)
+            warning_mask = season_mask & (daily_total >= threshold_year)
+
+        pen = float(self.coverage_mean_for_mode(year, sample["ac_ssp"], mode=ac_mode))
+        overlap = float(self.ews_overlap.get(sample["ews_overlap_level"], self.ews_overlap.get("central", 0.3)))
+        ac_penalty = float(np.clip(1.0 - overlap * pen, 0.0, 1.0))
+        ramp_factor = self.ramp_factor(year, sample["ews_ramp_years"])
+
+        residual_total = np.zeros_like(daily_total)
+        gross_by_age: dict[str, float] = {}
+        net_by_age: dict[str, float] = {}
+        lys_by_age: dict[str, float] = {}
+        deaths_warning_by_age: dict[str, float] = {}
+
+        for age in AGE_ORDER:
+            base_arr = np.asarray(age_impacts[age], dtype=float)
+            residual = base_arr.copy()
+            deaths_warning = float(base_arr[warning_mask].sum())
+            deaths_warning_by_age[age] = deaths_warning
+
+            if str(sample["ews_interpretation"]).lower() == "marginal":
+                lvl = sample[f"ews_eff_{self._age_key(age)}_level"]
+                eff_age = float(self.ews_marg.get(age, {}).get(lvl, self.ews_marg.get(age, {}).get("central", 0.0)))
+            else:
+                eff_age = float(self.ews_cf.get(sample["ews_cf_eff_level"], self.ews_cf.get("central", 0.0)))
+
+            disp_lvl = sample[f"ews_disp_{self._age_key(age)}_level"]
+            disp_age = float(self.ews_disp.get(age, {}).get(disp_lvl, self.ews_disp.get(age, {}).get("central", 0.0)))
+            gross_factor = eff_age * ramp_factor * ac_penalty
+            net_factor = gross_factor * (1.0 - disp_age)
+
+            gross = deaths_warning * gross_factor
+            net = deaths_warning * net_factor
+            lys = net * float(self.ews_rly.get(age, 10))
+            if np.any(warning_mask):
+                residual[warning_mask] = residual[warning_mask] * (1.0 - net_factor)
+
+            gross_by_age[age] = gross
+            net_by_age[age] = net
+            lys_by_age[age] = lys
+            residual_total += residual
+
+        return {
+            "year": int(year),
+            "daily_base_total": daily_total,
+            "daily_residual_total": residual_total,
+            "age_impacts": age_impacts,
+            "season_mask": season_mask,
+            "event_day_mask": event_day_mask,
+            "warning_mask": warning_mask,
+            "warning_days": int(warning_mask.sum()),
+            "threshold": float(threshold_year),
+            "deaths_on_warning_days": float(daily_total[warning_mask].sum()),
+            "deaths_warning_by_age": deaths_warning_by_age,
+            "gross_by_age": gross_by_age,
+            "net_by_age": net_by_age,
+            "lys_by_age": lys_by_age,
+            "gross_avoided": float(sum(gross_by_age.values())),
+            "net_avoided": float(sum(net_by_age.values())),
+            "life_years_saved": float(sum(lys_by_age.values())),
+            "ac_penalty": ac_penalty,
+            "ac_mode": str(ac_mode),
+            "ramp_factor": ramp_factor,
+            "pop_total": float(base_res.get("pop_total", 0.0)),
+        }
+
+    def _apply_ews_to_base_anchors(
+        self,
+        *,
+        sample: dict[str, Any],
+        base_anchor_results: dict[int, dict[str, Any]],
+        base_pop_totals: dict[int, float],
+        ac_mode: str,
+    ) -> tuple[dict[int, dict[str, Any]], dict[int, float], float | None]:
+        if self.ews_uses_event_mask_warning():
+            threshold_ref = None
+        else:
+            ref_year = self.ews_threshold_ref_year if self.ews_threshold_ref_year in self.years else min(self.years)
+            ref_base = base_anchor_results[ref_year]
+            season_ref = np.asarray(
+                ref_base.get("season_mask", _season_mask_by_md(self.dates_by_year[ref_year], self.season_start_md, self.season_end_md)),
+                dtype=bool,
+            )
+            threshold_ref = _safe_quantile_threshold(ref_base["daily_base_total"][season_ref], sample["ews_target_days"])
+
+        anchor_results: dict[int, dict[str, Any]] = {}
+        for year in self.years:
+            anchor_results[year] = self._apply_ews_to_base_year(
+                year=year,
+                sample=sample,
+                base_res=base_anchor_results[year],
+                pop_totals=base_pop_totals,
+                threshold_ref=threshold_ref,
+                ac_mode=ac_mode,
+            )
+        return anchor_results, base_pop_totals, threshold_ref
 
     def evaluate_branch_anchors(
         self,
@@ -2057,108 +2223,48 @@ class NB09Improved:
         ews_enabled: bool = False,
         extreme_threshold_c: float | None = None,
         extreme_min_duration_days: int | None = None,
+        base_anchor_results: dict[int, dict[str, Any]] | None = None,
+        base_pop_totals: dict[int, float] | None = None,
     ) -> tuple[dict[int, dict[str, Any]], dict[int, float], float | None]:
+        if base_anchor_results is not None:
+            if base_pop_totals is None:
+                raise ValueError("base_pop_totals must be provided when base_anchor_results is supplied.")
+            if not ews_enabled:
+                return base_anchor_results, base_pop_totals, None
+            return self._apply_ews_to_base_anchors(
+                sample=sample,
+                base_anchor_results=base_anchor_results,
+                base_pop_totals=base_pop_totals,
+                ac_mode=ac_mode,
+            )
+
         anchor_results: dict[int, dict[str, Any]] = {}
         pop_totals: dict[int, float] = {}
-
-        if not ews_enabled:
-            for year in self.years:
-                res = self.evaluate_year(
-                    year,
-                    sample,
-                    threshold_ref=None,
-                    pop_totals={},
-                    ac_mode=ac_mode,
-                    wh_mode=wh_mode,
-                    tree_enabled=tree_enabled,
-                    ews_enabled=False,
-                    extreme_threshold_c=extreme_threshold_c,
-                    extreme_min_duration_days=extreme_min_duration_days,
-                )
-                anchor_results[year] = res
-                pop_totals[year] = res["pop_total"]
-            return anchor_results, pop_totals, None
-
-        if self.ews_uses_event_mask_warning():
-            for year in self.years:
-                res = self.evaluate_year(
-                    year,
-                    sample,
-                    threshold_ref=None,
-                    pop_totals={},
-                    ac_mode=ac_mode,
-                    wh_mode=wh_mode,
-                    tree_enabled=tree_enabled,
-                    ews_enabled=True,
-                    extreme_threshold_c=extreme_threshold_c,
-                    extreme_min_duration_days=extreme_min_duration_days,
-                )
-                anchor_results[year] = res
-                pop_totals[year] = res["pop_total"]
-            return anchor_results, pop_totals, None
-
-        ref_year = self.ews_threshold_ref_year if self.ews_threshold_ref_year in self.years else min(self.years)
-        eval_order = [ref_year] + [y for y in self.years if y != ref_year]
-        prelim_ref = self.evaluate_year(
-            ref_year,
-            sample,
-            threshold_ref=None,
-            pop_totals={},
-            ac_mode=ac_mode,
-            wh_mode=wh_mode,
-            tree_enabled=tree_enabled,
-            ews_enabled=False,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration_days,
-        )
-        anchor_results[ref_year] = prelim_ref
-        pop_totals[ref_year] = prelim_ref["pop_total"]
-        season_ref = _season_mask_by_md(self.dates_by_year[ref_year], self.season_start_md, self.season_end_md)
-        threshold_ref = _safe_quantile_threshold(prelim_ref["daily_base_total"][season_ref], sample["ews_target_days"])
-
-        anchor_results[ref_year] = self.evaluate_year(
-            ref_year,
-            sample,
-            threshold_ref=threshold_ref,
-            pop_totals={ref_year: prelim_ref["pop_total"]},
-            ac_mode=ac_mode,
-            wh_mode=wh_mode,
-            tree_enabled=tree_enabled,
-            ews_enabled=True,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration_days,
-        )
-        pop_totals[ref_year] = anchor_results[ref_year]["pop_total"]
-        for year in eval_order[1:]:
+        for year in self.years:
             res = self.evaluate_year(
                 year,
                 sample,
-                threshold_ref=threshold_ref,
-                pop_totals={**pop_totals, year: 0.0},
+                threshold_ref=None,
+                pop_totals={},
                 ac_mode=ac_mode,
                 wh_mode=wh_mode,
                 tree_enabled=tree_enabled,
-                ews_enabled=True,
+                ews_enabled=False,
                 extreme_threshold_c=extreme_threshold_c,
                 extreme_min_duration_days=extreme_min_duration_days,
             )
             anchor_results[year] = res
             pop_totals[year] = res["pop_total"]
 
-        for year in self.years:
-            anchor_results[year] = self.evaluate_year(
-                year,
-                sample,
-                threshold_ref=threshold_ref,
-                pop_totals=pop_totals,
-                ac_mode=ac_mode,
-                wh_mode=wh_mode,
-                tree_enabled=tree_enabled,
-                ews_enabled=True,
-                extreme_threshold_c=extreme_threshold_c,
-                extreme_min_duration_days=extreme_min_duration_days,
-            )
-        return anchor_results, pop_totals, threshold_ref
+        if not ews_enabled:
+            return anchor_results, pop_totals, None
+
+        return self._apply_ews_to_base_anchors(
+            sample=sample,
+            base_anchor_results=anchor_results,
+            base_pop_totals=pop_totals,
+            ac_mode=ac_mode,
+        )
 
     def interpolate_branch_annuals(
         self,
@@ -2513,13 +2619,64 @@ class NB09Improved:
             )
             extreme_min_duration = int(sample["extreme_min_duration_days"])
 
+        # Compute each unique impact branch once (no-EWS), then apply EWS on cached branch impacts.
+        ref_anchor_results, ref_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            wh_mode="base",
+            tree_enabled=False,
+            ews_enabled=False,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+        ac_gross_anchor_results, ac_gross_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="policy",
+            wh_mode="base",
+            tree_enabled=False,
+            ews_enabled=False,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+        ac_net_anchor_results, ac_net_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="policy",
+            wh_mode="policy",
+            tree_enabled=False,
+            ews_enabled=False,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+        tree_anchor_results, tree_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            wh_mode="base",
+            tree_enabled=True,
+            ews_enabled=False,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+        ews_policy_anchor_results, ews_policy_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            wh_mode="base",
+            tree_enabled=False,
+            ews_enabled=True,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+            base_anchor_results=ref_anchor_results,
+            base_pop_totals=ref_pop_totals,
+        )
         anchor_results, pop_totals, _ = self.evaluate_branch_anchors(
             sample,
             ac_mode="base",
+            wh_mode="base",
             tree_enabled=True,
             ews_enabled=True,
             extreme_threshold_c=extreme_threshold_c,
             extreme_min_duration_days=extreme_min_duration,
+            base_anchor_results=tree_anchor_results,
+            base_pop_totals=tree_pop_totals,
         )
 
         sample_year = int(sample["year"])
@@ -2607,52 +2764,6 @@ class NB09Improved:
             "ews_cost_per_net_death_25y_pv": pv_cost_total / net_avoided_pv if net_avoided_pv > 0 else np.inf,
             "ews_cost_model": sample["ews_cost_model"],
         }
-
-        ref_anchor_results, ref_pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="base",
-            wh_mode="base",
-            tree_enabled=False,
-            ews_enabled=False,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-        )
-        ac_gross_anchor_results, ac_gross_pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="policy",
-            wh_mode="base",
-            tree_enabled=False,
-            ews_enabled=False,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-        )
-        ac_net_anchor_results, ac_net_pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="policy",
-            wh_mode="policy",
-            tree_enabled=False,
-            ews_enabled=False,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-        )
-        tree_anchor_results, tree_pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="base",
-            wh_mode="base",
-            tree_enabled=True,
-            ews_enabled=False,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-        )
-        ews_policy_anchor_results, ews_policy_pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="base",
-            wh_mode="base",
-            tree_enabled=False,
-            ews_enabled=True,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-        )
 
         _, ref_annual_25y, ref_pop_25y, _ = self.interpolate_branch_annuals(ref_anchor_results, ref_pop_totals)
         _, ac_gross_annual_25y, _, _ = self.interpolate_branch_annuals(ac_gross_anchor_results, ac_gross_pop_totals)
@@ -2761,7 +2872,7 @@ class NB09Improved:
         result["_cost_pv_25y"] = cost_pv_25y
         return result
 
-    def run(self, n: int, seed: int = SEED_DEFAULT) -> dict[str, Path]:
+    def run(self, n: int, seed: int = SEED_DEFAULT, make_figures: bool = False) -> dict[str, Path]:
         raw_samples, x = self.sample_parameters(n, seed)
         sample_rows: list[dict[str, Any]] = []
         impact_rows: list[dict[str, Any]] = []
@@ -2916,7 +3027,8 @@ class NB09Improved:
             sens_cba_tree_df,
             sens_vuln_df,
         )
-        self.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
+        if make_figures:
+            self.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
         return paths
 
     def save_outputs(
@@ -2953,22 +3065,22 @@ class NB09Improved:
             trigger_note = "Track-B event-definition trigger dimensions are inactive in standard deaths-threshold mode."
 
         paths = {
-            "samples": self.unc_dir / f"unc_samples_{self.slug}_improved.csv",
-            "impact": self.unc_dir / f"unc_impact_summary_{self.slug}_improved.csv",
-            "freq": self.unc_dir / f"unc_freq_curve_{self.slug}_improved.csv",
-            "cba": self.unc_dir / f"unc_cba_ews_{self.slug}_improved.csv",
-            "cba_ac": self.unc_dir / f"unc_cba_ac_{self.slug}_improved.csv",
-            "cba_trees": self.unc_dir / f"unc_cba_trees_{self.slug}_improved.csv",
-            "vuln": self.unc_dir / f"unc_vulnerability_{self.slug}_improved.csv",
-            "sens_aai": self.unc_dir / f"sens_aai_agg_{self.slug}_improved.csv",
-            "sens_freq": self.unc_dir / f"sens_freq_curve_{self.slug}_improved.csv",
-            "sens_cba": self.unc_dir / f"sens_cba_ews_{self.slug}_improved.csv",
-            "sens_cba_ac": self.unc_dir / f"sens_cba_ac_{self.slug}_improved.csv",
-            "sens_cba_trees": self.unc_dir / f"sens_cba_trees_{self.slug}_improved.csv",
-            "sens_vuln": self.unc_dir / f"sens_vulnerability_{self.slug}_improved.csv",
-            "meta": self.unc_dir / f"uq_dimensions_{self.slug}_improved.json",
-            "bundle": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved.h5",
-            "bundle_sens": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved_with_sensitivity.h5",
+            "samples": self.unc_dir / f"unc_samples_{self.slug}_improved_fast.csv",
+            "impact": self.unc_dir / f"unc_impact_summary_{self.slug}_improved_fast.csv",
+            "freq": self.unc_dir / f"unc_freq_curve_{self.slug}_improved_fast.csv",
+            "cba": self.unc_dir / f"unc_cba_ews_{self.slug}_improved_fast.csv",
+            "cba_ac": self.unc_dir / f"unc_cba_ac_{self.slug}_improved_fast.csv",
+            "cba_trees": self.unc_dir / f"unc_cba_trees_{self.slug}_improved_fast.csv",
+            "vuln": self.unc_dir / f"unc_vulnerability_{self.slug}_improved_fast.csv",
+            "sens_aai": self.unc_dir / f"sens_aai_agg_{self.slug}_improved_fast.csv",
+            "sens_freq": self.unc_dir / f"sens_freq_curve_{self.slug}_improved_fast.csv",
+            "sens_cba": self.unc_dir / f"sens_cba_ews_{self.slug}_improved_fast.csv",
+            "sens_cba_ac": self.unc_dir / f"sens_cba_ac_{self.slug}_improved_fast.csv",
+            "sens_cba_trees": self.unc_dir / f"sens_cba_trees_{self.slug}_improved_fast.csv",
+            "sens_vuln": self.unc_dir / f"sens_vulnerability_{self.slug}_improved_fast.csv",
+            "meta": self.unc_dir / f"uq_dimensions_{self.slug}_improved_fast.json",
+            "bundle": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved_fast.h5",
+            "bundle_sens": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved_fast_with_sensitivity.h5",
         }
         samples_df.to_csv(paths["samples"], index=False)
         impact_df.to_csv(paths["impact"], index=False)
@@ -3048,7 +3160,7 @@ class NB09Improved:
                 "AC CBA is evaluated as policy AC versus current/autonomous AC under the same sampled hazard, exposure, IF and vulnerability settings.",
                 "Tree CBA is evaluated as tree policy versus the same sampled no-tree reference branch.",
                 "Vulnerability projection uncertainty (Level A): 7 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
-                "Original March2026/NB09 outputs remain untouched; all improved artifacts are saved in tables/uncertainty_improved.",
+                "Original March2026/NB09 outputs remain untouched; all fast artifacts are saved in tables/uncertainty_improved_fast.",
             ],
         }
         with open(paths["meta"], "w") as f:
@@ -3078,6 +3190,8 @@ class NB09Improved:
         return paths
 
     def make_figures(self, samples_df: pd.DataFrame, sens_aai_df: pd.DataFrame, sens_cba_df: pd.DataFrame, sens_vuln_df: pd.DataFrame | None = None) -> None:
+        import matplotlib.pyplot as plt
+
         fig, ax = plt.subplots(figsize=(8, 4))
         aai = samples_df["aai_agg"].to_numpy(float)
         ax.hist(aai, bins=40, alpha=0.7, color="#3A7CA5", edgecolor="white")
@@ -3088,7 +3202,7 @@ class NB09Improved:
         ax.set_xlabel("aai_agg")
         ax.set_ylabel("Count")
         plt.tight_layout()
-        plt.savefig(self.unc_dir / f"unc_distribution_aai_agg_{self.slug}_improved.png", dpi=160)
+        plt.savefig(self.unc_dir / f"unc_distribution_aai_agg_{self.slug}_improved_fast.png", dpi=160)
         plt.close(fig)
 
         x, y = _ecdf(aai[np.isfinite(aai)])
@@ -3099,7 +3213,7 @@ class NB09Improved:
         ax.set_ylabel("ECDF")
         ax.grid(alpha=0.3)
         plt.tight_layout()
-        plt.savefig(self.unc_dir / f"unc_cdf_aai_agg_{self.slug}_improved.png", dpi=160)
+        plt.savefig(self.unc_dir / f"unc_cdf_aai_agg_{self.slug}_improved_fast.png", dpi=160)
         plt.close(fig)
 
         mean_df = sens_aai_df[sens_aai_df["si"].astype(str).str.lower() == "mean"].copy()
@@ -3113,7 +3227,7 @@ class NB09Improved:
         ax.set_title(f"{self.city} - Tornado (aai_agg, improved)")
         ax.grid(axis="x", alpha=0.3)
         plt.tight_layout()
-        plt.savefig(self.unc_dir / f"sens_tornado_aai_agg_{self.slug}_improved.png", dpi=160)
+        plt.savefig(self.unc_dir / f"sens_tornado_aai_agg_{self.slug}_improved_fast.png", dpi=160)
         plt.close(fig)
 
         fig, ax = plt.subplots(figsize=(8, 4))
@@ -3124,7 +3238,7 @@ class NB09Improved:
         ax.set_xlabel("EUR / net avoided death")
         ax.set_ylabel("Count")
         plt.tight_layout()
-        plt.savefig(self.unc_dir / f"unc_distribution_cba_ews_{self.slug}_improved.png", dpi=160)
+        plt.savefig(self.unc_dir / f"unc_distribution_cba_ews_{self.slug}_improved_fast.png", dpi=160)
         plt.close(fig)
 
         x, y = _ecdf(cpd)
@@ -3135,7 +3249,7 @@ class NB09Improved:
         ax.set_ylabel("ECDF")
         ax.grid(alpha=0.3)
         plt.tight_layout()
-        plt.savefig(self.unc_dir / f"unc_cdf_cba_ews_{self.slug}_improved.png", dpi=160)
+        plt.savefig(self.unc_dir / f"unc_cdf_cba_ews_{self.slug}_improved_fast.png", dpi=160)
         plt.close(fig)
 
         mean_cba = sens_cba_df[sens_cba_df["si"].astype(str).str.lower() == "mean"].copy()
@@ -3148,7 +3262,7 @@ class NB09Improved:
             ax.set_title(f"{self.city} - Tornado (EWS €/death, improved)")
             ax.grid(axis="x", alpha=0.3)
             plt.tight_layout()
-            plt.savefig(self.unc_dir / f"sens_tornado_cba_ews_{self.slug}_improved.png", dpi=160)
+            plt.savefig(self.unc_dir / f"sens_tornado_cba_ews_{self.slug}_improved_fast.png", dpi=160)
             plt.close(fig)
 
         freq_cols = [f"rp{rp}" for rp in RETURN_PERIODS]
@@ -3167,7 +3281,7 @@ class NB09Improved:
         ax.grid(alpha=0.3)
         ax.legend(frameon=False)
         plt.tight_layout()
-        plt.savefig(self.unc_dir / f"unc_freq_curve_{self.slug}_improved.png", dpi=160)
+        plt.savefig(self.unc_dir / f"unc_freq_curve_{self.slug}_improved_fast.png", dpi=160)
         plt.close(fig)
 
         # Vulnerability figures 
@@ -3183,7 +3297,7 @@ class NB09Improved:
                 ax.set_xlabel("SVI mean")
                 ax.set_ylabel("Count")
                 plt.tight_layout()
-                plt.savefig(self.unc_dir / f"unc_distribution_vuln_svi_mean_{self.slug}_improved.png", dpi=160)
+                plt.savefig(self.unc_dir / f"unc_distribution_vuln_svi_mean_{self.slug}_improved_fast.png", dpi=160)
                 plt.close(fig)
 
         if "vuln_2050_svi_mean" in samples_df.columns:
@@ -3198,7 +3312,7 @@ class NB09Improved:
                 ax.set_xlabel("SVI mean (2050)")
                 ax.set_ylabel("Count")
                 plt.tight_layout()
-                plt.savefig(self.unc_dir / f"unc_distribution_vuln_2050_svi_mean_{self.slug}_improved.png", dpi=160)
+                plt.savefig(self.unc_dir / f"unc_distribution_vuln_2050_svi_mean_{self.slug}_improved_fast.png", dpi=160)
                 plt.close(fig)
 
         if sens_vuln_df is not None and not sens_vuln_df.empty:
@@ -3217,7 +3331,7 @@ class NB09Improved:
                 ax.set_title(f"{self.city} - Tornado (SVI P90-P10 gap 2050, improved)")
                 ax.grid(axis="x", alpha=0.3)
                 plt.tight_layout()
-                plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_gap_{self.slug}_improved.png", dpi=160)
+                plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_gap_{self.slug}_improved_fast.png", dpi=160)
                 plt.close(fig)
 
             mean_col = "vuln_2050_svi_mean"
@@ -3235,43 +3349,55 @@ class NB09Improved:
                 ax.set_title(f"{self.city} - Tornado (SVI mean 2050, improved)")
                 ax.grid(axis="x", alpha=0.3)
                 plt.tight_layout()
-                plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_mean_{self.slug}_improved.png", dpi=160)
+                plt.savefig(self.unc_dir / f"sens_tornado_vuln_svi_mean_{self.slug}_improved_fast.png", dpi=160)
                 plt.close(fig)
 
 
 def regenerate_saved_figures(city: str) -> Path:
     slug = city.strip().lower()
-    runner = NB09Improved(slug)
-    samples_df = pd.read_csv(runner.unc_dir / f"unc_samples_{runner.slug}_improved.csv")
-    sens_aai_df = pd.read_csv(runner.unc_dir / f"sens_aai_agg_{runner.slug}_improved.csv")
-    sens_cba_df = pd.read_csv(runner.unc_dir / f"sens_cba_ews_{runner.slug}_improved.csv")
-    sens_vuln_path = runner.unc_dir / f"sens_vulnerability_{runner.slug}_improved.csv"
+    runner = NB09ImprovedFast(slug)
+    samples_df = pd.read_csv(runner.unc_dir / f"unc_samples_{runner.slug}_improved_fast.csv")
+    sens_aai_df = pd.read_csv(runner.unc_dir / f"sens_aai_agg_{runner.slug}_improved_fast.csv")
+    sens_cba_df = pd.read_csv(runner.unc_dir / f"sens_cba_ews_{runner.slug}_improved_fast.csv")
+    sens_vuln_path = runner.unc_dir / f"sens_vulnerability_{runner.slug}_improved_fast.csv"
     sens_vuln_df = pd.read_csv(sens_vuln_path) if sens_vuln_path.exists() else pd.DataFrame()
     runner.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
     return runner.unc_dir
 
 
-def run_nb09_improved(city: str | None = None, n: int | None = None, seed: int | None = None) -> dict[str, Path]:
+def run_nb09_improved_fast(
+    city: str | None = None,
+    n: int | None = None,
+    seed: int | None = None,
+    make_figures: bool | None = None,
+) -> dict[str, Path]:
     slug = (city or os.environ.get("CITY") or "rome").strip().lower()
     n_use = int(n if n is not None else os.environ.get("NB09_N", 512))
     seed_use = int(seed if seed is not None else os.environ.get("NB09_SEED", SEED_DEFAULT))
-    runner = NB09Improved(slug)
-    return runner.run(n=n_use, seed=seed_use)
+    make_figures_env = os.environ.get("NB09_MAKE_FIGURES", "0").strip().lower() in {"1", "true", "yes", "y"}
+    make_figures_use = make_figures_env if make_figures is None else bool(make_figures)
+    runner = NB09ImprovedFast(slug)
+    return runner.run(n=n_use, seed=seed_use, make_figures=make_figures_use)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Improved March2026 NB09 uncertainty workflow.")
-    parser.add_argument("--city", default=os.environ.get("CITY", "rome"), help="City slug: rome, athens, lisbon")
+    parser = argparse.ArgumentParser(description="Improved-fast March2026 NB09 uncertainty workflow.")
+    parser.add_argument("--city", default=os.environ.get("CITY", "rome"), help="City slug: rome, athens, lisbon, copenhagen")
     parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 512)), help="Latin hypercube sample size")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("NB09_SEED", SEED_DEFAULT)), help="Sampling seed")
-    parser.add_argument("--figures-only", action="store_true", help="Regenerate saved figures from existing improved outputs")
+    parser.add_argument("--figures-only", action="store_true", help="Regenerate saved figures from existing improved-fast outputs")
+    parser.add_argument(
+        "--make-figures",
+        action="store_true",
+        help="Generate figures during the main uncertainty run (off by default for speed).",
+    )
     args = parser.parse_args()
     if args.figures_only:
         out_dir = regenerate_saved_figures(args.city)
         print(f"Regenerated improved figures in: {out_dir}")
     else:
-        paths = run_nb09_improved(city=args.city, n=args.n, seed=args.seed)
-        print("Saved improved uncertainty outputs in:")
+        paths = run_nb09_improved_fast(city=args.city, n=args.n, seed=args.seed, make_figures=args.make_figures)
+        print("Saved improved-fast uncertainty outputs in:")
         for key, path in paths.items():
             print(f"  {key}: {path}")
 

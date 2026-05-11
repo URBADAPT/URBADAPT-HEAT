@@ -20,8 +20,10 @@ Then across-GCM uncertainty bands are:
   central = median (50th percentile) of per-GCM deltas
   high    = 75th percentile of per-GCM deltas
 
-Output columns (same schema as before):
+Output columns:
     city, year, clim_scen, var, month, pct_band, delta
+and per-GCM lookup table:
+    city, year, clim_scen, var, month, gcm, delta
 
 Usage:
     python scripts/build_delta_bands.py
@@ -62,13 +64,25 @@ VAR_PCT_TARGETS = {
 
 # Default paths 
 DEFAULT_DELTAS_ROOT = Path(__file__).resolve().parent.parent.parent / "future_deltas"
-CITIES = ["Rome", "Athens", "Lisbon"]
+CITIES = ["Rome", "Athens", "Lisbon", "Copenhagen"]
 SCENARIOS = ["CurPol", "GS", "SP", "ssp585"]
 
 VARIABLES = list(VAR_PCT_TARGETS.keys())
 
 MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _resolve_city_data_dir(data_root: Path, city: str) -> Path:
+    exact = data_root / city
+    if exact.exists():
+        return exact
+    city_low = str(city).lower()
+    if data_root.exists():
+        for child in data_root.iterdir():
+            if child.is_dir() and child.name.lower() == city_low:
+                return child
+    return exact
 
 
 def parse_filename(path: str):
@@ -217,6 +231,9 @@ def main():
             continue
 
         df = pd.DataFrame(city_rows)
+        # NB09 currently consumes tas only from the GCM lookup table.
+        df_gcm_out = df.loc[df["var"].astype(str) == "tas", ["city", "year", "clim_scen", "var", "month", "gcm", "delta"]].copy()
+        df_gcm_out = df_gcm_out.sort_values(["city", "clim_scen", "year", "var", "month", "gcm"]).reset_index(drop=True)
 
         # Separate per-GCM data from multi-model data
         df_gcm = df[df["gcm"] != "__multimodel__"].copy()
@@ -247,11 +264,15 @@ def main():
 
         # Write per-city CSV
         urban_heat = Path(__file__).resolve().parent.parent
-        city_dir = urban_heat / "data" / city / "T2MmeanDeltas"
+        city_base_dir = _resolve_city_data_dir(urban_heat / "data", city)
+        city_dir = city_base_dir / "T2MmeanDeltas"
         city_dir.mkdir(parents=True, exist_ok=True)
         out_path = city_dir / "climate_change_provide_markups_bands.csv"
         df_bands.drop(columns=["n_gcms"]).to_csv(out_path, index=False)
+        out_gcm_path = city_dir / "climate_change_provide_markups_gcm.csv"
+        df_gcm_out.to_csv(out_gcm_path, index=False)
         print(f"  -> {out_path}")
+        print(f"  -> {out_gcm_path}")
 
     # write single combined CSV
     if args.single_output and all_bands:
@@ -263,7 +284,8 @@ def main():
     print("\n── Diagnostic: JJA tas deltas (central band, CurPol, 2050) ──")
     for city in args.cities:
         urban_heat = Path(__file__).resolve().parent.parent
-        bands_path = urban_heat / "data" / city / "T2MmeanDeltas" / "climate_change_provide_markups_bands.csv"
+        city_base_dir = _resolve_city_data_dir(urban_heat / "data", city)
+        bands_path = city_base_dir / "T2MmeanDeltas" / "climate_change_provide_markups_bands.csv"
         if not bands_path.exists():
             continue
         df_b = pd.read_csv(bands_path)

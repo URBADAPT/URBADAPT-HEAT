@@ -100,7 +100,7 @@ def _build_paths(slug: str, city: str, root: Path) -> SummaryPaths:
         tab_dir=out / "tables",
         fig_dir=out / "figures",
         summary_dir=out / "figures" / "summary",
-        uq_dir=out / "tables" / "uncertainty_improved",
+        uq_dir=out / "tables" / "uncertainty_improved_fast",
     )
 
 
@@ -842,16 +842,16 @@ def plot_section_7_uncertainty(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Pa
     del cfg
     impact_path = sp.optional(
         "uncertainty impact summary",
-        sp.uq_dir / f"unc_impact_summary_{sp.slug}_improved.csv",
-        sp.uq_dir / f"unc_samples_{sp.slug}_improved.csv",
+        sp.uq_dir / f"unc_impact_summary_{sp.slug}_improved_fast.csv",
+        sp.uq_dir / f"unc_samples_{sp.slug}_improved_fast.csv",
     )
     sens_aai_path = sp.optional(
         "AAI sensitivity",
-        sp.uq_dir / f"sens_aai_agg_{sp.slug}_improved.csv",
+        sp.uq_dir / f"sens_aai_agg_{sp.slug}_improved_fast.csv",
     )
     sens_cba_path = sp.optional(
         "CBA/EWS sensitivity",
-        sp.uq_dir / f"sens_cba_ews_{sp.slug}_improved.csv",
+        sp.uq_dir / f"sens_cba_ews_{sp.slug}_improved_fast.csv",
     )
     if impact_path is None:
         warnings.warn(f"[NB10] Improved uncertainty outputs not found for {sp.slug}.")
@@ -862,7 +862,7 @@ def plot_section_7_uncertainty(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Pa
     sens_cba = pd.read_csv(sens_cba_path) if sens_cba_path is not None else None
     vuln_sens_path = sp.optional(
         "vulnerability sensitivity",
-        sp.uq_dir / f"sens_vulnerability_{sp.slug}_improved.csv",
+        sp.uq_dir / f"sens_vulnerability_{sp.slug}_improved_fast.csv",
     )
     vuln_sens = pd.read_csv(vuln_sens_path) if vuln_sens_path is not None else None
 
@@ -887,7 +887,7 @@ def plot_section_7_uncertainty(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Pa
     else:
         _placeholder(axes[0], "AAI distribution", "aai_agg unavailable")
 
-    freq_path = sp.optional("frequency curve", sp.uq_dir / f"unc_freq_curve_{sp.slug}_improved.csv")
+    freq_path = sp.optional("frequency curve", sp.uq_dir / f"unc_freq_curve_{sp.slug}_improved_fast.csv")
     if freq_path is not None:
         freq = pd.read_csv(freq_path)
     else:
@@ -1039,8 +1039,8 @@ def _build_summary_metrics(sp: SummaryPaths, cfg: dict[str, Any]) -> pd.DataFram
 
     impact_path = sp.optional(
         "uncertainty impact summary",
-        sp.uq_dir / f"unc_impact_summary_{sp.slug}_improved.csv",
-        sp.uq_dir / f"unc_samples_{sp.slug}_improved.csv",
+        sp.uq_dir / f"unc_impact_summary_{sp.slug}_improved_fast.csv",
+        sp.uq_dir / f"unc_samples_{sp.slug}_improved_fast.csv",
     )
     if impact_path is not None:
         impact = pd.read_csv(impact_path)
