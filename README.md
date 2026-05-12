@@ -1,4 +1,4 @@
-# The socio-economic implications of public-private infrastructure interfaces in city-scale adaptation
+# URBADAPT-HEAT v1.0: a scalable geospatial framework for city-level public-private adaptation infrastructure cost-benefit analysis and its urban heat risk implementation
 
 Building a **generalisable pipeline** to study climate hazards and compare infrastructure adaptation strategies across cities. 
 
