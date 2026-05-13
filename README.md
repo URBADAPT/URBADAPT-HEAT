@@ -34,7 +34,7 @@
 Configuration is fully externalised to city-specific YAML files — the same analytical code runs unchanged across all cities.
 
 <div align="center">
-<img src="urban-heat/diagram.png" alt="URBADAPT-HEAT workflow diagram" width="80%">
+<img src="https://github.com/URBADAPT/URBADAPT-HEAT/blob/main/diagram.png?raw=true" alt="URBADAPT-HEAT workflow diagram" width="80%">
 </div>
 
 ---
