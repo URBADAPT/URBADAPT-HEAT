@@ -213,3 +213,9 @@ outputs/
 **/.ipynb_checkpoints/
 .DS_Store
 *.ini
+
+# Local city-agnostic notebook work not tracked on GitHub
+urban-heat/notebooks/city_agnostic/Genova/
+urban-heat/notebooks/city_agnostic/January2026/
+urban-heat/notebooks/city_agnostic/Rome/
+urban-heat/notebooks/city_agnostic/March2026/Athens2/
