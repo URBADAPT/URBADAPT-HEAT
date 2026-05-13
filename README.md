@@ -205,7 +205,7 @@ Full documentation is available on the [project wiki](https://github.com/URBADAP
 
 If you use URBADAPT-HEAT in your research, please cite:
 
-> Aboudrar-Méda, A. & Falchetta, G. (in review). *URBADAPT-HEAT v1.0: a scalable geospatial framework for city-level public-private adaptation infrastructure cost-benefit analysis and its urban heat risk implementation*. Geoscientific Model Development.
+> Aboudrar-Méda, A. & Falchetta, G. (2026). *URBADAPT-HEAT v1.0: a scalable geospatial framework for city-level public-private adaptation infrastructure cost-benefit analysis and its urban heat risk implementation*. In preparation.
 
 ```bibtex
 @article{aboudrar_falchetta_2025_urbadaptheat,
@@ -213,8 +213,8 @@ If you use URBADAPT-HEAT in your research, please cite:
   title   = {{URBADAPT-HEAT} v1.0: a scalable geospatial framework for city-level
              public-private adaptation infrastructure cost-benefit analysis
              and its urban heat risk implementation},
-  journal = {Geoscientific Model Development},
-  year    = {in review}
+  journal = {In preparation},
+  year    = {2026}
 }
 ```
 
