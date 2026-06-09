@@ -88,7 +88,7 @@ trees:
   # Athens: use NB05 regions (7 municipal communities), like Rome uses Municipi
   veg_regions: regions
   veg_region_label: Community
-  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled7_quadratic_holdout_safe.json"
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
   
 electricity_feedback:
   enabled: true

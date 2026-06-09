@@ -1,0 +1,14 @@
+{
+  "nuts_ids": [
+    "PT17",
+    "PT170"
+  ],
+  "scenario": 2,
+  "penetration_file": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/data/Lisbon/ACgridded/ac_penetration_NUTSregions.csv",
+  "columns": {
+    "id": "NUTS_ID",
+    "scenario": "Scenario",
+    "year": "year",
+    "value": "value"
+  }
+}

@@ -1,0 +1,442 @@
+scenario,scenario_name,scenario_abb,name,country_code,age,year,pop
+1,Rapid Development (SSP1),SSP1,Denmark,208,0--4,2030,306.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,5--9,2030,302
+1,Rapid Development (SSP1),SSP1,Denmark,208,10--14,2030,311.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,15--19,2030,311.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,20--24,2030,349.2
+1,Rapid Development (SSP1),SSP1,Denmark,208,25--29,2030,359.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,30--34,2030,391.9
+1,Rapid Development (SSP1),SSP1,Denmark,208,35--39,2030,404.8
+1,Rapid Development (SSP1),SSP1,Denmark,208,40--44,2030,363
+1,Rapid Development (SSP1),SSP1,Denmark,208,45--49,2030,332.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,50--54,2030,363.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,55--59,2030,385.4
+1,Rapid Development (SSP1),SSP1,Denmark,208,60--64,2030,397.9
+1,Rapid Development (SSP1),SSP1,Denmark,208,65--69,2030,364.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,70--74,2030,311.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,75--79,2030,271.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,80--84,2030,243.7
+1,Rapid Development (SSP1),SSP1,Denmark,208,85--89,2030,139.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,90--94,2030,53
+1,Rapid Development (SSP1),SSP1,Denmark,208,95--99,2030,12.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,100+,2030,1.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,0--4,2040,291.4
+1,Rapid Development (SSP1),SSP1,Denmark,208,5--9,2040,303.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,10--14,2040,310.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,15--19,2040,305.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,20--24,2040,319.9
+1,Rapid Development (SSP1),SSP1,Denmark,208,25--29,2040,327.9
+1,Rapid Development (SSP1),SSP1,Denmark,208,30--34,2040,363.7
+1,Rapid Development (SSP1),SSP1,Denmark,208,35--39,2040,368.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,40--44,2040,396
+1,Rapid Development (SSP1),SSP1,Denmark,208,45--49,2040,406.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,50--54,2040,363
+1,Rapid Development (SSP1),SSP1,Denmark,208,55--59,2040,329.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,60--64,2040,354.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,65--69,2040,368.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,70--74,2040,371.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,75--79,2040,327.4
+1,Rapid Development (SSP1),SSP1,Denmark,208,80--84,2040,256.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,85--89,2040,183
+1,Rapid Development (SSP1),SSP1,Denmark,208,90--94,2040,107.8
+1,Rapid Development (SSP1),SSP1,Denmark,208,95--99,2040,28.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,100+,2040,3.2
+1,Rapid Development (SSP1),SSP1,Denmark,208,0--4,2050,292
+1,Rapid Development (SSP1),SSP1,Denmark,208,5--9,2050,290.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,10--14,2050,295.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,15--19,2050,306.1
+1,Rapid Development (SSP1),SSP1,Denmark,208,20--24,2050,316.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,25--29,2050,319.5
+1,Rapid Development (SSP1),SSP1,Denmark,208,30--34,2050,337.2
+1,Rapid Development (SSP1),SSP1,Denmark,208,35--39,2050,341.4
+1,Rapid Development (SSP1),SSP1,Denmark,208,40--44,2050,371.2
+1,Rapid Development (SSP1),SSP1,Denmark,208,45--49,2050,372.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,50--54,2050,397.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,55--59,2050,405.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,60--64,2050,359.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,65--69,2050,322.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,70--74,2050,340.4
+1,Rapid Development (SSP1),SSP1,Denmark,208,75--79,2050,345.6
+1,Rapid Development (SSP1),SSP1,Denmark,208,80--84,2050,328.9
+1,Rapid Development (SSP1),SSP1,Denmark,208,85--89,2050,250.3
+1,Rapid Development (SSP1),SSP1,Denmark,208,90--94,2050,139
+1,Rapid Development (SSP1),SSP1,Denmark,208,95--99,2050,48.7
+1,Rapid Development (SSP1),SSP1,Denmark,208,100+,2050,8.9
+2,Medium (SSP2),SSP2,Denmark,208,0--4,2030,321.7
+2,Medium (SSP2),SSP2,Denmark,208,5--9,2030,309.6
+2,Medium (SSP2),SSP2,Denmark,208,10--14,2030,311.1
+2,Medium (SSP2),SSP2,Denmark,208,15--19,2030,311.6
+2,Medium (SSP2),SSP2,Denmark,208,20--24,2030,348.5
+2,Medium (SSP2),SSP2,Denmark,208,25--29,2030,357.5
+2,Medium (SSP2),SSP2,Denmark,208,30--34,2030,390.5
+2,Medium (SSP2),SSP2,Denmark,208,35--39,2030,404.5
+2,Medium (SSP2),SSP2,Denmark,208,40--44,2030,363.4
+2,Medium (SSP2),SSP2,Denmark,208,45--49,2030,332.5
+2,Medium (SSP2),SSP2,Denmark,208,50--54,2030,363.1
+2,Medium (SSP2),SSP2,Denmark,208,55--59,2030,384.7
+2,Medium (SSP2),SSP2,Denmark,208,60--64,2030,396.7
+2,Medium (SSP2),SSP2,Denmark,208,65--69,2030,362.3
+2,Medium (SSP2),SSP2,Denmark,208,70--74,2030,307.6
+2,Medium (SSP2),SSP2,Denmark,208,75--79,2030,266.7
+2,Medium (SSP2),SSP2,Denmark,208,80--84,2030,236.8
+2,Medium (SSP2),SSP2,Denmark,208,85--89,2030,133.8
+2,Medium (SSP2),SSP2,Denmark,208,90--94,2030,50
+2,Medium (SSP2),SSP2,Denmark,208,95--99,2030,11.4
+2,Medium (SSP2),SSP2,Denmark,208,100+,2030,1.5
+2,Medium (SSP2),SSP2,Denmark,208,0--4,2040,321.4
+2,Medium (SSP2),SSP2,Denmark,208,5--9,2040,326
+2,Medium (SSP2),SSP2,Denmark,208,10--14,2040,325.8
+2,Medium (SSP2),SSP2,Denmark,208,15--19,2040,313.5
+2,Medium (SSP2),SSP2,Denmark,208,20--24,2040,320.2
+2,Medium (SSP2),SSP2,Denmark,208,25--29,2040,326.8
+2,Medium (SSP2),SSP2,Denmark,208,30--34,2040,360.9
+2,Medium (SSP2),SSP2,Denmark,208,35--39,2040,365.1
+2,Medium (SSP2),SSP2,Denmark,208,40--44,2040,394.1
+2,Medium (SSP2),SSP2,Denmark,208,45--49,2040,405.8
+2,Medium (SSP2),SSP2,Denmark,208,50--54,2040,363.1
+2,Medium (SSP2),SSP2,Denmark,208,55--59,2040,328.7
+2,Medium (SSP2),SSP2,Denmark,208,60--64,2040,351.6
+2,Medium (SSP2),SSP2,Denmark,208,65--69,2040,363.2
+2,Medium (SSP2),SSP2,Denmark,208,70--74,2040,362.8
+2,Medium (SSP2),SSP2,Denmark,208,75--79,2040,315.1
+2,Medium (SSP2),SSP2,Denmark,208,80--84,2040,240.1
+2,Medium (SSP2),SSP2,Denmark,208,85--89,2040,164.6
+2,Medium (SSP2),SSP2,Denmark,208,90--94,2040,91.9
+2,Medium (SSP2),SSP2,Denmark,208,95--99,2040,22.8
+2,Medium (SSP2),SSP2,Denmark,208,100+,2040,2.6
+2,Medium (SSP2),SSP2,Denmark,208,0--4,2050,329.5
+2,Medium (SSP2),SSP2,Denmark,208,5--9,2050,322.9
+2,Medium (SSP2),SSP2,Denmark,208,10--14,2050,326.3
+2,Medium (SSP2),SSP2,Denmark,208,15--19,2050,330.1
+2,Medium (SSP2),SSP2,Denmark,208,20--24,2050,334.2
+2,Medium (SSP2),SSP2,Denmark,208,25--29,2050,328.4
+2,Medium (SSP2),SSP2,Denmark,208,30--34,2050,335.8
+2,Medium (SSP2),SSP2,Denmark,208,35--39,2050,338.7
+2,Medium (SSP2),SSP2,Denmark,208,40--44,2050,367.3
+2,Medium (SSP2),SSP2,Denmark,208,45--49,2050,368.5
+2,Medium (SSP2),SSP2,Denmark,208,50--54,2050,394.6
+2,Medium (SSP2),SSP2,Denmark,208,55--59,2050,402.9
+2,Medium (SSP2),SSP2,Denmark,208,60--64,2050,356.5
+2,Medium (SSP2),SSP2,Denmark,208,65--69,2050,316.8
+2,Medium (SSP2),SSP2,Denmark,208,70--74,2050,329.8
+2,Medium (SSP2),SSP2,Denmark,208,75--79,2050,327.7
+2,Medium (SSP2),SSP2,Denmark,208,80--84,2050,300.1
+2,Medium (SSP2),SSP2,Denmark,208,85--89,2050,213.7
+2,Medium (SSP2),SSP2,Denmark,208,90--94,2050,107.4
+2,Medium (SSP2),SSP2,Denmark,208,95--99,2050,33.7
+2,Medium (SSP2),SSP2,Denmark,208,100+,2050,5.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,0--4,2030,349.8
+3,Stalled Development (SSP3),SSP3,Denmark,208,5--9,2030,322.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,10--14,2030,308.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,15--19,2030,309
+3,Stalled Development (SSP3),SSP3,Denmark,208,20--24,2030,343.6
+3,Stalled Development (SSP3),SSP3,Denmark,208,25--29,2030,350.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,30--34,2030,384.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,35--39,2030,400.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,40--44,2030,359.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,45--49,2030,329.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,50--54,2030,361
+3,Stalled Development (SSP3),SSP3,Denmark,208,55--59,2030,382.8
+3,Stalled Development (SSP3),SSP3,Denmark,208,60--64,2030,394.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,65--69,2030,359.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,70--74,2030,303.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,75--79,2030,261.4
+3,Stalled Development (SSP3),SSP3,Denmark,208,80--84,2030,230
+3,Stalled Development (SSP3),SSP3,Denmark,208,85--89,2030,128.4
+3,Stalled Development (SSP3),SSP3,Denmark,208,90--94,2030,47.1
+3,Stalled Development (SSP3),SSP3,Denmark,208,95--99,2030,10.6
+3,Stalled Development (SSP3),SSP3,Denmark,208,100+,2030,1.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,0--4,2040,374.4
+3,Stalled Development (SSP3),SSP3,Denmark,208,5--9,2040,366
+3,Stalled Development (SSP3),SSP3,Denmark,208,10--14,2040,351.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,15--19,2040,324.4
+3,Stalled Development (SSP3),SSP3,Denmark,208,20--24,2040,312.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,25--29,2040,315.3
+3,Stalled Development (SSP3),SSP3,Denmark,208,30--34,2040,348.6
+3,Stalled Development (SSP3),SSP3,Denmark,208,35--39,2040,353.6
+3,Stalled Development (SSP3),SSP3,Denmark,208,40--44,2040,385.6
+3,Stalled Development (SSP3),SSP3,Denmark,208,45--49,2040,398.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,50--54,2040,356.3
+3,Stalled Development (SSP3),SSP3,Denmark,208,55--59,2040,322.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,60--64,2040,345.4
+3,Stalled Development (SSP3),SSP3,Denmark,208,65--69,2040,355.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,70--74,2040,352.1
+3,Stalled Development (SSP3),SSP3,Denmark,208,75--79,2040,300.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,80--84,2040,222.5
+3,Stalled Development (SSP3),SSP3,Denmark,208,85--89,2040,146.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,90--94,2040,78
+3,Stalled Development (SSP3),SSP3,Denmark,208,95--99,2040,18.6
+3,Stalled Development (SSP3),SSP3,Denmark,208,100+,2040,2.1
+3,Stalled Development (SSP3),SSP3,Denmark,208,0--4,2050,391.4
+3,Stalled Development (SSP3),SSP3,Denmark,208,5--9,2050,376.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,10--14,2050,377.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,15--19,2050,368.3
+3,Stalled Development (SSP3),SSP3,Denmark,208,20--24,2050,355.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,25--29,2050,331
+3,Stalled Development (SSP3),SSP3,Denmark,208,30--34,2050,319
+3,Stalled Development (SSP3),SSP3,Denmark,208,35--39,2050,320.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,40--44,2050,350.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,45--49,2050,353.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,50--54,2050,382.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,55--59,2050,391.7
+3,Stalled Development (SSP3),SSP3,Denmark,208,60--64,2050,343.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,65--69,2050,302.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,70--74,2050,312.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,75--79,2050,303.9
+3,Stalled Development (SSP3),SSP3,Denmark,208,80--84,2050,267
+3,Stalled Development (SSP3),SSP3,Denmark,208,85--89,2050,177.3
+3,Stalled Development (SSP3),SSP3,Denmark,208,90--94,2050,81.1
+3,Stalled Development (SSP3),SSP3,Denmark,208,95--99,2050,23.2
+3,Stalled Development (SSP3),SSP3,Denmark,208,100+,2050,3.7
+4,Inequality (SSP4),SSP4,Denmark,208,0--4,2030,289.5
+4,Inequality (SSP4),SSP4,Denmark,208,5--9,2030,294.6
+4,Inequality (SSP4),SSP4,Denmark,208,10--14,2030,311.2
+4,Inequality (SSP4),SSP4,Denmark,208,15--19,2030,311.2
+4,Inequality (SSP4),SSP4,Denmark,208,20--24,2030,347.3
+4,Inequality (SSP4),SSP4,Denmark,208,25--29,2030,356.7
+4,Inequality (SSP4),SSP4,Denmark,208,30--34,2030,390.8
+4,Inequality (SSP4),SSP4,Denmark,208,35--39,2030,404.8
+4,Inequality (SSP4),SSP4,Denmark,208,40--44,2030,363.7
+4,Inequality (SSP4),SSP4,Denmark,208,45--49,2030,332.7
+4,Inequality (SSP4),SSP4,Denmark,208,50--54,2030,363.3
+4,Inequality (SSP4),SSP4,Denmark,208,55--59,2030,384.9
+4,Inequality (SSP4),SSP4,Denmark,208,60--64,2030,396.8
+4,Inequality (SSP4),SSP4,Denmark,208,65--69,2030,362.4
+4,Inequality (SSP4),SSP4,Denmark,208,70--74,2030,307.7
+4,Inequality (SSP4),SSP4,Denmark,208,75--79,2030,266.7
+4,Inequality (SSP4),SSP4,Denmark,208,80--84,2030,236.9
+4,Inequality (SSP4),SSP4,Denmark,208,85--89,2030,133.8
+4,Inequality (SSP4),SSP4,Denmark,208,90--94,2030,50
+4,Inequality (SSP4),SSP4,Denmark,208,95--99,2030,11.4
+4,Inequality (SSP4),SSP4,Denmark,208,100+,2030,1.5
+4,Inequality (SSP4),SSP4,Denmark,208,0--4,2040,256.1
+4,Inequality (SSP4),SSP4,Denmark,208,5--9,2040,277.8
+4,Inequality (SSP4),SSP4,Denmark,208,10--14,2040,294.7
+4,Inequality (SSP4),SSP4,Denmark,208,15--19,2040,298.9
+4,Inequality (SSP4),SSP4,Denmark,208,20--24,2040,318.9
+4,Inequality (SSP4),SSP4,Denmark,208,25--29,2040,323.9
+4,Inequality (SSP4),SSP4,Denmark,208,30--34,2040,358.6
+4,Inequality (SSP4),SSP4,Denmark,208,35--39,2040,364.7
+4,Inequality (SSP4),SSP4,Denmark,208,40--44,2040,395.3
+4,Inequality (SSP4),SSP4,Denmark,208,45--49,2040,406.9
+4,Inequality (SSP4),SSP4,Denmark,208,50--54,2040,364.1
+4,Inequality (SSP4),SSP4,Denmark,208,55--59,2040,329.5
+4,Inequality (SSP4),SSP4,Denmark,208,60--64,2040,352.1
+4,Inequality (SSP4),SSP4,Denmark,208,65--69,2040,363.6
+4,Inequality (SSP4),SSP4,Denmark,208,70--74,2040,363.1
+4,Inequality (SSP4),SSP4,Denmark,208,75--79,2040,315.4
+4,Inequality (SSP4),SSP4,Denmark,208,80--84,2040,240.3
+4,Inequality (SSP4),SSP4,Denmark,208,85--89,2040,164.6
+4,Inequality (SSP4),SSP4,Denmark,208,90--94,2040,91.9
+4,Inequality (SSP4),SSP4,Denmark,208,95--99,2040,22.8
+4,Inequality (SSP4),SSP4,Denmark,208,100+,2040,2.6
+4,Inequality (SSP4),SSP4,Denmark,208,0--4,2050,249.8
+4,Inequality (SSP4),SSP4,Denmark,208,5--9,2050,253.2
+4,Inequality (SSP4),SSP4,Denmark,208,10--14,2050,262.5
+4,Inequality (SSP4),SSP4,Denmark,208,15--19,2050,283.3
+4,Inequality (SSP4),SSP4,Denmark,208,20--24,2050,303
+4,Inequality (SSP4),SSP4,Denmark,208,25--29,2050,312
+4,Inequality (SSP4),SSP4,Denmark,208,30--34,2050,332.4
+4,Inequality (SSP4),SSP4,Denmark,208,35--39,2050,334.7
+4,Inequality (SSP4),SSP4,Denmark,208,40--44,2050,365
+4,Inequality (SSP4),SSP4,Denmark,208,45--49,2050,368.8
+4,Inequality (SSP4),SSP4,Denmark,208,50--54,2050,396.9
+4,Inequality (SSP4),SSP4,Denmark,208,55--59,2050,404.9
+4,Inequality (SSP4),SSP4,Denmark,208,60--64,2050,358.3
+4,Inequality (SSP4),SSP4,Denmark,208,65--69,2050,318.2
+4,Inequality (SSP4),SSP4,Denmark,208,70--74,2050,330.9
+4,Inequality (SSP4),SSP4,Denmark,208,75--79,2050,328.5
+4,Inequality (SSP4),SSP4,Denmark,208,80--84,2050,300.5
+4,Inequality (SSP4),SSP4,Denmark,208,85--89,2050,213.9
+4,Inequality (SSP4),SSP4,Denmark,208,90--94,2050,107.4
+4,Inequality (SSP4),SSP4,Denmark,208,95--99,2050,33.7
+4,Inequality (SSP4),SSP4,Denmark,208,100+,2050,5.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,0--4,2030,314
+5,Conventional Development (SSP5),SSP5,Denmark,208,5--9,2030,306.6
+5,Conventional Development (SSP5),SSP5,Denmark,208,10--14,2030,315.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,15--19,2030,316.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,20--24,2030,358.8
+5,Conventional Development (SSP5),SSP5,Denmark,208,25--29,2030,373.9
+5,Conventional Development (SSP5),SSP5,Denmark,208,30--34,2030,404
+5,Conventional Development (SSP5),SSP5,Denmark,208,35--39,2030,413.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,40--44,2030,369.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,45--49,2030,337.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,50--54,2030,366.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,55--59,2030,387.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,60--64,2030,399.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,65--69,2030,365.6
+5,Conventional Development (SSP5),SSP5,Denmark,208,70--74,2030,311.9
+5,Conventional Development (SSP5),SSP5,Denmark,208,75--79,2030,271.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,80--84,2030,243.4
+5,Conventional Development (SSP5),SSP5,Denmark,208,85--89,2030,139.5
+5,Conventional Development (SSP5),SSP5,Denmark,208,90--94,2030,53
+5,Conventional Development (SSP5),SSP5,Denmark,208,95--99,2030,12.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,100+,2030,1.6
+5,Conventional Development (SSP5),SSP5,Denmark,208,0--4,2040,309.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,5--9,2040,318
+5,Conventional Development (SSP5),SSP5,Denmark,208,10--14,2040,322
+5,Conventional Development (SSP5),SSP5,Denmark,208,15--19,2040,313.9
+5,Conventional Development (SSP5),SSP5,Denmark,208,20--24,2040,333.9
+5,Conventional Development (SSP5),SSP5,Denmark,208,25--29,2040,349.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,30--34,2040,388.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,35--39,2040,392.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,40--44,2040,413.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,45--49,2040,418.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,50--54,2040,373
+5,Conventional Development (SSP5),SSP5,Denmark,208,55--59,2040,337.8
+5,Conventional Development (SSP5),SSP5,Denmark,208,60--64,2040,358.8
+5,Conventional Development (SSP5),SSP5,Denmark,208,65--69,2040,371.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,70--74,2040,373
+5,Conventional Development (SSP5),SSP5,Denmark,208,75--79,2040,329
+5,Conventional Development (SSP5),SSP5,Denmark,208,80--84,2040,257.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,85--89,2040,183.1
+5,Conventional Development (SSP5),SSP5,Denmark,208,90--94,2040,107.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,95--99,2040,28.1
+5,Conventional Development (SSP5),SSP5,Denmark,208,100+,2040,3.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,0--4,2050,317.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,5--9,2050,314.1
+5,Conventional Development (SSP5),SSP5,Denmark,208,10--14,2050,317.1
+5,Conventional Development (SSP5),SSP5,Denmark,208,15--19,2050,323.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,20--24,2050,334.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,25--29,2050,341.6
+5,Conventional Development (SSP5),SSP5,Denmark,208,30--34,2050,367.8
+5,Conventional Development (SSP5),SSP5,Denmark,208,35--39,2050,375.9
+5,Conventional Development (SSP5),SSP5,Denmark,208,40--44,2050,402.9
+5,Conventional Development (SSP5),SSP5,Denmark,208,45--49,2050,401.2
+5,Conventional Development (SSP5),SSP5,Denmark,208,50--54,2050,418
+5,Conventional Development (SSP5),SSP5,Denmark,208,55--59,2050,420.5
+5,Conventional Development (SSP5),SSP5,Denmark,208,60--64,2050,372
+5,Conventional Development (SSP5),SSP5,Denmark,208,65--69,2050,333
+5,Conventional Development (SSP5),SSP5,Denmark,208,70--74,2050,346.4
+5,Conventional Development (SSP5),SSP5,Denmark,208,75--79,2050,349.3
+5,Conventional Development (SSP5),SSP5,Denmark,208,80--84,2050,330.7
+5,Conventional Development (SSP5),SSP5,Denmark,208,85--89,2050,251.6
+5,Conventional Development (SSP5),SSP5,Denmark,208,90--94,2050,139.5
+5,Conventional Development (SSP5),SSP5,Denmark,208,95--99,2050,48.8
+5,Conventional Development (SSP5),SSP5,Denmark,208,100+,2050,8.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,0--4,2030,313.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,5--9,2030,303.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,10--14,2030,305.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,15--19,2030,304.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,20--24,2030,337.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,25--29,2030,343.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,30--34,2030,378.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,35--39,2030,394.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,40--44,2030,354.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,45--49,2030,324.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,50--54,2030,358.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,55--59,2030,381.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,60--64,2030,394.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,65--69,2030,360.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,70--74,2030,306.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,75--79,2030,266
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,80--84,2030,236.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,85--89,2030,133.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,90--94,2030,49.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,95--99,2030,11.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,100+,2030,1.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,0--4,2040,302.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,5--9,2040,310.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,10--14,2040,313.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,15--19,2040,303.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,20--24,2040,304.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,25--29,2040,304.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,30--34,2040,337.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,35--39,2040,342.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,40--44,2040,377
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,45--49,2040,392.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,50--54,2040,350
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,55--59,2040,317.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,60--64,2040,344.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,65--69,2040,358.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,70--74,2040,360
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,75--79,2040,312.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,80--84,2040,238.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,85--89,2040,164.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,90--94,2040,91.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,95--99,2040,22.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,100+,2040,2.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,0--4,2050,300.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,5--9,2050,296.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,10--14,2050,302.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,15--19,2050,310.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,20--24,2050,312.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,25--29,2050,303.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,30--34,2050,304.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,35--39,2050,303.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,40--44,2050,336.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,45--49,2050,340.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,50--54,2050,373.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,55--59,2050,385.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,60--64,2050,339.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,65--69,2050,302.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,70--74,2050,321.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,75--79,2050,322.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,80--84,2050,297.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,85--89,2050,212.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,90--94,2050,106.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,95--99,2050,33.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Denmark,208,100+,2050,5.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,0--4,2030,327.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,5--9,2030,313
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,10--14,2030,314.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,15--19,2030,314.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,20--24,2030,356
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,25--29,2030,369.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,30--34,2030,400.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,35--39,2030,411.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,40--44,2030,368.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,45--49,2030,335.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,50--54,2030,364.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,55--59,2030,385.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,60--64,2030,397.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,65--69,2030,363.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,70--74,2030,308.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,75--79,2030,266.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,80--84,2030,236.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,85--89,2030,133.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,90--94,2030,49.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,95--99,2030,11.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,100+,2030,1.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,0--4,2040,338.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,5--9,2040,340
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,10--14,2040,336.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,15--19,2040,321.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,20--24,2040,333.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,25--29,2040,346.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,30--34,2040,382.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,35--39,2040,385.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,40--44,2040,409.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,45--49,2040,417.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,50--54,2040,373.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,55--59,2040,336.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,60--64,2040,356
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,65--69,2040,366.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,70--74,2040,364.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,75--79,2040,316.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,80--84,2040,241
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,85--89,2040,164.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,90--94,2040,91.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,95--99,2040,22.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,100+,2040,2.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,0--4,2050,356.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,5--9,2050,347.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,10--14,2050,348.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,15--19,2050,348
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,20--24,2050,353.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,25--29,2050,351.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,30--34,2050,364.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,35--39,2050,370.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,40--44,2050,395.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,45--49,2050,393.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,50--54,2050,413.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,55--59,2050,417.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,60--64,2050,369.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,65--69,2050,327.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,70--74,2050,336
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,75--79,2050,331.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,80--84,2050,302
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,85--89,2050,214.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,90--94,2050,107.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,95--99,2050,33.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Denmark,208,100+,2050,5.7

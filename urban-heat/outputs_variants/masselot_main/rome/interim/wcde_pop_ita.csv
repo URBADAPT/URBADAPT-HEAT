@@ -1,0 +1,442 @@
+scenario,scenario_name,scenario_abb,name,country_code,age,year,pop
+1,Rapid Development (SSP1),SSP1,Italy,380,0--4,2030,1895.4
+1,Rapid Development (SSP1),SSP1,Italy,380,5--9,2030,1976.8
+1,Rapid Development (SSP1),SSP1,Italy,380,10--14,2030,2328.8
+1,Rapid Development (SSP1),SSP1,Italy,380,15--19,2030,2701.6
+1,Rapid Development (SSP1),SSP1,Italy,380,20--24,2030,2958.3
+1,Rapid Development (SSP1),SSP1,Italy,380,25--29,2030,3041
+1,Rapid Development (SSP1),SSP1,Italy,380,30--34,2030,3114.5
+1,Rapid Development (SSP1),SSP1,Italy,380,35--39,2030,3253.5
+1,Rapid Development (SSP1),SSP1,Italy,380,40--44,2030,3366.2
+1,Rapid Development (SSP1),SSP1,Italy,380,45--49,2030,3614.7
+1,Rapid Development (SSP1),SSP1,Italy,380,50--54,2030,4175.5
+1,Rapid Development (SSP1),SSP1,Italy,380,55--59,2030,4680.8
+1,Rapid Development (SSP1),SSP1,Italy,380,60--64,2030,4744.8
+1,Rapid Development (SSP1),SSP1,Italy,380,65--69,2030,4337.3
+1,Rapid Development (SSP1),SSP1,Italy,380,70--74,2030,3619.3
+1,Rapid Development (SSP1),SSP1,Italy,380,75--79,2030,3065.6
+1,Rapid Development (SSP1),SSP1,Italy,380,80--84,2030,2650.7
+1,Rapid Development (SSP1),SSP1,Italy,380,85--89,2030,1690
+1,Rapid Development (SSP1),SSP1,Italy,380,90--94,2030,901
+1,Rapid Development (SSP1),SSP1,Italy,380,95--99,2030,250.3
+1,Rapid Development (SSP1),SSP1,Italy,380,100+,2030,33.3
+1,Rapid Development (SSP1),SSP1,Italy,380,0--4,2040,1895.5
+1,Rapid Development (SSP1),SSP1,Italy,380,5--9,2040,1912.6
+1,Rapid Development (SSP1),SSP1,Italy,380,10--14,2040,1950.6
+1,Rapid Development (SSP1),SSP1,Italy,380,15--19,2040,2041.9
+1,Rapid Development (SSP1),SSP1,Italy,380,20--24,2040,2457.6
+1,Rapid Development (SSP1),SSP1,Italy,380,25--29,2040,2896.7
+1,Rapid Development (SSP1),SSP1,Italy,380,30--34,2040,3138.8
+1,Rapid Development (SSP1),SSP1,Italy,380,35--39,2040,3168.2
+1,Rapid Development (SSP1),SSP1,Italy,380,40--44,2040,3196.8
+1,Rapid Development (SSP1),SSP1,Italy,380,45--49,2040,3306
+1,Rapid Development (SSP1),SSP1,Italy,380,50--54,2040,3391.1
+1,Rapid Development (SSP1),SSP1,Italy,380,55--59,2040,3606.3
+1,Rapid Development (SSP1),SSP1,Italy,380,60--64,2040,4116.1
+1,Rapid Development (SSP1),SSP1,Italy,380,65--69,2040,4553.8
+1,Rapid Development (SSP1),SSP1,Italy,380,70--74,2040,4534.6
+1,Rapid Development (SSP1),SSP1,Italy,380,75--79,2040,4024.2
+1,Rapid Development (SSP1),SSP1,Italy,380,80--84,2040,3150.6
+1,Rapid Development (SSP1),SSP1,Italy,380,85--89,2040,2276
+1,Rapid Development (SSP1),SSP1,Italy,380,90--94,2040,1359.1
+1,Rapid Development (SSP1),SSP1,Italy,380,95--99,2040,418.4
+1,Rapid Development (SSP1),SSP1,Italy,380,100+,2040,68.6
+1,Rapid Development (SSP1),SSP1,Italy,380,0--4,2050,1949.3
+1,Rapid Development (SSP1),SSP1,Italy,380,5--9,2050,1953.3
+1,Rapid Development (SSP1),SSP1,Italy,380,10--14,2050,1948.5
+1,Rapid Development (SSP1),SSP1,Italy,380,15--19,2050,1971.4
+1,Rapid Development (SSP1),SSP1,Italy,380,20--24,2050,2062
+1,Rapid Development (SSP1),SSP1,Italy,380,25--29,2050,2236.7
+1,Rapid Development (SSP1),SSP1,Italy,380,30--34,2050,2675.8
+1,Rapid Development (SSP1),SSP1,Italy,380,35--39,2050,3060.1
+1,Rapid Development (SSP1),SSP1,Italy,380,40--44,2050,3241.4
+1,Rapid Development (SSP1),SSP1,Italy,380,45--49,2050,3232.5
+1,Rapid Development (SSP1),SSP1,Italy,380,50--54,2050,3238.7
+1,Rapid Development (SSP1),SSP1,Italy,380,55--59,2050,3332.8
+1,Rapid Development (SSP1),SSP1,Italy,380,60--64,2050,3397.8
+1,Rapid Development (SSP1),SSP1,Italy,380,65--69,2050,3579.2
+1,Rapid Development (SSP1),SSP1,Italy,380,70--74,2050,4028.8
+1,Rapid Development (SSP1),SSP1,Italy,380,75--79,2050,4374.7
+1,Rapid Development (SSP1),SSP1,Italy,380,80--84,2050,4195
+1,Rapid Development (SSP1),SSP1,Italy,380,85--89,2050,3355.4
+1,Rapid Development (SSP1),SSP1,Italy,380,90--94,2050,1991.1
+1,Rapid Development (SSP1),SSP1,Italy,380,95--99,2050,773.1
+1,Rapid Development (SSP1),SSP1,Italy,380,100+,2050,151.9
+2,Medium (SSP2),SSP2,Italy,380,0--4,2030,1996.6
+2,Medium (SSP2),SSP2,Italy,380,5--9,2030,2029
+2,Medium (SSP2),SSP2,Italy,380,10--14,2030,2328
+2,Medium (SSP2),SSP2,Italy,380,15--19,2030,2702.6
+2,Medium (SSP2),SSP2,Italy,380,20--24,2030,2956.8
+2,Medium (SSP2),SSP2,Italy,380,25--29,2030,3031.7
+2,Medium (SSP2),SSP2,Italy,380,30--34,2030,3106.1
+2,Medium (SSP2),SSP2,Italy,380,35--39,2030,3249.6
+2,Medium (SSP2),SSP2,Italy,380,40--44,2030,3366.9
+2,Medium (SSP2),SSP2,Italy,380,45--49,2030,3613.5
+2,Medium (SSP2),SSP2,Italy,380,50--54,2030,4171.1
+2,Medium (SSP2),SSP2,Italy,380,55--59,2030,4671.7
+2,Medium (SSP2),SSP2,Italy,380,60--64,2030,4729.3
+2,Medium (SSP2),SSP2,Italy,380,65--69,2030,4314.2
+2,Medium (SSP2),SSP2,Italy,380,70--74,2030,3587.4
+2,Medium (SSP2),SSP2,Italy,380,75--79,2030,3020
+2,Medium (SSP2),SSP2,Italy,380,80--84,2030,2583.6
+2,Medium (SSP2),SSP2,Italy,380,85--89,2030,1621.2
+2,Medium (SSP2),SSP2,Italy,380,90--94,2030,852
+2,Medium (SSP2),SSP2,Italy,380,95--99,2030,235.9
+2,Medium (SSP2),SSP2,Italy,380,100+,2030,31.4
+2,Medium (SSP2),SSP2,Italy,380,0--4,2040,2105.5
+2,Medium (SSP2),SSP2,Italy,380,5--9,2040,2069.8
+2,Medium (SSP2),SSP2,Italy,380,10--14,2040,2056.8
+2,Medium (SSP2),SSP2,Italy,380,15--19,2040,2100.5
+2,Medium (SSP2),SSP2,Italy,380,20--24,2040,2463
+2,Medium (SSP2),SSP2,Italy,380,25--29,2040,2894.6
+2,Medium (SSP2),SSP2,Italy,380,30--34,2040,3127.3
+2,Medium (SSP2),SSP2,Italy,380,35--39,2040,3152.6
+2,Medium (SSP2),SSP2,Italy,380,40--44,2040,3185.8
+2,Medium (SSP2),SSP2,Italy,380,45--49,2040,3298.9
+2,Medium (SSP2),SSP2,Italy,380,50--54,2040,3386.8
+2,Medium (SSP2),SSP2,Italy,380,55--59,2040,3593.5
+2,Medium (SSP2),SSP2,Italy,380,60--64,2040,4088.2
+2,Medium (SSP2),SSP2,Italy,380,65--69,2040,4502
+2,Medium (SSP2),SSP2,Italy,380,70--74,2040,4450.4
+2,Medium (SSP2),SSP2,Italy,380,75--79,2040,3900.6
+2,Medium (SSP2),SSP2,Italy,380,80--84,2040,2985.7
+2,Medium (SSP2),SSP2,Italy,380,85--89,2040,2071.5
+2,Medium (SSP2),SSP2,Italy,380,90--94,2040,1164.7
+2,Medium (SSP2),SSP2,Italy,380,95--99,2040,336.1
+2,Medium (SSP2),SSP2,Italy,380,100+,2040,53.3
+2,Medium (SSP2),SSP2,Italy,380,0--4,2050,2210.5
+2,Medium (SSP2),SSP2,Italy,380,5--9,2050,2191.4
+2,Medium (SSP2),SSP2,Italy,380,10--14,2050,2170.3
+2,Medium (SSP2),SSP2,Italy,380,15--19,2050,2144.2
+2,Medium (SSP2),SSP2,Italy,380,20--24,2050,2195.3
+2,Medium (SSP2),SSP2,Italy,380,25--29,2050,2311
+2,Medium (SSP2),SSP2,Italy,380,30--34,2050,2673.5
+2,Medium (SSP2),SSP2,Italy,380,35--39,2050,3051.2
+2,Medium (SSP2),SSP2,Italy,380,40--44,2050,3225
+2,Medium (SSP2),SSP2,Italy,380,45--49,2050,3211.4
+2,Medium (SSP2),SSP2,Italy,380,50--54,2050,3219.8
+2,Medium (SSP2),SSP2,Italy,380,55--59,2050,3311.3
+2,Medium (SSP2),SSP2,Italy,380,60--64,2050,3369.9
+2,Medium (SSP2),SSP2,Italy,380,65--69,2050,3525.5
+2,Medium (SSP2),SSP2,Italy,380,70--74,2050,3927.6
+2,Medium (SSP2),SSP2,Italy,380,75--79,2050,4193.4
+2,Medium (SSP2),SSP2,Italy,380,80--84,2050,3897.5
+2,Medium (SSP2),SSP2,Italy,380,85--89,2050,2932
+2,Medium (SSP2),SSP2,Italy,380,90--94,2050,1566.2
+2,Medium (SSP2),SSP2,Italy,380,95--99,2050,530
+2,Medium (SSP2),SSP2,Italy,380,100+,2050,92.3
+3,Stalled Development (SSP3),SSP3,Italy,380,0--4,2030,2171.7
+3,Stalled Development (SSP3),SSP3,Italy,380,5--9,2030,2107
+3,Stalled Development (SSP3),SSP3,Italy,380,10--14,2030,2298.4
+3,Stalled Development (SSP3),SSP3,Italy,380,15--19,2030,2667.9
+3,Stalled Development (SSP3),SSP3,Italy,380,20--24,2030,2895.7
+3,Stalled Development (SSP3),SSP3,Italy,380,25--29,2030,2950.5
+3,Stalled Development (SSP3),SSP3,Italy,380,30--34,2030,3029.4
+3,Stalled Development (SSP3),SSP3,Italy,380,35--39,2030,3186
+3,Stalled Development (SSP3),SSP3,Italy,380,40--44,2030,3320.1
+3,Stalled Development (SSP3),SSP3,Italy,380,45--49,2030,3582.2
+3,Stalled Development (SSP3),SSP3,Italy,380,50--54,2030,4151.5
+3,Stalled Development (SSP3),SSP3,Italy,380,55--59,2030,4654.7
+3,Stalled Development (SSP3),SSP3,Italy,380,60--64,2030,4708.3
+3,Stalled Development (SSP3),SSP3,Italy,380,65--69,2030,4284.5
+3,Stalled Development (SSP3),SSP3,Italy,380,70--74,2030,3548.7
+3,Stalled Development (SSP3),SSP3,Italy,380,75--79,2030,2969.1
+3,Stalled Development (SSP3),SSP3,Italy,380,80--84,2030,2513.2
+3,Stalled Development (SSP3),SSP3,Italy,380,85--89,2030,1556.5
+3,Stalled Development (SSP3),SSP3,Italy,380,90--94,2030,813.1
+3,Stalled Development (SSP3),SSP3,Italy,380,95--99,2030,225.7
+3,Stalled Development (SSP3),SSP3,Italy,380,100+,2030,30.2
+3,Stalled Development (SSP3),SSP3,Italy,380,0--4,2040,2447
+3,Stalled Development (SSP3),SSP3,Italy,380,5--9,2040,2315
+3,Stalled Development (SSP3),SSP3,Italy,380,10--14,2040,2204.1
+3,Stalled Development (SSP3),SSP3,Italy,380,15--19,2040,2142.7
+3,Stalled Development (SSP3),SSP3,Italy,380,20--24,2040,2360.3
+3,Stalled Development (SSP3),SSP3,Italy,380,25--29,2040,2755.4
+3,Stalled Development (SSP3),SSP3,Italy,380,30--34,2040,2974.4
+3,Stalled Development (SSP3),SSP3,Italy,380,35--39,2040,3006.4
+3,Stalled Development (SSP3),SSP3,Italy,380,40--44,2040,3062.1
+3,Stalled Development (SSP3),SSP3,Italy,380,45--49,2040,3196.8
+3,Stalled Development (SSP3),SSP3,Italy,380,50--54,2040,3305.1
+3,Stalled Development (SSP3),SSP3,Italy,380,55--59,2040,3528.3
+3,Stalled Development (SSP3),SSP3,Italy,380,60--64,2040,4030.2
+3,Stalled Development (SSP3),SSP3,Italy,380,65--69,2040,4430.4
+3,Stalled Development (SSP3),SSP3,Italy,380,70--74,2040,4348.2
+3,Stalled Development (SSP3),SSP3,Italy,380,75--79,2040,3756.3
+3,Stalled Development (SSP3),SSP3,Italy,380,80--84,2040,2803.9
+3,Stalled Development (SSP3),SSP3,Italy,380,85--89,2040,1866.9
+3,Stalled Development (SSP3),SSP3,Italy,380,90--94,2040,991.6
+3,Stalled Development (SSP3),SSP3,Italy,380,95--99,2040,270.8
+3,Stalled Development (SSP3),SSP3,Italy,380,100+,2040,42.3
+3,Stalled Development (SSP3),SSP3,Italy,380,0--4,2050,2586.3
+3,Stalled Development (SSP3),SSP3,Italy,380,5--9,2050,2531.8
+3,Stalled Development (SSP3),SSP3,Italy,380,10--14,2050,2486.5
+3,Stalled Development (SSP3),SSP3,Italy,380,15--19,2050,2358.3
+3,Stalled Development (SSP3),SSP3,Italy,380,20--24,2050,2276.2
+3,Stalled Development (SSP3),SSP3,Italy,380,25--29,2050,2244.7
+3,Stalled Development (SSP3),SSP3,Italy,380,30--34,2050,2458.6
+3,Stalled Development (SSP3),SSP3,Italy,380,35--39,2050,2829.3
+3,Stalled Development (SSP3),SSP3,Italy,380,40--44,2050,3018.2
+3,Stalled Development (SSP3),SSP3,Italy,380,45--49,2050,3026.3
+3,Stalled Development (SSP3),SSP3,Italy,380,50--54,2050,3060.2
+3,Stalled Development (SSP3),SSP3,Italy,380,55--59,2050,3168.8
+3,Stalled Development (SSP3),SSP3,Italy,380,60--64,2050,3237.9
+3,Stalled Development (SSP3),SSP3,Italy,380,65--69,2050,3394.3
+3,Stalled Development (SSP3),SSP3,Italy,380,70--74,2050,3770.2
+3,Stalled Development (SSP3),SSP3,Italy,380,75--79,2050,3958.5
+3,Stalled Development (SSP3),SSP3,Italy,380,80--84,2050,3547
+3,Stalled Development (SSP3),SSP3,Italy,380,85--89,2050,2494.6
+3,Stalled Development (SSP3),SSP3,Italy,380,90--94,2050,1204.6
+3,Stalled Development (SSP3),SSP3,Italy,380,95--99,2050,362.8
+3,Stalled Development (SSP3),SSP3,Italy,380,100+,2050,58
+4,Inequality (SSP4),SSP4,Italy,380,0--4,2030,1799.6
+4,Inequality (SSP4),SSP4,Italy,380,5--9,2030,1932.4
+4,Inequality (SSP4),SSP4,Italy,380,10--14,2030,2329.4
+4,Inequality (SSP4),SSP4,Italy,380,15--19,2030,2698.9
+4,Inequality (SSP4),SSP4,Italy,380,20--24,2030,2946.5
+4,Inequality (SSP4),SSP4,Italy,380,25--29,2030,3026.2
+4,Inequality (SSP4),SSP4,Italy,380,30--34,2030,3106.8
+4,Inequality (SSP4),SSP4,Italy,380,35--39,2030,3250.6
+4,Inequality (SSP4),SSP4,Italy,380,40--44,2030,3367.5
+4,Inequality (SSP4),SSP4,Italy,380,45--49,2030,3613.9
+4,Inequality (SSP4),SSP4,Italy,380,50--54,2030,4171.4
+4,Inequality (SSP4),SSP4,Italy,380,55--59,2030,4672
+4,Inequality (SSP4),SSP4,Italy,380,60--64,2030,4729.6
+4,Inequality (SSP4),SSP4,Italy,380,65--69,2030,4314.4
+4,Inequality (SSP4),SSP4,Italy,380,70--74,2030,3587.4
+4,Inequality (SSP4),SSP4,Italy,380,75--79,2030,3020
+4,Inequality (SSP4),SSP4,Italy,380,80--84,2030,2583.6
+4,Inequality (SSP4),SSP4,Italy,380,85--89,2030,1621.2
+4,Inequality (SSP4),SSP4,Italy,380,90--94,2030,852
+4,Inequality (SSP4),SSP4,Italy,380,95--99,2030,235.9
+4,Inequality (SSP4),SSP4,Italy,380,100+,2030,31.4
+4,Inequality (SSP4),SSP4,Italy,380,0--4,2040,1683.9
+4,Inequality (SSP4),SSP4,Italy,380,5--9,2040,1774.8
+4,Inequality (SSP4),SSP4,Italy,380,10--14,2040,1870.4
+4,Inequality (SSP4),SSP4,Italy,380,15--19,2040,2007.3
+4,Inequality (SSP4),SSP4,Italy,380,20--24,2040,2447.2
+4,Inequality (SSP4),SSP4,Italy,380,25--29,2040,2866.2
+4,Inequality (SSP4),SSP4,Italy,380,30--34,2040,3105.4
+4,Inequality (SSP4),SSP4,Italy,380,35--39,2040,3149.7
+4,Inequality (SSP4),SSP4,Italy,380,40--44,2040,3191.9
+4,Inequality (SSP4),SSP4,Italy,380,45--49,2040,3304.3
+4,Inequality (SSP4),SSP4,Italy,380,50--54,2040,3390.8
+4,Inequality (SSP4),SSP4,Italy,380,55--59,2040,3596.5
+4,Inequality (SSP4),SSP4,Italy,380,60--64,2040,4090.4
+4,Inequality (SSP4),SSP4,Italy,380,65--69,2040,4503.9
+4,Inequality (SSP4),SSP4,Italy,380,70--74,2040,4451.8
+4,Inequality (SSP4),SSP4,Italy,380,75--79,2040,3901.4
+4,Inequality (SSP4),SSP4,Italy,380,80--84,2040,2985.9
+4,Inequality (SSP4),SSP4,Italy,380,85--89,2040,2071.5
+4,Inequality (SSP4),SSP4,Italy,380,90--94,2040,1164.7
+4,Inequality (SSP4),SSP4,Italy,380,95--99,2040,336.1
+4,Inequality (SSP4),SSP4,Italy,380,100+,2040,53.3
+4,Inequality (SSP4),SSP4,Italy,380,0--4,2050,1688.2
+4,Inequality (SSP4),SSP4,Italy,380,5--9,2050,1730.9
+4,Inequality (SSP4),SSP4,Italy,380,10--14,2050,1763.1
+4,Inequality (SSP4),SSP4,Italy,380,15--19,2050,1863.5
+4,Inequality (SSP4),SSP4,Italy,380,20--24,2050,2008.8
+4,Inequality (SSP4),SSP4,Italy,380,25--29,2050,2198
+4,Inequality (SSP4),SSP4,Italy,380,30--34,2050,2632.6
+4,Inequality (SSP4),SSP4,Italy,380,35--39,2050,3012.2
+4,Inequality (SSP4),SSP4,Italy,380,40--44,2050,3205
+4,Inequality (SSP4),SSP4,Italy,380,45--49,2050,3216.2
+4,Inequality (SSP4),SSP4,Italy,380,50--54,2050,3232.6
+4,Inequality (SSP4),SSP4,Italy,380,55--59,2050,3322.3
+4,Inequality (SSP4),SSP4,Italy,380,60--64,2050,3378.5
+4,Inequality (SSP4),SSP4,Italy,380,65--69,2050,3531.9
+4,Inequality (SSP4),SSP4,Italy,380,70--74,2050,3932.1
+4,Inequality (SSP4),SSP4,Italy,380,75--79,2050,4196.5
+4,Inequality (SSP4),SSP4,Italy,380,80--84,2050,3899.2
+4,Inequality (SSP4),SSP4,Italy,380,85--89,2050,2932.6
+4,Inequality (SSP4),SSP4,Italy,380,90--94,2050,1566.3
+4,Inequality (SSP4),SSP4,Italy,380,95--99,2050,530
+4,Inequality (SSP4),SSP4,Italy,380,100+,2050,92.3
+5,Conventional Development (SSP5),SSP5,Italy,380,0--4,2030,1966.9
+5,Conventional Development (SSP5),SSP5,Italy,380,5--9,2030,2028.7
+5,Conventional Development (SSP5),SSP5,Italy,380,10--14,2030,2388.3
+5,Conventional Development (SSP5),SSP5,Italy,380,15--19,2030,2768
+5,Conventional Development (SSP5),SSP5,Italy,380,20--24,2030,3076.3
+5,Conventional Development (SSP5),SSP5,Italy,380,25--29,2030,3207.9
+5,Conventional Development (SSP5),SSP5,Italy,380,30--34,2030,3273.2
+5,Conventional Development (SSP5),SSP5,Italy,380,35--39,2030,3379.2
+5,Conventional Development (SSP5),SSP5,Italy,380,40--44,2030,3452.4
+5,Conventional Development (SSP5),SSP5,Italy,380,45--49,2030,3668.1
+5,Conventional Development (SSP5),SSP5,Italy,380,50--54,2030,4201
+5,Conventional Development (SSP5),SSP5,Italy,380,55--59,2030,4692.7
+5,Conventional Development (SSP5),SSP5,Italy,380,60--64,2030,4752.2
+5,Conventional Development (SSP5),SSP5,Italy,380,65--69,2030,4344.9
+5,Conventional Development (SSP5),SSP5,Italy,380,70--74,2030,3626.1
+5,Conventional Development (SSP5),SSP5,Italy,380,75--79,2030,3068.6
+5,Conventional Development (SSP5),SSP5,Italy,380,80--84,2030,2649.7
+5,Conventional Development (SSP5),SSP5,Italy,380,85--89,2030,1690
+5,Conventional Development (SSP5),SSP5,Italy,380,90--94,2030,901
+5,Conventional Development (SSP5),SSP5,Italy,380,95--99,2030,250.3
+5,Conventional Development (SSP5),SSP5,Italy,380,100+,2030,33.3
+5,Conventional Development (SSP5),SSP5,Italy,380,0--4,2040,2064.3
+5,Conventional Development (SSP5),SSP5,Italy,380,5--9,2040,2059.8
+5,Conventional Development (SSP5),SSP5,Italy,380,10--14,2040,2077.5
+5,Conventional Development (SSP5),SSP5,Italy,380,15--19,2040,2159.7
+5,Conventional Development (SSP5),SSP5,Italy,380,20--24,2040,2646.7
+5,Conventional Development (SSP5),SSP5,Italy,380,25--29,2040,3157.4
+5,Conventional Development (SSP5),SSP5,Italy,380,30--34,2040,3434.8
+5,Conventional Development (SSP5),SSP5,Italy,380,35--39,2040,3460.4
+5,Conventional Development (SSP5),SSP5,Italy,380,40--44,2040,3439.7
+5,Conventional Development (SSP5),SSP5,Italy,380,45--49,2040,3494.1
+5,Conventional Development (SSP5),SSP5,Italy,380,50--54,2040,3525.1
+5,Conventional Development (SSP5),SSP5,Italy,380,55--59,2040,3694.4
+5,Conventional Development (SSP5),SSP5,Italy,380,60--64,2040,4161
+5,Conventional Development (SSP5),SSP5,Italy,380,65--69,2040,4575.7
+5,Conventional Development (SSP5),SSP5,Italy,380,70--74,2040,4547.2
+5,Conventional Development (SSP5),SSP5,Italy,380,75--79,2040,4035.5
+5,Conventional Development (SSP5),SSP5,Italy,380,80--84,2040,3158.7
+5,Conventional Development (SSP5),SSP5,Italy,380,85--89,2040,2278.7
+5,Conventional Development (SSP5),SSP5,Italy,380,90--94,2040,1358.8
+5,Conventional Development (SSP5),SSP5,Italy,380,95--99,2040,418.4
+5,Conventional Development (SSP5),SSP5,Italy,380,100+,2040,68.6
+5,Conventional Development (SSP5),SSP5,Italy,380,0--4,2050,2217.1
+5,Conventional Development (SSP5),SSP5,Italy,380,5--9,2050,2193.8
+5,Conventional Development (SSP5),SSP5,Italy,380,10--14,2050,2166
+5,Conventional Development (SSP5),SSP5,Italy,380,15--19,2050,2172.7
+5,Conventional Development (SSP5),SSP5,Italy,380,20--24,2050,2294.6
+5,Conventional Development (SSP5),SSP5,Italy,380,25--29,2050,2540.7
+5,Conventional Development (SSP5),SSP5,Italy,380,30--34,2050,3069.9
+5,Conventional Development (SSP5),SSP5,Italy,380,35--39,2050,3471.5
+5,Conventional Development (SSP5),SSP5,Italy,380,40--44,2050,3631.4
+5,Conventional Development (SSP5),SSP5,Italy,380,45--49,2050,3585.7
+5,Conventional Development (SSP5),SSP5,Italy,380,50--54,2050,3527.4
+5,Conventional Development (SSP5),SSP5,Italy,380,55--59,2050,3562
+5,Conventional Development (SSP5),SSP5,Italy,380,60--64,2050,3568.9
+5,Conventional Development (SSP5),SSP5,Italy,380,65--69,2050,3695.7
+5,Conventional Development (SSP5),SSP5,Italy,380,70--74,2050,4088.6
+5,Conventional Development (SSP5),SSP5,Italy,380,75--79,2050,4401.9
+5,Conventional Development (SSP5),SSP5,Italy,380,80--84,2050,4207.8
+5,Conventional Development (SSP5),SSP5,Italy,380,85--89,2050,3365.6
+5,Conventional Development (SSP5),SSP5,Italy,380,90--94,2050,1996.9
+5,Conventional Development (SSP5),SSP5,Italy,380,95--99,2050,774.3
+5,Conventional Development (SSP5),SSP5,Italy,380,100+,2050,151.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,0--4,2030,1917.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,5--9,2030,1969.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,10--14,2030,2263.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,15--19,2030,2626.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,20--24,2030,2830.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,25--29,2030,2864.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,30--34,2030,2948
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,35--39,2030,3118.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,40--44,2030,3267
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,45--49,2030,3545.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,50--54,2030,4135.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,55--59,2030,4654
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,60--64,2030,4717.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,65--69,2030,4303.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,70--74,2030,3578.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,75--79,2030,3015.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,80--84,2030,2583.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,85--89,2030,1620.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,90--94,2030,851.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,95--99,2030,235.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,100+,2030,31.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,0--4,2040,1917.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,5--9,2040,1906.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,10--14,2040,1916.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,15--19,2040,1968.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,20--24,2040,2260.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,25--29,2040,2621.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,30--34,2040,2825.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,35--39,2040,2858
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,40--44,2040,2937.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,45--49,2040,3100.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,50--54,2040,3237.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,55--59,2040,3492.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,60--64,2040,4036
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,65--69,2040,4476.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,70--74,2040,4436.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,75--79,2040,3888.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,80--84,2040,2977.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,85--89,2040,2068.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,90--94,2040,1164.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,95--99,2040,336
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,100+,2040,53.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,0--4,2050,1897.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,5--9,2050,1912.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,10--14,2050,1917
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,15--19,2050,1905.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,20--24,2050,1915.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,25--29,2050,1966.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,30--34,2050,2257.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,35--39,2050,2617.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,40--44,2050,2818.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,45--49,2050,2846.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,50--54,2050,2918.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,55--59,2050,3067.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,60--64,2050,3181
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,65--69,2050,3396.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,70--74,2050,3863.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,75--79,2050,4166.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,80--84,2050,3885.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,85--89,2050,2922.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,90--94,2050,1561.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,95--99,2050,529
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Italy,380,100+,2050,92.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,0--4,2030,2063.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,5--9,2030,2076.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,10--14,2030,2381.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,15--19,2030,2761.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,20--24,2030,3066.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,25--29,2030,3184.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,30--34,2030,3253.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,35--39,2030,3366.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,40--44,2030,3445.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,45--49,2030,3656.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,50--54,2030,4189.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,55--59,2030,4679.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,60--64,2030,4733.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,65--69,2030,4319.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,70--74,2030,3592
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,75--79,2030,3021.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,80--84,2030,2581.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,85--89,2030,1620.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,90--94,2030,851.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,95--99,2030,235.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,100+,2030,31.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,0--4,2040,2282.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,5--9,2040,2222.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,10--14,2040,2186.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,15--19,2040,2222.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,20--24,2040,2654.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,25--29,2040,3150.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,30--34,2040,3410.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,35--39,2040,3429.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,40--44,2040,3419.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,45--49,2040,3482.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,50--54,2040,3520.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,55--59,2040,3678.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,60--64,2040,4130.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,65--69,2040,4522.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,70--74,2040,4461.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,75--79,2040,3910.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,80--84,2040,2992.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,85--89,2040,2073.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,90--94,2040,1164.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,95--99,2040,336
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,100+,2040,53.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,0--4,2050,2505.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,5--9,2050,2453.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,10--14,2050,2407.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,15--19,2050,2366.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,20--24,2050,2458.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,25--29,2050,2635.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,30--34,2050,3065.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,35--39,2050,3454.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,40--44,2050,3602.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,45--49,2050,3550.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,50--54,2050,3500.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,55--59,2050,3536.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,60--64,2050,3541.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,65--69,2050,3639
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,70--74,2050,3984.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,75--79,2050,4217.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,80--84,2050,3908.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,85--89,2050,2940.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,90--94,2050,1570.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,95--99,2050,530.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Italy,380,100+,2050,92.3

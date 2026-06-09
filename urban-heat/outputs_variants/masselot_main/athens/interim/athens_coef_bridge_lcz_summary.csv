@@ -1,0 +1,6 @@
+lcz,median_abs_gap,median_ratio_abs,winter_both_zero,summer_rank_corr,ordering_flag,magnitude_flag,sign_ok_share,n_months
+2,0.04943411004765062,,False,,uninformative,no_nonzero_ref,1.0,12
+3,0.025868741289815225,0.0,False,0.11180339887498948,weakly_similar,close,1.0,12
+5,0.05189152702770755,0.0,False,,uninformative,close,1.0,12
+6,0.007869664731281898,0.0,False,,uninformative,close,1.0,12
+8,0.0677138135659629,,False,,uninformative,no_nonzero_ref,1.0,12

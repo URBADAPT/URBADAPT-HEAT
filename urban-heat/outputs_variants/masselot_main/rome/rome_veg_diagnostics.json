@@ -1,0 +1,19 @@
+{
+  "city": "Rome",
+  "slug": "rome",
+  "policy": "uniform_Q3_target",
+  "target_gvi": 21.3,
+  "total_dGVI_points": 23.10422698965677,
+  "citywide_dGVI_popw": 1.6502979014793282,
+  "dLST_summer_mean": -0.06162462383508682,
+  "dLST_summer_popw": -0.07095400989055634,
+  "dT2M_summer_approx_mean": -0.04348379373550415,
+  "dT2M_summer_approx_popw": -0.04864053800702095,
+  "cum_avoided_trees_only_25y": 181.31282844477167,
+  "cum_avoided_trees_on_top_25y": 170.34358956925897,
+  "pv_capex": 160926926.74548197,
+  "pv_om_base": 185754244.09443107,
+  "pv_total_base": 346681170.839913,
+  "eac_base": 19909161.57068835,
+  "cost_per_death_base": 1912060.9049762464
+}

@@ -44,7 +44,7 @@ from scipy.stats import qmc
 
 AGE_ORDER = ["<15", "15-64", "65+"]
 AGE_TO_ID = {"<15": 1, "15-64": 2, "65+": 3}
-IF_FAMILIES = ["burke_polynomial", "burke_powerlaw"]
+IF_FAMILIES = ["burke_polynomial", "burke_powerlaw", "masselot", "masselot_tail"]
 TREF_OPTIONS = [18.0, 20.0, 22.0, 24.0, 26.0]
 TREF_BASE = 20.0
 RETURN_PERIODS = [2, 5, 10, 20]
@@ -236,7 +236,7 @@ def _pawn_table(
     *,
     log_metrics: set[str] | None = None,
 ) -> pd.DataFrame:
-    rows: list[dict[str, Any]] = []
+    metric_tables: list[pd.DataFrame] = []
     analyzed_metrics: list[str] = []
     x_arr = np.asarray(x, dtype=float)
     log_metrics = set(log_metrics or ())
@@ -260,17 +260,17 @@ def _pawn_table(
             continue
 
         analyzed_metrics.append(metric)
+        rows: list[dict[str, Any]] = []
         for idx, param in enumerate(res["names"]):
             for si in ["minimum", "mean", "median", "maximum", "CV"]:
                 rows.append({"si": si, "param": param, metric: float(res[si][idx])})
+        metric_tables.append(pd.DataFrame(rows))
 
-    if not rows or not analyzed_metrics:
+    if not metric_tables or not analyzed_metrics:
         return pd.DataFrame()
 
-    df = pd.DataFrame(rows)
     out = None
-    for metric in analyzed_metrics:
-        sub = df[["si", "param", metric]].copy()
+    for sub in metric_tables:
         out = sub if out is None else out.merge(sub, on=["si", "param"], how="outer")
     out["param2"] = np.nan
     cols = ["si", "param", "param2", *analyzed_metrics]
@@ -510,6 +510,18 @@ class NB09ImprovedFast:
             "burke_polynomial": self.int_dir / f"if_curves_by_year_{self.slug}.json",
             "burke_powerlaw": self.int_dir / f"if_curves_by_year_{self.slug}_powerlaw.json",
         }
+        masselot_path = self.int_dir / f"if_curves_by_year_{self.slug}_masselot.json"
+        if masselot_path.exists():
+            self.if_jsons["masselot"] = masselot_path
+        masselot_tail_path = self.int_dir / f"if_curves_by_year_{self.slug}_masselot_tail.json"
+        if masselot_tail_path.exists():
+            self.if_jsons["masselot_tail"] = masselot_tail_path
+        self.available_if_families = [f for f in IF_FAMILIES if f in self.if_jsons]
+        if not self.available_if_families:
+            raise FileNotFoundError(
+                "No impact-function JSONs found in "
+                f"{self.int_dir} for {', '.join(IF_FAMILIES)}"
+            )
         if self.use_extreme_track:
             self.haz_events_csv = self._find_first_existing(
                 [
@@ -969,12 +981,19 @@ class NB09ImprovedFast:
                 arr = cube[idx if cube.shape[0] > 1 else 0]
                 row_vals = arr.ravel()[self.row_cols].astype(np.float32)
                 masked = row_vals[self.row_is_city]
-                mean_val = float(masked.mean()) if masked.size else 0.0
-                if mean_val <= 0:
+                finite = np.isfinite(masked)
+                mean_val = float(masked[finite].mean()) if np.any(finite) else 0.0
+                if (not np.isfinite(mean_val)) or mean_val <= 0:
                     pattern = np.ones_like(row_vals, dtype=np.float32)
                 else:
                     pattern = np.zeros_like(row_vals, dtype=np.float32)
-                    pattern[self.row_is_city] = (masked / mean_val).astype(np.float32)
+                    # Some non-Rome coverage rasters carry NaNs inside the city mask
+                    # where the municipal downscaling has no cell assignment. Keep the
+                    # observed spatial contrast where available and give unassigned city
+                    # cells the city-average pattern so one NaN cannot poison the AC branch.
+                    masked_clean = np.where(finite, masked, mean_val)
+                    masked_clean = np.clip(masked_clean, 0.0, None)
+                    pattern[self.row_is_city] = (masked_clean / mean_val).astype(np.float32)
                 self.coverage_pattern_by_mode_year[mode][int(y)] = pattern
                 self.coverage_mean_by_mode_year[mode][int(y)] = mean_val
 
@@ -1411,7 +1430,7 @@ class NB09ImprovedFast:
             ParamSpec("TREE_CAP_UPLIFT", "uniform", low=0.06, high=0.20),
             ParamSpec("TREE_RAMP_YEARS_IDX", "choice", options=list(range(len(self.tree_ramp_options)))),
             ParamSpec("TREE_START_AGE_IDX", "choice", options=list(range(len(self.tree_start_age_options)))),
-            ParamSpec("IF_FAMILY_IDX", "choice", options=list(range(len(IF_FAMILIES)))),
+            ParamSpec("IF_FAMILY_IDX", "choice", options=list(range(len(self.available_if_families)))),
             ParamSpec("IF_TREF_IDX", "choice", options=list(range(len(TREF_OPTIONS)))),
             ParamSpec("MDD_SCALE_LT15", "uniform", low=0.80, high=1.20),
             ParamSpec("MDD_SCALE_15_64", "uniform", low=0.80, high=1.20),
@@ -1576,9 +1595,15 @@ class NB09ImprovedFast:
 
     def coverage_mean_for_mode(self, year: int, ac_ssp: int, mode: str = "base") -> float:
         base_mean = float(self.get_penetration(ac_ssp, year))
+        if not np.isfinite(base_mean):
+            base_mean = float(self.interpolate_coverage_mean(year, "base"))
+        if not np.isfinite(base_mean):
+            base_mean = 0.0
         if str(mode).lower() != "policy":
             return base_mean
         delta_mean = self.interpolate_coverage_mean(year, "policy") - self.interpolate_coverage_mean(year, "base")
+        if not np.isfinite(delta_mean):
+            delta_mean = 0.0
         return float(np.clip(base_mean + float(delta_mean), 0.0, 0.98))
 
     def coverage_for_sample(self, year: int, ac_ssp: int, mode: str = "base") -> np.ndarray:
@@ -1763,7 +1788,9 @@ class NB09ImprovedFast:
         funcs: list[ImpactFunc] = []
         for age in AGE_ORDER:
             rec = block[age]
-            intensity = np.asarray(rec["intensity"], dtype=float) + (float(tref_c) - TREF_BASE)
+            intensity = np.asarray(rec["intensity"], dtype=float)
+            if family not in ("masselot", "masselot_tail"):
+                intensity = intensity + (float(tref_c) - TREF_BASE)
             if self.use_extreme_track and np.isfinite(self.extreme_tstar_c):
                 # Track-B hazards are event-day exceedances above T*.
                 intensity = intensity - float(self.extreme_tstar_c)
@@ -2290,6 +2317,8 @@ class NB09ImprovedFast:
         clim_scen = self.clim_scens[int(row["CLIM_SCEN_IDX"])]
         clim_band_requested = str(self.clim_bands[int(row["CLIM_BAND_IDX"])]).lower()
         clim_band_effective = self.effective_climate_band(clim_scen, clim_band_requested)
+        if_family = self.available_if_families[int(row["IF_FAMILY_IDX"])]
+        t_ref_c = TREF_BASE if if_family in ("masselot", "masselot_tail") else TREF_OPTIONS[int(row["IF_TREF_IDX"])]
         out = {
             **row,
             "year": self.years[int(row["YEAR_IDX"])],
@@ -2306,8 +2335,8 @@ class NB09ImprovedFast:
             "cop_case": self.cop_case_options[int(row["COP_CASE_IDX"])],
             "tree_ramp_years": self.tree_ramp_options[int(row["TREE_RAMP_YEARS_IDX"])],
             "tree_start_age": self.tree_start_age_options[int(row["TREE_START_AGE_IDX"])],
-            "if_family": IF_FAMILIES[int(row["IF_FAMILY_IDX"])],
-            "t_ref_C": TREF_OPTIONS[int(row["IF_TREF_IDX"])],
+            "if_family": if_family,
+            "t_ref_C": t_ref_c,
             "ac_eff_scenario": self.efficacy_scenarios[int(row["AC_EFF_SCEN_IDX"])],
             "ews_interpretation": self.ews_interp_options[int(row["EWS_INTERP_IDX"])],
             "ews_cf_eff_level": self.level_options[int(row["EWS_CF_EFF_LEVEL_IDX"])],
@@ -2563,6 +2592,66 @@ class NB09ImprovedFast:
             "tree_pv_cost_25y": pv_capex + pv_om,
             "tree_delta_index_total": delta_index_total,
         }
+
+    def validate_uq_sample_outputs(self, samples_df: pd.DataFrame) -> None:
+        critical_cols = [
+            "aai_agg",
+            "annual_deaths",
+            "ews_net_avoided_deaths_25y_cum",
+            "tree_avoided_deaths_25y_cum",
+            "ac_pv_cost_25y",
+            "ac_added_users_final",
+            "ac_gross_avoided_deaths_25y_cum",
+            "ac_net_avoided_deaths_25y_cum",
+            "ac_waste_heat_penalty_25y_cum",
+        ]
+        qa_rows: list[dict[str, Any]] = []
+        for col in critical_cols:
+            if col not in samples_df.columns:
+                qa_rows.append(
+                    {
+                        "metric": col,
+                        "n_total": int(len(samples_df)),
+                        "n_finite": 0,
+                        "min": np.nan,
+                        "median": np.nan,
+                        "max": np.nan,
+                        "status": "missing_column",
+                    }
+                )
+                continue
+            vals = pd.to_numeric(samples_df[col], errors="coerce").replace([np.inf, -np.inf], np.nan)
+            finite = vals[np.isfinite(vals)]
+            qa_rows.append(
+                {
+                    "metric": col,
+                    "n_total": int(vals.size),
+                    "n_finite": int(finite.size),
+                    "min": float(finite.min()) if not finite.empty else np.nan,
+                    "median": float(finite.median()) if not finite.empty else np.nan,
+                    "max": float(finite.max()) if not finite.empty else np.nan,
+                    "status": "ok" if not finite.empty else "no_finite_samples",
+                }
+            )
+
+        qa_df = pd.DataFrame(qa_rows)
+        expected_ac_delta = any(
+            self.interpolate_coverage_mean(int(y), "policy") - self.interpolate_coverage_mean(int(y), "base") > 1e-6
+            for y in self.coverage_years
+        )
+        if expected_ac_delta and "ac_added_users_final" in samples_df.columns:
+            added = pd.to_numeric(samples_df["ac_added_users_final"], errors="coerce").replace([np.inf, -np.inf], np.nan)
+            finite_added = added[np.isfinite(added)]
+            if finite_added.empty or float(finite_added.max()) <= 0.0:
+                qa_df.loc[qa_df["metric"] == "ac_added_users_final", "status"] = "unexpected_all_zero"
+
+        qa_path = self.unc_dir / f"uq_output_qa_{self.slug}_improved_fast.csv"
+        qa_df.to_csv(qa_path, index=False)
+
+        bad = qa_df[qa_df["status"].isin(["missing_column", "no_finite_samples", "unexpected_all_zero"])]
+        if not bad.empty:
+            details = ", ".join(f"{row.metric}={row.status}" for row in bad.itertuples())
+            raise RuntimeError(f"[{self.slug}] Critical NB09 UQ output QA failed: {details}. See {qa_path}")
 
     def compute_lambda_y(self, sample: dict[str, Any], years_all: np.ndarray) -> np.ndarray:
         """Compute lambda_y: tree-cooled AC utilization scaling factor for waste heat.
@@ -2962,6 +3051,7 @@ class NB09ImprovedFast:
         cba_ac_df = pd.DataFrame(cba_ac_rows)
         cba_tree_df = pd.DataFrame(cba_tree_rows)
         vuln_df = pd.DataFrame(vuln_rows)
+        self.validate_uq_sample_outputs(samples_df)
 
         sens_aai_df = _pawn_table(self.problem, x, {"aai_agg": samples_df["aai_agg"].to_numpy(float)})
         sens_freq_df = _pawn_table(
@@ -3114,7 +3204,7 @@ class NB09ImprovedFast:
             "climate_forced_central_scenarios": self.climate_forced_central_scenarios,
             "climate_source_options": self.clim_source_options,
             "gcm_options": self.gcm_options,
-            "if_families": IF_FAMILIES,
+            "if_families": self.available_if_families,
             "t_ref_options": TREF_OPTIONS,
             "ac_ssp_options": self.ac_ssp_options,
             "exp_ssp_options": self.exp_ssp_options,

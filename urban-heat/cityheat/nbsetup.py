@@ -52,7 +52,7 @@ def bootstrap(city: str):
     INT = OUT / "interim"
     INT.mkdir(parents=True, exist_ok=True)
 
-    BASE = PROJECT / "data" / city
+    BASE = PROJECT / cfg.get("base_dir", f"data/{city}")
     p_LCZ     = BASE / "LCZ"
     p_UrbClim = BASE / "UrbClim"
     p_GVI     = BASE / "gvi"

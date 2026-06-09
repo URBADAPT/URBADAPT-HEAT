@@ -1,0 +1,11 @@
+{
+  "city_slug": "copenhagen",
+  "metric": "city_total_heat_deaths_per_day",
+  "baseline_year": 2020,
+  "target_activation_days": 15,
+  "season_start_md": "05-15",
+  "season_end_md": "09-30",
+  "threshold_deaths_per_day": 0.1449669809983657,
+  "achieved_activation_days_baseline": 15,
+  "notes": "Calibrated on baseline modeled daily heat deaths (NB4 scaled IF + NB5 baseline AC attenuation)."
+}

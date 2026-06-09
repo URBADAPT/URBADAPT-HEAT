@@ -1,0 +1,442 @@
+scenario,scenario_name,scenario_abb,name,country_code,age,year,pop
+1,Rapid Development (SSP1),SSP1,Greece,300,0--4,2030,356.6
+1,Rapid Development (SSP1),SSP1,Greece,300,5--9,2030,387.5
+1,Rapid Development (SSP1),SSP1,Greece,300,10--14,2030,462.8
+1,Rapid Development (SSP1),SSP1,Greece,300,15--19,2030,521.2
+1,Rapid Development (SSP1),SSP1,Greece,300,20--24,2030,561.1
+1,Rapid Development (SSP1),SSP1,Greece,300,25--29,2030,567.6
+1,Rapid Development (SSP1),SSP1,Greece,300,30--34,2030,564.7
+1,Rapid Development (SSP1),SSP1,Greece,300,35--39,2030,542.8
+1,Rapid Development (SSP1),SSP1,Greece,300,40--44,2030,588.7
+1,Rapid Development (SSP1),SSP1,Greece,300,45--49,2030,726.8
+1,Rapid Development (SSP1),SSP1,Greece,300,50--54,2030,773.3
+1,Rapid Development (SSP1),SSP1,Greece,300,55--59,2030,770.3
+1,Rapid Development (SSP1),SSP1,Greece,300,60--64,2030,757.6
+1,Rapid Development (SSP1),SSP1,Greece,300,65--69,2030,666.6
+1,Rapid Development (SSP1),SSP1,Greece,300,70--74,2030,610.9
+1,Rapid Development (SSP1),SSP1,Greece,300,75--79,2030,507.2
+1,Rapid Development (SSP1),SSP1,Greece,300,80--84,2030,421.6
+1,Rapid Development (SSP1),SSP1,Greece,300,85--89,2030,253.7
+1,Rapid Development (SSP1),SSP1,Greece,300,90--94,2030,147
+1,Rapid Development (SSP1),SSP1,Greece,300,95--99,2030,43.3
+1,Rapid Development (SSP1),SSP1,Greece,300,100+,2030,6.3
+1,Rapid Development (SSP1),SSP1,Greece,300,0--4,2040,354.1
+1,Rapid Development (SSP1),SSP1,Greece,300,5--9,2040,361.3
+1,Rapid Development (SSP1),SSP1,Greece,300,10--14,2040,372.6
+1,Rapid Development (SSP1),SSP1,Greece,300,15--19,2040,401.8
+1,Rapid Development (SSP1),SSP1,Greece,300,20--24,2040,479.8
+1,Rapid Development (SSP1),SSP1,Greece,300,25--29,2040,545
+1,Rapid Development (SSP1),SSP1,Greece,300,30--34,2040,578.7
+1,Rapid Development (SSP1),SSP1,Greece,300,35--39,2040,574.4
+1,Rapid Development (SSP1),SSP1,Greece,300,40--44,2040,568.2
+1,Rapid Development (SSP1),SSP1,Greece,300,45--49,2040,547.4
+1,Rapid Development (SSP1),SSP1,Greece,300,50--54,2040,589.1
+1,Rapid Development (SSP1),SSP1,Greece,300,55--59,2040,715.6
+1,Rapid Development (SSP1),SSP1,Greece,300,60--64,2040,751.3
+1,Rapid Development (SSP1),SSP1,Greece,300,65--69,2040,735.9
+1,Rapid Development (SSP1),SSP1,Greece,300,70--74,2040,705.4
+1,Rapid Development (SSP1),SSP1,Greece,300,75--79,2040,597.4
+1,Rapid Development (SSP1),SSP1,Greece,300,80--84,2040,503.6
+1,Rapid Development (SSP1),SSP1,Greece,300,85--89,2040,351.6
+1,Rapid Development (SSP1),SSP1,Greece,300,90--94,2040,210.1
+1,Rapid Development (SSP1),SSP1,Greece,300,95--99,2040,70.8
+1,Rapid Development (SSP1),SSP1,Greece,300,100+,2040,18.1
+1,Rapid Development (SSP1),SSP1,Greece,300,0--4,2050,354.7
+1,Rapid Development (SSP1),SSP1,Greece,300,5--9,2050,364
+1,Rapid Development (SSP1),SSP1,Greece,300,10--14,2050,369.4
+1,Rapid Development (SSP1),SSP1,Greece,300,15--19,2050,373.8
+1,Rapid Development (SSP1),SSP1,Greece,300,20--24,2050,387.3
+1,Rapid Development (SSP1),SSP1,Greece,300,25--29,2050,429
+1,Rapid Development (SSP1),SSP1,Greece,300,30--34,2050,508.1
+1,Rapid Development (SSP1),SSP1,Greece,300,35--39,2050,559.5
+1,Rapid Development (SSP1),SSP1,Greece,300,40--44,2050,585.4
+1,Rapid Development (SSP1),SSP1,Greece,300,45--49,2050,578.9
+1,Rapid Development (SSP1),SSP1,Greece,300,50--54,2050,571.1
+1,Rapid Development (SSP1),SSP1,Greece,300,55--59,2050,549.5
+1,Rapid Development (SSP1),SSP1,Greece,300,60--64,2050,585.4
+1,Rapid Development (SSP1),SSP1,Greece,300,65--69,2050,697.1
+1,Rapid Development (SSP1),SSP1,Greece,300,70--74,2050,718
+1,Rapid Development (SSP1),SSP1,Greece,300,75--79,2050,686.5
+1,Rapid Development (SSP1),SSP1,Greece,300,80--84,2050,624.2
+1,Rapid Development (SSP1),SSP1,Greece,300,85--89,2050,469.2
+1,Rapid Development (SSP1),SSP1,Greece,300,90--94,2050,307.3
+1,Rapid Development (SSP1),SSP1,Greece,300,95--99,2050,132.2
+1,Rapid Development (SSP1),SSP1,Greece,300,100+,2050,38.6
+2,Medium (SSP2),SSP2,Greece,300,0--4,2030,375.9
+2,Medium (SSP2),SSP2,Greece,300,5--9,2030,398.2
+2,Medium (SSP2),SSP2,Greece,300,10--14,2030,462.8
+2,Medium (SSP2),SSP2,Greece,300,15--19,2030,522
+2,Medium (SSP2),SSP2,Greece,300,20--24,2030,560.8
+2,Medium (SSP2),SSP2,Greece,300,25--29,2030,564.4
+2,Medium (SSP2),SSP2,Greece,300,30--34,2030,562.7
+2,Medium (SSP2),SSP2,Greece,300,35--39,2030,542.8
+2,Medium (SSP2),SSP2,Greece,300,40--44,2030,589.2
+2,Medium (SSP2),SSP2,Greece,300,45--49,2030,726.8
+2,Medium (SSP2),SSP2,Greece,300,50--54,2030,772.8
+2,Medium (SSP2),SSP2,Greece,300,55--59,2030,769
+2,Medium (SSP2),SSP2,Greece,300,60--64,2030,755.2
+2,Medium (SSP2),SSP2,Greece,300,65--69,2030,663
+2,Medium (SSP2),SSP2,Greece,300,70--74,2030,605.1
+2,Medium (SSP2),SSP2,Greece,300,75--79,2030,498.8
+2,Medium (SSP2),SSP2,Greece,300,80--84,2030,410
+2,Medium (SSP2),SSP2,Greece,300,85--89,2030,243.1
+2,Medium (SSP2),SSP2,Greece,300,90--94,2030,138.2
+2,Medium (SSP2),SSP2,Greece,300,95--99,2030,40
+2,Medium (SSP2),SSP2,Greece,300,100+,2030,5.8
+2,Medium (SSP2),SSP2,Greece,300,0--4,2040,391.8
+2,Medium (SSP2),SSP2,Greece,300,5--9,2040,390.7
+2,Medium (SSP2),SSP2,Greece,300,10--14,2040,393.6
+2,Medium (SSP2),SSP2,Greece,300,15--19,2040,414.9
+2,Medium (SSP2),SSP2,Greece,300,20--24,2040,481
+2,Medium (SSP2),SSP2,Greece,300,25--29,2040,542.3
+2,Medium (SSP2),SSP2,Greece,300,30--34,2040,574.3
+2,Medium (SSP2),SSP2,Greece,300,35--39,2040,570.2
+2,Medium (SSP2),SSP2,Greece,300,40--44,2040,566.6
+2,Medium (SSP2),SSP2,Greece,300,45--49,2040,547.8
+2,Medium (SSP2),SSP2,Greece,300,50--54,2040,589.3
+2,Medium (SSP2),SSP2,Greece,300,55--59,2040,713.6
+2,Medium (SSP2),SSP2,Greece,300,60--64,2040,746.4
+2,Medium (SSP2),SSP2,Greece,300,65--69,2040,727.4
+2,Medium (SSP2),SSP2,Greece,300,70--74,2040,691.2
+2,Medium (SSP2),SSP2,Greece,300,75--79,2040,577.1
+2,Medium (SSP2),SSP2,Greece,300,80--84,2040,474.5
+2,Medium (SSP2),SSP2,Greece,300,85--89,2040,318.4
+2,Medium (SSP2),SSP2,Greece,300,90--94,2040,180
+2,Medium (SSP2),SSP2,Greece,300,95--99,2040,56.9
+2,Medium (SSP2),SSP2,Greece,300,100+,2040,13.7
+2,Medium (SSP2),SSP2,Greece,300,0--4,2050,398.7
+2,Medium (SSP2),SSP2,Greece,300,5--9,2050,406.1
+2,Medium (SSP2),SSP2,Greece,300,10--14,2050,410.6
+2,Medium (SSP2),SSP2,Greece,300,15--19,2050,408
+2,Medium (SSP2),SSP2,Greece,300,20--24,2050,413.6
+2,Medium (SSP2),SSP2,Greece,300,25--29,2050,441.5
+2,Medium (SSP2),SSP2,Greece,300,30--34,2050,504.6
+2,Medium (SSP2),SSP2,Greece,300,35--39,2050,554.9
+2,Medium (SSP2),SSP2,Greece,300,40--44,2050,580.4
+2,Medium (SSP2),SSP2,Greece,300,45--49,2050,574.6
+2,Medium (SSP2),SSP2,Greece,300,50--54,2050,569.1
+2,Medium (SSP2),SSP2,Greece,300,55--59,2050,548.5
+2,Medium (SSP2),SSP2,Greece,300,60--64,2050,582
+2,Medium (SSP2),SSP2,Greece,300,65--69,2050,686.7
+2,Medium (SSP2),SSP2,Greece,300,70--74,2050,698.6
+2,Medium (SSP2),SSP2,Greece,300,75--79,2050,655.1
+2,Medium (SSP2),SSP2,Greece,300,80--84,2050,575.4
+2,Medium (SSP2),SSP2,Greece,300,85--89,2050,408.1
+2,Medium (SSP2),SSP2,Greece,300,90--94,2050,244
+2,Medium (SSP2),SSP2,Greece,300,95--99,2050,93
+2,Medium (SSP2),SSP2,Greece,300,100+,2050,23.6
+3,Stalled Development (SSP3),SSP3,Greece,300,0--4,2030,413.9
+3,Stalled Development (SSP3),SSP3,Greece,300,5--9,2030,413.7
+3,Stalled Development (SSP3),SSP3,Greece,300,10--14,2030,454.6
+3,Stalled Development (SSP3),SSP3,Greece,300,15--19,2030,514.7
+3,Stalled Development (SSP3),SSP3,Greece,300,20--24,2030,554.2
+3,Stalled Development (SSP3),SSP3,Greece,300,25--29,2030,558
+3,Stalled Development (SSP3),SSP3,Greece,300,30--34,2030,557.4
+3,Stalled Development (SSP3),SSP3,Greece,300,35--39,2030,538
+3,Stalled Development (SSP3),SSP3,Greece,300,40--44,2030,586.2
+3,Stalled Development (SSP3),SSP3,Greece,300,45--49,2030,726.6
+3,Stalled Development (SSP3),SSP3,Greece,300,50--54,2030,772.7
+3,Stalled Development (SSP3),SSP3,Greece,300,55--59,2030,767.6
+3,Stalled Development (SSP3),SSP3,Greece,300,60--64,2030,752.5
+3,Stalled Development (SSP3),SSP3,Greece,300,65--69,2030,658.4
+3,Stalled Development (SSP3),SSP3,Greece,300,70--74,2030,598.7
+3,Stalled Development (SSP3),SSP3,Greece,300,75--79,2030,490.1
+3,Stalled Development (SSP3),SSP3,Greece,300,80--84,2030,398.7
+3,Stalled Development (SSP3),SSP3,Greece,300,85--89,2030,232.5
+3,Stalled Development (SSP3),SSP3,Greece,300,90--94,2030,129.7
+3,Stalled Development (SSP3),SSP3,Greece,300,95--99,2030,36.8
+3,Stalled Development (SSP3),SSP3,Greece,300,100+,2030,5.3
+3,Stalled Development (SSP3),SSP3,Greece,300,0--4,2040,468.3
+3,Stalled Development (SSP3),SSP3,Greece,300,5--9,2040,444
+3,Stalled Development (SSP3),SSP3,Greece,300,10--14,2040,423.6
+3,Stalled Development (SSP3),SSP3,Greece,300,15--19,2040,422.7
+3,Stalled Development (SSP3),SSP3,Greece,300,20--24,2040,463.5
+3,Stalled Development (SSP3),SSP3,Greece,300,25--29,2040,523.4
+3,Stalled Development (SSP3),SSP3,Greece,300,30--34,2040,559.6
+3,Stalled Development (SSP3),SSP3,Greece,300,35--39,2040,560
+3,Stalled Development (SSP3),SSP3,Greece,300,40--44,2040,557.8
+3,Stalled Development (SSP3),SSP3,Greece,300,45--49,2040,538
+3,Stalled Development (SSP3),SSP3,Greece,300,50--54,2040,581.1
+3,Stalled Development (SSP3),SSP3,Greece,300,55--59,2040,708.7
+3,Stalled Development (SSP3),SSP3,Greece,300,60--64,2040,740.3
+3,Stalled Development (SSP3),SSP3,Greece,300,65--69,2040,716.8
+3,Stalled Development (SSP3),SSP3,Greece,300,70--74,2040,675.1
+3,Stalled Development (SSP3),SSP3,Greece,300,75--79,2040,553.5
+3,Stalled Development (SSP3),SSP3,Greece,300,80--84,2040,443.2
+3,Stalled Development (SSP3),SSP3,Greece,300,85--89,2040,285.3
+3,Stalled Development (SSP3),SSP3,Greece,300,90--94,2040,152.7
+3,Stalled Development (SSP3),SSP3,Greece,300,95--99,2040,45.3
+3,Stalled Development (SSP3),SSP3,Greece,300,100+,2040,10.3
+3,Stalled Development (SSP3),SSP3,Greece,300,0--4,2050,480.4
+3,Stalled Development (SSP3),SSP3,Greece,300,5--9,2050,481.5
+3,Stalled Development (SSP3),SSP3,Greece,300,10--14,2050,479.5
+3,Stalled Development (SSP3),SSP3,Greece,300,15--19,2050,454.8
+3,Stalled Development (SSP3),SSP3,Greece,300,20--24,2050,434.9
+3,Stalled Development (SSP3),SSP3,Greece,300,25--29,2050,435.2
+3,Stalled Development (SSP3),SSP3,Greece,300,30--34,2050,473.9
+3,Stalled Development (SSP3),SSP3,Greece,300,35--39,2050,529.2
+3,Stalled Development (SSP3),SSP3,Greece,300,40--44,2050,561.7
+3,Stalled Development (SSP3),SSP3,Greece,300,45--49,2050,560.2
+3,Stalled Development (SSP3),SSP3,Greece,300,50--54,2050,554.8
+3,Stalled Development (SSP3),SSP3,Greece,300,55--59,2050,530.9
+3,Stalled Development (SSP3),SSP3,Greece,300,60--64,2050,564.2
+3,Stalled Development (SSP3),SSP3,Greece,300,65--69,2050,668.7
+3,Stalled Development (SSP3),SSP3,Greece,300,70--74,2050,673.4
+3,Stalled Development (SSP3),SSP3,Greece,300,75--79,2050,616.3
+3,Stalled Development (SSP3),SSP3,Greece,300,80--84,2050,519.7
+3,Stalled Development (SSP3),SSP3,Greece,300,85--89,2050,344.3
+3,Stalled Development (SSP3),SSP3,Greece,300,90--94,2050,187.2
+3,Stalled Development (SSP3),SSP3,Greece,300,95--99,2050,63.4
+3,Stalled Development (SSP3),SSP3,Greece,300,100+,2050,14.2
+4,Inequality (SSP4),SSP4,Greece,300,0--4,2030,339.9
+4,Inequality (SSP4),SSP4,Greece,300,5--9,2030,379.8
+4,Inequality (SSP4),SSP4,Greece,300,10--14,2030,463.1
+4,Inequality (SSP4),SSP4,Greece,300,15--19,2030,521.4
+4,Inequality (SSP4),SSP4,Greece,300,20--24,2030,559.8
+4,Inequality (SSP4),SSP4,Greece,300,25--29,2030,564.2
+4,Inequality (SSP4),SSP4,Greece,300,30--34,2030,562.8
+4,Inequality (SSP4),SSP4,Greece,300,35--39,2030,543
+4,Inequality (SSP4),SSP4,Greece,300,40--44,2030,589.4
+4,Inequality (SSP4),SSP4,Greece,300,45--49,2030,727
+4,Inequality (SSP4),SSP4,Greece,300,50--54,2030,772.9
+4,Inequality (SSP4),SSP4,Greece,300,55--59,2030,769.2
+4,Inequality (SSP4),SSP4,Greece,300,60--64,2030,755.3
+4,Inequality (SSP4),SSP4,Greece,300,65--69,2030,663.1
+4,Inequality (SSP4),SSP4,Greece,300,70--74,2030,605.2
+4,Inequality (SSP4),SSP4,Greece,300,75--79,2030,498.8
+4,Inequality (SSP4),SSP4,Greece,300,80--84,2030,410
+4,Inequality (SSP4),SSP4,Greece,300,85--89,2030,243.1
+4,Inequality (SSP4),SSP4,Greece,300,90--94,2030,138.2
+4,Inequality (SSP4),SSP4,Greece,300,95--99,2030,40
+4,Inequality (SSP4),SSP4,Greece,300,100+,2030,5.8
+4,Inequality (SSP4),SSP4,Greece,300,0--4,2040,316.3
+4,Inequality (SSP4),SSP4,Greece,300,5--9,2040,338.3
+4,Inequality (SSP4),SSP4,Greece,300,10--14,2040,360.5
+4,Inequality (SSP4),SSP4,Greece,300,15--19,2040,397.7
+4,Inequality (SSP4),SSP4,Greece,300,20--24,2040,478.7
+4,Inequality (SSP4),SSP4,Greece,300,25--29,2040,538.6
+4,Inequality (SSP4),SSP4,Greece,300,30--34,2040,572.3
+4,Inequality (SSP4),SSP4,Greece,300,35--39,2040,571.2
+4,Inequality (SSP4),SSP4,Greece,300,40--44,2040,567.5
+4,Inequality (SSP4),SSP4,Greece,300,45--49,2040,548.8
+4,Inequality (SSP4),SSP4,Greece,300,50--54,2040,590.3
+4,Inequality (SSP4),SSP4,Greece,300,55--59,2040,714.4
+4,Inequality (SSP4),SSP4,Greece,300,60--64,2040,747
+4,Inequality (SSP4),SSP4,Greece,300,65--69,2040,727.8
+4,Inequality (SSP4),SSP4,Greece,300,70--74,2040,691.6
+4,Inequality (SSP4),SSP4,Greece,300,75--79,2040,577.3
+4,Inequality (SSP4),SSP4,Greece,300,80--84,2040,474.6
+4,Inequality (SSP4),SSP4,Greece,300,85--89,2040,318.4
+4,Inequality (SSP4),SSP4,Greece,300,90--94,2040,180.1
+4,Inequality (SSP4),SSP4,Greece,300,95--99,2040,56.9
+4,Inequality (SSP4),SSP4,Greece,300,100+,2040,13.7
+4,Inequality (SSP4),SSP4,Greece,300,0--4,2050,307.3
+4,Inequality (SSP4),SSP4,Greece,300,5--9,2050,325.2
+4,Inequality (SSP4),SSP4,Greece,300,10--14,2050,339.4
+4,Inequality (SSP4),SSP4,Greece,300,15--19,2050,360
+4,Inequality (SSP4),SSP4,Greece,300,20--24,2050,382.8
+4,Inequality (SSP4),SSP4,Greece,300,25--29,2050,422.4
+4,Inequality (SSP4),SSP4,Greece,300,30--34,2050,498.4
+4,Inequality (SSP4),SSP4,Greece,300,35--39,2050,550.6
+4,Inequality (SSP4),SSP4,Greece,300,40--44,2050,579.3
+4,Inequality (SSP4),SSP4,Greece,300,45--49,2050,577.2
+4,Inequality (SSP4),SSP4,Greece,300,50--54,2050,571.1
+4,Inequality (SSP4),SSP4,Greece,300,55--59,2050,550.4
+4,Inequality (SSP4),SSP4,Greece,300,60--64,2050,583.8
+4,Inequality (SSP4),SSP4,Greece,300,65--69,2050,687.9
+4,Inequality (SSP4),SSP4,Greece,300,70--74,2050,699.4
+4,Inequality (SSP4),SSP4,Greece,300,75--79,2050,655.6
+4,Inequality (SSP4),SSP4,Greece,300,80--84,2050,575.7
+4,Inequality (SSP4),SSP4,Greece,300,85--89,2050,408.2
+4,Inequality (SSP4),SSP4,Greece,300,90--94,2050,244.1
+4,Inequality (SSP4),SSP4,Greece,300,95--99,2050,93
+4,Inequality (SSP4),SSP4,Greece,300,100+,2050,23.6
+5,Conventional Development (SSP5),SSP5,Greece,300,0--4,2030,360.2
+5,Conventional Development (SSP5),SSP5,Greece,300,5--9,2030,396.6
+5,Conventional Development (SSP5),SSP5,Greece,300,10--14,2030,479
+5,Conventional Development (SSP5),SSP5,Greece,300,15--19,2030,534.8
+5,Conventional Development (SSP5),SSP5,Greece,300,20--24,2030,573.8
+5,Conventional Development (SSP5),SSP5,Greece,300,25--29,2030,582.4
+5,Conventional Development (SSP5),SSP5,Greece,300,30--34,2030,576.3
+5,Conventional Development (SSP5),SSP5,Greece,300,35--39,2030,551.6
+5,Conventional Development (SSP5),SSP5,Greece,300,40--44,2030,593.4
+5,Conventional Development (SSP5),SSP5,Greece,300,45--49,2030,725.7
+5,Conventional Development (SSP5),SSP5,Greece,300,50--54,2030,770.9
+5,Conventional Development (SSP5),SSP5,Greece,300,55--59,2030,769.3
+5,Conventional Development (SSP5),SSP5,Greece,300,60--64,2030,757
+5,Conventional Development (SSP5),SSP5,Greece,300,65--69,2030,667.7
+5,Conventional Development (SSP5),SSP5,Greece,300,70--74,2030,611.6
+5,Conventional Development (SSP5),SSP5,Greece,300,75--79,2030,507.6
+5,Conventional Development (SSP5),SSP5,Greece,300,80--84,2030,421.3
+5,Conventional Development (SSP5),SSP5,Greece,300,85--89,2030,253.7
+5,Conventional Development (SSP5),SSP5,Greece,300,90--94,2030,147
+5,Conventional Development (SSP5),SSP5,Greece,300,95--99,2030,43.3
+5,Conventional Development (SSP5),SSP5,Greece,300,100+,2030,6.3
+5,Conventional Development (SSP5),SSP5,Greece,300,0--4,2040,365.7
+5,Conventional Development (SSP5),SSP5,Greece,300,5--9,2040,375.9
+5,Conventional Development (SSP5),SSP5,Greece,300,10--14,2040,392
+5,Conventional Development (SSP5),SSP5,Greece,300,15--19,2040,424.6
+5,Conventional Development (SSP5),SSP5,Greece,300,20--24,2040,511.6
+5,Conventional Development (SSP5),SSP5,Greece,300,25--29,2040,580.7
+5,Conventional Development (SSP5),SSP5,Greece,300,30--34,2040,607.9
+5,Conventional Development (SSP5),SSP5,Greece,300,35--39,2040,595.7
+5,Conventional Development (SSP5),SSP5,Greece,300,40--44,2040,584.3
+5,Conventional Development (SSP5),SSP5,Greece,300,45--49,2040,563.4
+5,Conventional Development (SSP5),SSP5,Greece,300,50--54,2040,600.2
+5,Conventional Development (SSP5),SSP5,Greece,300,55--59,2040,716.9
+5,Conventional Development (SSP5),SSP5,Greece,300,60--64,2040,749.7
+5,Conventional Development (SSP5),SSP5,Greece,300,65--69,2040,735.8
+5,Conventional Development (SSP5),SSP5,Greece,300,70--74,2040,705
+5,Conventional Development (SSP5),SSP5,Greece,300,75--79,2040,599
+5,Conventional Development (SSP5),SSP5,Greece,300,80--84,2040,504.1
+5,Conventional Development (SSP5),SSP5,Greece,300,85--89,2040,351.8
+5,Conventional Development (SSP5),SSP5,Greece,300,90--94,2040,210
+5,Conventional Development (SSP5),SSP5,Greece,300,95--99,2040,70.8
+5,Conventional Development (SSP5),SSP5,Greece,300,100+,2040,18.1
+5,Conventional Development (SSP5),SSP5,Greece,300,0--4,2050,380.1
+5,Conventional Development (SSP5),SSP5,Greece,300,5--9,2050,389
+5,Conventional Development (SSP5),SSP5,Greece,300,10--14,2050,395.5
+5,Conventional Development (SSP5),SSP5,Greece,300,15--19,2050,399.8
+5,Conventional Development (SSP5),SSP5,Greece,300,20--24,2050,419.2
+5,Conventional Development (SSP5),SSP5,Greece,300,25--29,2050,475.5
+5,Conventional Development (SSP5),SSP5,Greece,300,30--34,2050,562.9
+5,Conventional Development (SSP5),SSP5,Greece,300,35--39,2050,605.8
+5,Conventional Development (SSP5),SSP5,Greece,300,40--44,2050,620
+5,Conventional Development (SSP5),SSP5,Greece,300,45--49,2050,605.8
+5,Conventional Development (SSP5),SSP5,Greece,300,50--54,2050,593.4
+5,Conventional Development (SSP5),SSP5,Greece,300,55--59,2050,573.3
+5,Conventional Development (SSP5),SSP5,Greece,300,60--64,2050,603.7
+5,Conventional Development (SSP5),SSP5,Greece,300,65--69,2050,701.8
+5,Conventional Development (SSP5),SSP5,Greece,300,70--74,2050,717.6
+5,Conventional Development (SSP5),SSP5,Greece,300,75--79,2050,686.5
+5,Conventional Development (SSP5),SSP5,Greece,300,80--84,2050,623.3
+5,Conventional Development (SSP5),SSP5,Greece,300,85--89,2050,470.2
+5,Conventional Development (SSP5),SSP5,Greece,300,90--94,2050,307.5
+5,Conventional Development (SSP5),SSP5,Greece,300,95--99,2050,132.3
+5,Conventional Development (SSP5),SSP5,Greece,300,100+,2050,38.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,0--4,2030,371.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,5--9,2030,387.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,10--14,2030,445.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,15--19,2030,506.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,20--24,2030,547
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,25--29,2030,551.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,30--34,2030,551.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,35--39,2030,532.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,40--44,2030,582.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,45--49,2030,726.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,50--54,2030,773.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,55--59,2030,769.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,60--64,2030,755
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,65--69,2030,661.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,70--74,2030,604.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,75--79,2030,498.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,80--84,2030,410.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,85--89,2030,243
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,90--94,2030,138.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,95--99,2030,40
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,100+,2030,5.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,0--4,2040,379.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,5--9,2040,374.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,10--14,2040,371.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,15--19,2040,387.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,20--24,2040,445.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,25--29,2040,505.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,30--34,2040,546
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,35--39,2040,550.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,40--44,2040,549.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,45--49,2040,529
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,50--54,2040,575.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,55--59,2040,710.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,60--64,2040,746.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,65--69,2040,726.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,70--74,2040,691.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,75--79,2040,575
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,80--84,2040,473.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,85--89,2040,318.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,90--94,2040,180.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,95--99,2040,56.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,100+,2040,13.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,0--4,2050,368.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,5--9,2050,377.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,10--14,2050,379.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,15--19,2050,374.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,20--24,2050,371.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,25--29,2050,387.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,30--34,2050,444.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,35--39,2050,504.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,40--44,2050,544.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,45--49,2050,547.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,50--54,2050,544.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,55--59,2050,520.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,60--64,2050,559.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,65--69,2050,679.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,70--74,2050,697.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,75--79,2050,654.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,80--84,2050,575.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,85--89,2050,406.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,90--94,2050,243.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,95--99,2050,92.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Greece,300,100+,2050,23.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,0--4,2030,378.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,5--9,2030,407.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,10--14,2030,478.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,15--19,2030,535.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,20--24,2030,572.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,25--29,2030,575.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,30--34,2030,572.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,35--39,2030,551.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,40--44,2030,593.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,45--49,2030,724.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,50--54,2030,769.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,55--59,2030,767.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,60--64,2030,754.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,65--69,2030,664
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,70--74,2030,605.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,75--79,2030,499
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,80--84,2030,409.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,85--89,2030,243
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,90--94,2030,138.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,95--99,2030,40
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,100+,2030,5.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,0--4,2040,402.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,5--9,2040,405.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,10--14,2040,414.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,15--19,2040,440.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,20--24,2040,513.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,25--29,2040,574.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,30--34,2040,599.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,35--39,2040,588.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,40--44,2040,581.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,45--49,2040,564.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,50--54,2040,601.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,55--59,2040,715.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,60--64,2040,745.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,65--69,2040,727.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,70--74,2040,691.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,75--79,2040,578.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,80--84,2040,475.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,85--89,2040,318.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,90--94,2040,179.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,95--99,2040,56.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,100+,2040,13.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,0--4,2050,424.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,5--9,2050,432.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,10--14,2050,439
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,15--19,2050,438.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,20--24,2050,451.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,25--29,2050,489.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,30--34,2050,556
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,35--39,2050,597.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,40--44,2050,611.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,45--49,2050,599.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,50--54,2050,591.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,55--59,2050,574.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,60--64,2050,602.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,65--69,2050,693.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,70--74,2050,699.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,75--79,2050,655.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,80--84,2050,575
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,85--89,2050,409.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,90--94,2050,244.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,95--99,2050,93
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Greece,300,100+,2050,23.6

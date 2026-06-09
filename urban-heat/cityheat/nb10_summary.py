@@ -28,6 +28,7 @@ SECTION_STEMS = {
     "5_policy_levers": "summary_05_policy_levers",
     "6_cba_dashboard": "summary_06_cba_dashboard",
     "7_uncertainty": "summary_07_uncertainty",
+    "8_if_family_sensitivity": "summary_08_if_family_sensitivity",
 }
 POLICY_COLORS = {
     "Trees": "#2f7d4f",
@@ -38,6 +39,45 @@ AGE_COLORS = {
     "<15": "#7aa6c2",
     "15-64": "#f28e2b",
     "65+": "#b22222",
+}
+IF_FAMILY_ORDER = (
+    "burke_polynomial",
+    "burke_powerlaw",
+    "masselot",
+    "masselot_tail",
+)
+IF_FAMILY_LABELS = {
+    "burke_polynomial": "Burke polynomial",
+    "burke_powerlaw": "Burke power-law",
+    "masselot": "Masselot constant tail",
+    "masselot_tail": "Masselot log-linear tail",
+}
+IF_FAMILY_SHORT_LABELS = {
+    "burke_polynomial": "Burke\npoly",
+    "burke_powerlaw": "Burke\npower",
+    "masselot": "Masselot\nconstant",
+    "masselot_tail": "Masselot\nlog-linear",
+}
+IF_FAMILY_COLORS = {
+    "burke_polynomial": "#2563eb",
+    "burke_powerlaw": "#f97316",
+    "masselot": "#16a34a",
+    "masselot_tail": "#7c3aed",
+}
+PARAM_LABELS = {
+    "IF_FAMILY_IDX": "IF family",
+    "IF_TREF_IDX": "Burke T_ref",
+    "MDD_SCALE_LT15": "MDD scale <15",
+    "MDD_SCALE_15_64": "MDD scale 15-64",
+    "MDD_SCALE_65P": "MDD scale 65+",
+    "BASELINE_MODE_IDX": "Baseline mode",
+    "CLIM_SCEN_IDX": "Climate scenario",
+    "CLIM_BAND_IDX": "Climate band",
+    "GCM_MODEL_IDX": "GCM model",
+    "YEAR_IDX": "Year",
+    "EXP_TOTAL_SCALE": "Exposure scale",
+    "TREE_COEFF_SCALE": "Tree coefficient",
+    "DISP_FRAC": "Displacement fraction",
 }
 
 
@@ -218,7 +258,7 @@ def _resolve_vulnerability_npz(
 def _resolve_if_json(sp: SummaryPaths, family: str = "poly") -> Path | None:
     if family == "poly":
         return sp.optional(
-            "polynomial IF JSON",
+            "main deterministic IF JSON",
             sp.int_dir / f"if_curves_by_year_{sp.slug}.json",
             sp.out / f"if_curves_by_year_{sp.slug}.json",
         )
@@ -286,6 +326,26 @@ def _short_policy_label(label: str) -> str:
     if label.startswith("EWS"):
         return "EWS"
     return label
+
+
+def _if_family_label(value: Any, *, short: bool = False) -> str:
+    key = str(value)
+    labels = IF_FAMILY_SHORT_LABELS if short else IF_FAMILY_LABELS
+    return labels.get(key, key.replace("_", " ").title())
+
+
+def _ordered_if_families(df: pd.DataFrame, column: str = "if_family") -> list[str]:
+    if column not in df.columns:
+        return []
+    seen = [str(item) for item in df[column].dropna().astype(str).unique()]
+    ordered = [family for family in IF_FAMILY_ORDER if family in seen]
+    ordered.extend(family for family in seen if family not in ordered)
+    return ordered
+
+
+def _param_label(value: Any) -> str:
+    key = str(value)
+    return PARAM_LABELS.get(key, key.replace("_IDX", "").replace("_", " ").title())
 
 
 def _parse_cost_stack(cba: dict[str, Any]) -> tuple[list[str], list[list[float]], list[str]]:
@@ -655,9 +715,9 @@ def plot_section_4_mortality_if(sp: SummaryPaths, cfg: dict[str, Any]) -> list[P
                     linestyle="--",
                     label=f"{age} powerlaw",
                 )
-        axes[0].set_title(f"Impact functions by age ({curve_year})")
-        axes[0].set_xlabel("Temperature (degC)")
-        axes[0].set_ylabel("MDD")
+        axes[0].set_title(f"Impact functions by age group ({curve_year})")
+        axes[0].set_xlabel("Daily mean 2 m temperature (°C)")
+        axes[0].set_ylabel("MDD (mean damage degree)")
         axes[0].grid(alpha=0.25)
         axes[0].legend(frameon=False, fontsize=8, ncol=2)
 
@@ -679,9 +739,9 @@ def plot_section_4_mortality_if(sp: SummaryPaths, cfg: dict[str, Any]) -> list[P
     else:
         total = _series_overall(deaths)
         axes[1].bar(deaths["year"], total, color="#991b1b", width=7)
-    axes[1].set_title("Annual baseline deaths")
+    axes[1].set_title("Annual baseline deaths\n(historical vulnerability, no additional adaptation)")
     axes[1].set_xlabel("Year")
-    axes[1].set_ylabel("Deaths / year")
+    axes[1].set_ylabel("Heat-attributable deaths per year")
     axes[1].grid(axis="y", alpha=0.25)
 
     return [sp.savefig(fig, SECTION_STEMS["4_mortality_if"])]
@@ -977,6 +1037,280 @@ def plot_section_7_uncertainty(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Pa
     return [sp.savefig(fig, SECTION_STEMS["7_uncertainty"])]
 
 
+def plot_section_8_if_family_sensitivity(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Path]:
+    del cfg
+    samples_path = sp.optional(
+        "uncertainty samples",
+        sp.uq_dir / f"unc_samples_{sp.slug}_improved_fast.csv",
+    )
+    if samples_path is None:
+        warnings.warn(f"[NB10] Improved uncertainty samples not found for {sp.slug}.")
+        return []
+
+    samples = pd.read_csv(samples_path)
+    if "if_family" not in samples.columns or "aai_agg" not in samples.columns:
+        warnings.warn(f"[NB10] IF family or AAI columns unavailable for {sp.slug}.")
+        return []
+
+    samples = samples.copy()
+    samples["if_family"] = samples["if_family"].astype(str)
+    samples["aai_agg"] = pd.to_numeric(samples["aai_agg"], errors="coerce")
+    samples["aai_agg"] = samples["aai_agg"].replace([np.inf, -np.inf], np.nan)
+    families = _ordered_if_families(samples)
+    if not families:
+        warnings.warn(f"[NB10] No IF-family levels found for {sp.slug}.")
+        return []
+
+    fig, axes = plt.subplots(2, 2, figsize=(17, 10), constrained_layout=True)
+    axes = axes.ravel()
+    fig.suptitle(
+        f"{sp.city} — Impact-Function Family Sensitivity",
+        fontsize=14,
+        fontweight="bold",
+    )
+
+    stats_records: list[dict[str, Any]] = []
+    for family in families:
+        vals = samples.loc[samples["if_family"] == family, "aai_agg"].dropna()
+        if vals.empty:
+            continue
+        stats_records.append(
+            {
+                "family": family,
+                "p05": float(vals.quantile(0.05)),
+                "p25": float(vals.quantile(0.25)),
+                "p50": float(vals.quantile(0.50)),
+                "p75": float(vals.quantile(0.75)),
+                "p95": float(vals.quantile(0.95)),
+                "n": int(vals.size),
+            }
+        )
+    stats = pd.DataFrame(stats_records)
+    if not stats.empty:
+        y = np.arange(len(stats))
+        for ypos, row in zip(y, stats.to_dict("records")):
+            color = IF_FAMILY_COLORS.get(str(row["family"]), "#64748b")
+            axes[0].hlines(ypos, row["p05"], row["p95"], color=color, linewidth=3, alpha=0.30)
+            axes[0].hlines(ypos, row["p25"], row["p75"], color=color, linewidth=8, alpha=0.70)
+            axes[0].scatter(
+                row["p50"],
+                ypos,
+                s=70,
+                color=color,
+                edgecolor="white",
+                linewidth=0.8,
+                zorder=3,
+            )
+        axes[0].set_yticks(y, [_if_family_label(family) for family in stats["family"]])
+        axes[0].invert_yaxis()
+        axes[0].set_title("AAI by sampled IF family\n(median, IQR, P5-P95)")
+        max_p95 = float(stats["p95"].max())
+        positive_medians = stats.loc[stats["p50"] > 0, "p50"]
+        scale_ref = float(positive_medians.median()) if not positive_medians.empty else max_p95
+        if np.isfinite(max_p95) and np.isfinite(scale_ref) and scale_ref > 0 and max_p95 / scale_ref > 50:
+            linthresh = max(scale_ref / 5, max_p95 / 1000, 1e-6)
+            axes[0].set_xscale("symlog", linthresh=linthresh)
+            axes[0].set_xlim(left=0)
+            axes[0].set_xlabel("AAI aggregate (symlog scale)")
+        else:
+            axes[0].set_xlabel("AAI aggregate")
+        axes[0].grid(axis="x", alpha=0.2)
+    else:
+        _placeholder(axes[0], "AAI by sampled IF family", "No finite AAI samples")
+
+    if "year" in samples.columns:
+        timeline = samples.dropna(subset=["aai_agg"]).copy()
+        timeline["year"] = pd.to_numeric(timeline["year"], errors="coerce")
+        timeline = timeline.dropna(subset=["year"])
+        if not timeline.empty:
+            timeline["year"] = timeline["year"].astype(int)
+            med = (
+                timeline.groupby(["if_family", "year"], as_index=False)["aai_agg"]
+                .median()
+                .sort_values("year")
+            )
+            for family in families:
+                sub = med[med["if_family"] == family]
+                if sub.empty:
+                    continue
+                axes[1].plot(
+                    sub["year"],
+                    sub["aai_agg"],
+                    marker="o",
+                    linewidth=2,
+                    color=IF_FAMILY_COLORS.get(family, "#64748b"),
+                    label=_if_family_label(family),
+                )
+            axes[1].set_title("Median AAI by year and IF family")
+            axes[1].set_xlabel("Sampled year")
+            axes[1].set_ylabel("AAI aggregate")
+            axes[1].set_xticks(sorted(med["year"].unique()))
+            axes[1].grid(alpha=0.2)
+            axes[1].legend(frameon=False, fontsize=8)
+        else:
+            _placeholder(axes[1], "Median AAI by year and IF family", "No finite year samples")
+    else:
+        _placeholder(axes[1], "Median AAI by year and IF family", "year column unavailable")
+
+    sens_aai_path = sp.optional(
+        "AAI sensitivity",
+        sp.uq_dir / f"sens_aai_agg_{sp.slug}_improved_fast.csv",
+    )
+    if sens_aai_path is not None:
+        sens_aai = pd.read_csv(sens_aai_path)
+        if {"si", "param", "aai_agg"}.issubset(sens_aai.columns):
+            sens = sens_aai[sens_aai["si"].astype(str).str.lower() == "median"].copy()
+            sens["aai_agg"] = pd.to_numeric(sens["aai_agg"], errors="coerce")
+            sens = sens.dropna(subset=["param", "aai_agg"])
+            if not sens.empty:
+                top = sens.nlargest(10, "aai_agg").copy()
+                if (
+                    "IF_FAMILY_IDX" in set(sens["param"])
+                    and "IF_FAMILY_IDX" not in set(top["param"])
+                ):
+                    if_family_row = sens[sens["param"] == "IF_FAMILY_IDX"].nlargest(1, "aai_agg")
+                    top = pd.concat([top.head(9), if_family_row], ignore_index=True)
+                top = top.drop_duplicates(subset=["param"]).sort_values("aai_agg")
+                colors = [
+                    "#7c3aed"
+                    if param == "IF_FAMILY_IDX"
+                    else "#f97316"
+                    if str(param).startswith(("IF_", "MDD_"))
+                    else "#94a3b8"
+                    for param in top["param"]
+                ]
+                axes[2].barh([_param_label(param) for param in top["param"]], top["aai_agg"], color=colors)
+                axes[2].set_title("AAI sensitivity ranking\n(PAWN median)")
+                axes[2].set_xlabel("Sensitivity index")
+                axes[2].grid(axis="x", alpha=0.2)
+            else:
+                _placeholder(axes[2], "AAI sensitivity ranking", "No finite PAWN rows")
+        else:
+            _placeholder(axes[2], "AAI sensitivity ranking", "Unexpected sensitivity CSV schema")
+    else:
+        _placeholder(axes[2], "AAI sensitivity ranking", "AAI sensitivity CSV unavailable")
+
+    policy_columns = [
+        ("EWS", "ews_net_avoided_deaths_25y_cum"),
+        ("Trees", "tree_avoided_deaths_25y_cum"),
+        ("AC", "ac_net_avoided_deaths_25y_cum"),
+    ]
+    policy_medians: dict[str, list[float]] = {}
+    policy_qa_records: list[dict[str, Any]] = []
+    for policy, column in policy_columns:
+        if column not in samples.columns:
+            for family in families:
+                policy_qa_records.append(
+                    {
+                        "policy": policy,
+                        "if_family": family,
+                        "column": column,
+                        "n_total": int((samples["if_family"] == family).sum()),
+                        "n_finite": 0,
+                        "median": np.nan,
+                        "status": "missing_column",
+                    }
+                )
+            continue
+        work = samples[["if_family", column]].copy()
+        work[column] = pd.to_numeric(work[column], errors="coerce").replace([np.inf, -np.inf], np.nan)
+        medians: list[float] = []
+        for family in families:
+            vals = work.loc[work["if_family"] == family, column]
+            finite_vals = vals[np.isfinite(vals)]
+            median_val = float(finite_vals.median()) if not finite_vals.empty else np.nan
+            medians.append(median_val)
+            policy_qa_records.append(
+                {
+                    "policy": policy,
+                    "if_family": family,
+                    "column": column,
+                    "n_total": int(vals.size),
+                    "n_finite": int(finite_vals.size),
+                    "median": median_val,
+                    "status": "ok" if finite_vals.size else "no_finite_samples",
+                }
+            )
+        policy_medians[policy] = medians
+
+    if policy_qa_records:
+        qa_df = pd.DataFrame(policy_qa_records)
+        for policy in qa_df["policy"].dropna().unique():
+            mask = qa_df["policy"] == policy
+            finite_medians = qa_df.loc[mask, "median"].replace([np.inf, -np.inf], np.nan).dropna().abs()
+            if finite_medians.empty:
+                continue
+            scale = float(finite_medians.max())
+            near_zero = mask & (qa_df["status"] == "ok") & (qa_df["median"].abs() > 0) & (
+                qa_df["median"].abs() < max(0.01, 0.005 * scale)
+            )
+            qa_df.loc[near_zero, "status"] = "near_zero_finite"
+        sp.tab_dir.mkdir(parents=True, exist_ok=True)
+        qa_df.to_csv(sp.tab_dir / f"{sp.slug}_if_family_policy_qa.csv", index=False)
+
+    policy_medians = {
+        policy: values
+        for policy, values in policy_medians.items()
+        if np.isfinite(values).any() or any(record["policy"] == policy for record in policy_qa_records)
+    }
+
+    if policy_medians:
+        x = np.arange(len(families))
+        width = min(0.24, 0.8 / max(1, len(policy_medians)))
+        offsets = (np.arange(len(policy_medians)) - (len(policy_medians) - 1) / 2) * width
+        for offset, (policy, values) in zip(offsets, policy_medians.items()):
+            axes[3].bar(
+                x + offset,
+                values,
+                width=width,
+                color=POLICY_COLORS.get(policy, "#64748b"),
+                alpha=0.9,
+                label=policy,
+            )
+        finite_policy_vals = [
+            abs(float(value))
+            for values in policy_medians.values()
+            for value in values
+            if np.isfinite(value)
+        ]
+        y_ref = max(finite_policy_vals) if finite_policy_vals else 1.0
+        y_marker = max(y_ref * 0.025, 0.01)
+        for offset, (policy, values) in zip(offsets, policy_medians.items()):
+            policy_scale = max([abs(float(v)) for v in values if np.isfinite(v)] or [y_ref])
+            near_zero_limit = max(0.01, 0.005 * policy_scale)
+            for xpos, value in zip(x + offset, values):
+                if not np.isfinite(value):
+                    axes[3].text(
+                        xpos,
+                        y_marker,
+                        "NA",
+                        ha="center",
+                        va="bottom",
+                        fontsize=7,
+                        color="#b91c1c",
+                        rotation=90,
+                    )
+                elif 0 < abs(float(value)) < near_zero_limit:
+                    axes[3].text(
+                        xpos,
+                        y_marker,
+                        "~0",
+                        ha="center",
+                        va="bottom",
+                        fontsize=7,
+                        color="#475569",
+                    )
+        axes[3].set_xticks(x, [_if_family_label(family, short=True) for family in families])
+        axes[3].set_title("Policy benefits by IF family\n(median avoided deaths, 25y)")
+        axes[3].set_ylabel("Avoided deaths")
+        axes[3].grid(axis="y", alpha=0.2)
+        axes[3].legend(frameon=False, fontsize=8)
+    else:
+        _placeholder(axes[3], "Policy benefits by IF family", "Policy benefit columns unavailable")
+
+    return [sp.savefig(fig, SECTION_STEMS["8_if_family_sensitivity"])]
+
+
 def _build_summary_metrics(sp: SummaryPaths, cfg: dict[str, Any]) -> pd.DataFrame:
     scenario = str(cfg.get("exp_scenario", "SSP2")).upper()
     mask = _load_city_mask(sp)
@@ -1051,6 +1385,63 @@ def _build_summary_metrics(sp: SummaryPaths, cfg: dict[str, Any]) -> pd.DataFram
                 add("uncertainty", "aai_agg_p5", round(float(vals.quantile(0.05)), 3))
                 add("uncertainty", "aai_agg_p95", round(float(vals.quantile(0.95)), 3))
 
+    samples_path = sp.optional(
+        "uncertainty samples",
+        sp.uq_dir / f"unc_samples_{sp.slug}_improved_fast.csv",
+    )
+    if samples_path is not None:
+        samples = pd.read_csv(samples_path)
+        if {"if_family", "aai_agg"}.issubset(samples.columns):
+            samples = samples.copy()
+            samples["if_family"] = samples["if_family"].astype(str)
+            samples["aai_agg"] = pd.to_numeric(samples["aai_agg"], errors="coerce")
+            medians = samples.groupby("if_family")["aai_agg"].median()
+            for family in _ordered_if_families(samples):
+                value = medians.get(family, np.nan)
+                if np.isfinite(value):
+                    add(
+                        "if_family_sensitivity",
+                        f"aai_agg_median_{family}",
+                        round(float(value), 3),
+                    )
+            burke = medians.get("burke_polynomial", np.nan)
+            masselot = medians.get("masselot", np.nan)
+            masselot_tail = medians.get("masselot_tail", np.nan)
+            if np.isfinite(burke) and burke > 0 and np.isfinite(masselot):
+                add(
+                    "if_family_sensitivity",
+                    "aai_agg_ratio_masselot_constant_to_burke_polynomial",
+                    round(float(masselot / burke), 2),
+                    "ratio",
+                )
+            if np.isfinite(masselot) and masselot > 0 and np.isfinite(masselot_tail):
+                add(
+                    "if_family_sensitivity",
+                    "aai_agg_ratio_masselot_loglinear_to_constant",
+                    round(float(masselot_tail / masselot), 2),
+                    "ratio",
+                )
+
+    sens_aai_path = sp.optional(
+        "AAI sensitivity",
+        sp.uq_dir / f"sens_aai_agg_{sp.slug}_improved_fast.csv",
+    )
+    if sens_aai_path is not None:
+        sens_aai = pd.read_csv(sens_aai_path)
+        if {"si", "param", "aai_agg"}.issubset(sens_aai.columns):
+            rows_if = sens_aai[
+                (sens_aai["si"].astype(str).str.lower() == "median")
+                & (sens_aai["param"].astype(str) == "IF_FAMILY_IDX")
+            ].copy()
+            if not rows_if.empty:
+                values = pd.to_numeric(rows_if["aai_agg"], errors="coerce").dropna()
+                if not values.empty:
+                    add(
+                        "if_family_sensitivity",
+                        "pawn_median_if_family",
+                        round(float(values.iloc[0]), 3),
+                    )
+
     return pd.DataFrame(rows)
 
 
@@ -1091,6 +1482,7 @@ def run_nb10_summary(
         ("5_policy_levers", plot_section_5_policy_levers),
         ("6_cba_dashboard", plot_section_6_cba_dashboard),
         ("7_uncertainty", plot_section_7_uncertainty),
+        ("8_if_family_sensitivity", plot_section_8_if_family_sensitivity),
     ]
 
     for name, func in sections:

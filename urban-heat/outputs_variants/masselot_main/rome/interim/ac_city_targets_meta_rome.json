@@ -1,0 +1,13 @@
+{
+  "nuts_ids": [
+    "ITI43"
+  ],
+  "scenario": 2,
+  "penetration_file": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/data/Rome/ACgridded/ac_penetration_NUTSregions.csv",
+  "columns": {
+    "id": "NUTS_ID",
+    "scenario": "Scenario",
+    "year": "year",
+    "value": "value"
+  }
+}

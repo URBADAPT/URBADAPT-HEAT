@@ -1,0 +1,5 @@
+policy,avoided_deaths_25y,pct_reduction,deaths_per_100k_year,interpretation
+Trees (uniform),181.31282844477164,0.888022205414736,0.284637631991519,Hazard modification (cooling)
+AC (GROSS),818.2127613148144,4.007389366950303,1.2844879473976707,Exposure reduction (indoor cooling)
+AC (NET),698.1663244910949,3.4194337187218493,1.0960306065706744,Net of waste heat feedback
+EWS (marginal),973.6533697664072,4.7686962921811205,1.5285095485413491,Vulnerability reduction (behavior)

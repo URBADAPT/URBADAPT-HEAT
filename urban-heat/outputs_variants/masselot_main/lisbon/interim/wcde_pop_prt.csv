@@ -1,0 +1,442 @@
+scenario,scenario_name,scenario_abb,name,country_code,age,year,pop
+1,Rapid Development (SSP1),SSP1,Portugal,620,0--4,2030,380.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,5--9,2030,408
+1,Rapid Development (SSP1),SSP1,Portugal,620,10--14,2030,457.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,15--19,2030,474.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,20--24,2030,511
+1,Rapid Development (SSP1),SSP1,Portugal,620,25--29,2030,544.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,30--34,2030,552.5
+1,Rapid Development (SSP1),SSP1,Portugal,620,35--39,2030,550.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,40--44,2030,570.1
+1,Rapid Development (SSP1),SSP1,Portugal,620,45--49,2030,671.1
+1,Rapid Development (SSP1),SSP1,Portugal,620,50--54,2030,770.5
+1,Rapid Development (SSP1),SSP1,Portugal,620,55--59,2030,768.4
+1,Rapid Development (SSP1),SSP1,Portugal,620,60--64,2030,717.5
+1,Rapid Development (SSP1),SSP1,Portugal,620,65--69,2030,699.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,70--74,2030,622.1
+1,Rapid Development (SSP1),SSP1,Portugal,620,75--79,2030,543.1
+1,Rapid Development (SSP1),SSP1,Portugal,620,80--84,2030,427.4
+1,Rapid Development (SSP1),SSP1,Portugal,620,85--89,2030,260.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,90--94,2030,127.1
+1,Rapid Development (SSP1),SSP1,Portugal,620,95--99,2030,33.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,100+,2030,3.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,0--4,2040,368.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,5--9,2040,386.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,10--14,2040,398.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,15--19,2040,423
+1,Rapid Development (SSP1),SSP1,Portugal,620,20--24,2040,465.4
+1,Rapid Development (SSP1),SSP1,Portugal,620,25--29,2040,483.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,30--34,2040,520.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,35--39,2040,545.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,40--44,2040,551.9
+1,Rapid Development (SSP1),SSP1,Portugal,620,45--49,2040,553.4
+1,Rapid Development (SSP1),SSP1,Portugal,620,50--54,2040,571.1
+1,Rapid Development (SSP1),SSP1,Portugal,620,55--59,2040,661.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,60--64,2040,748.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,65--69,2040,739.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,70--74,2040,682
+1,Rapid Development (SSP1),SSP1,Portugal,620,75--79,2040,645.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,80--84,2040,532.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,85--89,2040,384
+1,Rapid Development (SSP1),SSP1,Portugal,620,90--94,2040,195.5
+1,Rapid Development (SSP1),SSP1,Portugal,620,95--99,2040,54.6
+1,Rapid Development (SSP1),SSP1,Portugal,620,100+,2040,7.9
+1,Rapid Development (SSP1),SSP1,Portugal,620,0--4,2050,360.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,5--9,2050,374.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,10--14,2050,386.4
+1,Rapid Development (SSP1),SSP1,Portugal,620,15--19,2050,400.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,20--24,2050,405.2
+1,Rapid Development (SSP1),SSP1,Portugal,620,25--29,2050,433.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,30--34,2050,483.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,35--39,2050,495.5
+1,Rapid Development (SSP1),SSP1,Portugal,620,40--44,2050,525.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,45--49,2050,549.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,50--54,2050,554.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,55--59,2050,555.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,60--64,2050,571.2
+1,Rapid Development (SSP1),SSP1,Portugal,620,65--69,2050,652.9
+1,Rapid Development (SSP1),SSP1,Portugal,620,70--74,2050,727.9
+1,Rapid Development (SSP1),SSP1,Portugal,620,75--79,2050,708.3
+1,Rapid Development (SSP1),SSP1,Portugal,620,80--84,2050,624.7
+1,Rapid Development (SSP1),SSP1,Portugal,620,85--89,2050,517.8
+1,Rapid Development (SSP1),SSP1,Portugal,620,90--94,2050,302.2
+1,Rapid Development (SSP1),SSP1,Portugal,620,95--99,2050,108.9
+1,Rapid Development (SSP1),SSP1,Portugal,620,100+,2050,17
+2,Medium (SSP2),SSP2,Portugal,620,0--4,2030,401.5
+2,Medium (SSP2),SSP2,Portugal,620,5--9,2030,419.4
+2,Medium (SSP2),SSP2,Portugal,620,10--14,2030,457.3
+2,Medium (SSP2),SSP2,Portugal,620,15--19,2030,475.2
+2,Medium (SSP2),SSP2,Portugal,620,20--24,2030,511.8
+2,Medium (SSP2),SSP2,Portugal,620,25--29,2030,544.6
+2,Medium (SSP2),SSP2,Portugal,620,30--34,2030,552.7
+2,Medium (SSP2),SSP2,Portugal,620,35--39,2030,550.8
+2,Medium (SSP2),SSP2,Portugal,620,40--44,2030,569.6
+2,Medium (SSP2),SSP2,Portugal,620,45--49,2030,670.4
+2,Medium (SSP2),SSP2,Portugal,620,50--54,2030,769.2
+2,Medium (SSP2),SSP2,Portugal,620,55--59,2030,766.5
+2,Medium (SSP2),SSP2,Portugal,620,60--64,2030,714.8
+2,Medium (SSP2),SSP2,Portugal,620,65--69,2030,695.5
+2,Medium (SSP2),SSP2,Portugal,620,70--74,2030,615.6
+2,Medium (SSP2),SSP2,Portugal,620,75--79,2030,534
+2,Medium (SSP2),SSP2,Portugal,620,80--84,2030,416
+2,Medium (SSP2),SSP2,Portugal,620,85--89,2030,250
+2,Medium (SSP2),SSP2,Portugal,620,90--94,2030,119.8
+2,Medium (SSP2),SSP2,Portugal,620,95--99,2030,31.4
+2,Medium (SSP2),SSP2,Portugal,620,100+,2030,3.4
+2,Medium (SSP2),SSP2,Portugal,620,0--4,2040,409.2
+2,Medium (SSP2),SSP2,Portugal,620,5--9,2040,418.8
+2,Medium (SSP2),SSP2,Portugal,620,10--14,2040,421.6
+2,Medium (SSP2),SSP2,Portugal,620,15--19,2040,436.6
+2,Medium (SSP2),SSP2,Portugal,620,20--24,2040,466.5
+2,Medium (SSP2),SSP2,Portugal,620,25--29,2040,483.7
+2,Medium (SSP2),SSP2,Portugal,620,30--34,2040,520.3
+2,Medium (SSP2),SSP2,Portugal,620,35--39,2040,545.9
+2,Medium (SSP2),SSP2,Portugal,620,40--44,2040,552.9
+2,Medium (SSP2),SSP2,Portugal,620,45--49,2040,553.6
+2,Medium (SSP2),SSP2,Portugal,620,50--54,2040,568.9
+2,Medium (SSP2),SSP2,Portugal,620,55--59,2040,657.8
+2,Medium (SSP2),SSP2,Portugal,620,60--64,2040,741.8
+2,Medium (SSP2),SSP2,Portugal,620,65--69,2040,729.7
+2,Medium (SSP2),SSP2,Portugal,620,70--74,2040,667.4
+2,Medium (SSP2),SSP2,Portugal,620,75--79,2040,622.8
+2,Medium (SSP2),SSP2,Portugal,620,80--84,2040,500.9
+2,Medium (SSP2),SSP2,Portugal,620,85--89,2040,346.3
+2,Medium (SSP2),SSP2,Portugal,620,90--94,2040,166.3
+2,Medium (SSP2),SSP2,Portugal,620,95--99,2040,44
+2,Medium (SSP2),SSP2,Portugal,620,100+,2040,6.3
+2,Medium (SSP2),SSP2,Portugal,620,0--4,2050,408.1
+2,Medium (SSP2),SSP2,Portugal,620,5--9,2050,420.2
+2,Medium (SSP2),SSP2,Portugal,620,10--14,2050,430.9
+2,Medium (SSP2),SSP2,Portugal,620,15--19,2050,437.5
+2,Medium (SSP2),SSP2,Portugal,620,20--24,2050,432.9
+2,Medium (SSP2),SSP2,Portugal,620,25--29,2050,448.5
+2,Medium (SSP2),SSP2,Portugal,620,30--34,2050,483.2
+2,Medium (SSP2),SSP2,Portugal,620,35--39,2050,495.4
+2,Medium (SSP2),SSP2,Portugal,620,40--44,2050,525.9
+2,Medium (SSP2),SSP2,Portugal,620,45--49,2050,550.4
+2,Medium (SSP2),SSP2,Portugal,620,50--54,2050,555.1
+2,Medium (SSP2),SSP2,Portugal,620,55--59,2050,553.2
+2,Medium (SSP2),SSP2,Portugal,620,60--64,2050,563.4
+2,Medium (SSP2),SSP2,Portugal,620,65--69,2050,639.5
+2,Medium (SSP2),SSP2,Portugal,620,70--74,2050,705.8
+2,Medium (SSP2),SSP2,Portugal,620,75--79,2050,674.7
+2,Medium (SSP2),SSP2,Portugal,620,80--84,2050,575
+2,Medium (SSP2),SSP2,Portugal,620,85--89,2050,445.6
+2,Medium (SSP2),SSP2,Portugal,620,90--94,2050,233.1
+2,Medium (SSP2),SSP2,Portugal,620,95--99,2050,74.1
+2,Medium (SSP2),SSP2,Portugal,620,100+,2050,10.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,0--4,2030,444
+3,Stalled Development (SSP3),SSP3,Portugal,620,5--9,2030,435.8
+3,Stalled Development (SSP3),SSP3,Portugal,620,10--14,2030,447.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,15--19,2030,466.7
+3,Stalled Development (SSP3),SSP3,Portugal,620,20--24,2030,509.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,25--29,2030,545.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,30--34,2030,551.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,35--39,2030,548.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,40--44,2030,567.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,45--49,2030,668.7
+3,Stalled Development (SSP3),SSP3,Portugal,620,50--54,2030,769.1
+3,Stalled Development (SSP3),SSP3,Portugal,620,55--59,2030,764.8
+3,Stalled Development (SSP3),SSP3,Portugal,620,60--64,2030,710.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,65--69,2030,689.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,70--74,2030,607.8
+3,Stalled Development (SSP3),SSP3,Portugal,620,75--79,2030,524.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,80--84,2030,404.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,85--89,2030,239.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,90--94,2030,113.5
+3,Stalled Development (SSP3),SSP3,Portugal,620,95--99,2030,29.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,100+,2030,3.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,0--4,2040,489
+3,Stalled Development (SSP3),SSP3,Portugal,620,5--9,2040,477
+3,Stalled Development (SSP3),SSP3,Portugal,620,10--14,2040,454.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,15--19,2040,444.7
+3,Stalled Development (SSP3),SSP3,Portugal,620,20--24,2040,451.9
+3,Stalled Development (SSP3),SSP3,Portugal,620,25--29,2040,470.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,30--34,2040,512.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,35--39,2040,544.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,40--44,2040,548.9
+3,Stalled Development (SSP3),SSP3,Portugal,620,45--49,2040,545.7
+3,Stalled Development (SSP3),SSP3,Portugal,620,50--54,2040,559.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,55--59,2040,649.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,60--64,2040,734.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,65--69,2040,717.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,70--74,2040,648.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,75--79,2040,595.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,80--84,2040,466.4
+3,Stalled Development (SSP3),SSP3,Portugal,620,85--89,2040,309.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,90--94,2040,141
+3,Stalled Development (SSP3),SSP3,Portugal,620,95--99,2040,35.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,100+,2040,5.1
+3,Stalled Development (SSP3),SSP3,Portugal,620,0--4,2050,490.8
+3,Stalled Development (SSP3),SSP3,Portugal,620,5--9,2050,496.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,10--14,2050,502.1
+3,Stalled Development (SSP3),SSP3,Portugal,620,15--19,2050,488.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,20--24,2050,461.5
+3,Stalled Development (SSP3),SSP3,Portugal,620,25--29,2050,451
+3,Stalled Development (SSP3),SSP3,Portugal,620,30--34,2050,460.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,35--39,2050,476.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,40--44,2050,514.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,45--49,2050,543.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,50--54,2050,543.5
+3,Stalled Development (SSP3),SSP3,Portugal,620,55--59,2050,535.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,60--64,2050,542.1
+3,Stalled Development (SSP3),SSP3,Portugal,620,65--69,2050,616.5
+3,Stalled Development (SSP3),SSP3,Portugal,620,70--74,2050,677.9
+3,Stalled Development (SSP3),SSP3,Portugal,620,75--79,2050,632.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,80--84,2050,515.3
+3,Stalled Development (SSP3),SSP3,Portugal,620,85--89,2050,372.1
+3,Stalled Development (SSP3),SSP3,Portugal,620,90--94,2050,176.2
+3,Stalled Development (SSP3),SSP3,Portugal,620,95--99,2050,50.6
+3,Stalled Development (SSP3),SSP3,Portugal,620,100+,2050,6.9
+4,Inequality (SSP4),SSP4,Portugal,620,0--4,2030,363.4
+4,Inequality (SSP4),SSP4,Portugal,620,5--9,2030,400.2
+4,Inequality (SSP4),SSP4,Portugal,620,10--14,2030,457.3
+4,Inequality (SSP4),SSP4,Portugal,620,15--19,2030,474.8
+4,Inequality (SSP4),SSP4,Portugal,620,20--24,2030,511.7
+4,Inequality (SSP4),SSP4,Portugal,620,25--29,2030,545.2
+4,Inequality (SSP4),SSP4,Portugal,620,30--34,2030,552.3
+4,Inequality (SSP4),SSP4,Portugal,620,35--39,2030,550.6
+4,Inequality (SSP4),SSP4,Portugal,620,40--44,2030,569.5
+4,Inequality (SSP4),SSP4,Portugal,620,45--49,2030,670.2
+4,Inequality (SSP4),SSP4,Portugal,620,50--54,2030,769.1
+4,Inequality (SSP4),SSP4,Portugal,620,55--59,2030,766.4
+4,Inequality (SSP4),SSP4,Portugal,620,60--64,2030,714.7
+4,Inequality (SSP4),SSP4,Portugal,620,65--69,2030,695.4
+4,Inequality (SSP4),SSP4,Portugal,620,70--74,2030,615.5
+4,Inequality (SSP4),SSP4,Portugal,620,75--79,2030,533.9
+4,Inequality (SSP4),SSP4,Portugal,620,80--84,2030,416
+4,Inequality (SSP4),SSP4,Portugal,620,85--89,2030,250
+4,Inequality (SSP4),SSP4,Portugal,620,90--94,2030,119.8
+4,Inequality (SSP4),SSP4,Portugal,620,95--99,2030,31.4
+4,Inequality (SSP4),SSP4,Portugal,620,100+,2030,3.4
+4,Inequality (SSP4),SSP4,Portugal,620,0--4,2040,329.6
+4,Inequality (SSP4),SSP4,Portugal,620,5--9,2040,362.9
+4,Inequality (SSP4),SSP4,Portugal,620,10--14,2040,386.8
+4,Inequality (SSP4),SSP4,Portugal,620,15--19,2040,419
+4,Inequality (SSP4),SSP4,Portugal,620,20--24,2040,464.7
+4,Inequality (SSP4),SSP4,Portugal,620,25--29,2040,482.3
+4,Inequality (SSP4),SSP4,Portugal,620,30--34,2040,520.4
+4,Inequality (SSP4),SSP4,Portugal,620,35--39,2040,547.9
+4,Inequality (SSP4),SSP4,Portugal,620,40--44,2040,552.5
+4,Inequality (SSP4),SSP4,Portugal,620,45--49,2040,553.4
+4,Inequality (SSP4),SSP4,Portugal,620,50--54,2040,568.6
+4,Inequality (SSP4),SSP4,Portugal,620,55--59,2040,657.5
+4,Inequality (SSP4),SSP4,Portugal,620,60--64,2040,741.5
+4,Inequality (SSP4),SSP4,Portugal,620,65--69,2040,729.4
+4,Inequality (SSP4),SSP4,Portugal,620,70--74,2040,667.1
+4,Inequality (SSP4),SSP4,Portugal,620,75--79,2040,622.4
+4,Inequality (SSP4),SSP4,Portugal,620,80--84,2040,500.7
+4,Inequality (SSP4),SSP4,Portugal,620,85--89,2040,346.2
+4,Inequality (SSP4),SSP4,Portugal,620,90--94,2040,166.3
+4,Inequality (SSP4),SSP4,Portugal,620,95--99,2040,44
+4,Inequality (SSP4),SSP4,Portugal,620,100+,2040,6.3
+4,Inequality (SSP4),SSP4,Portugal,620,0--4,2050,314
+4,Inequality (SSP4),SSP4,Portugal,620,5--9,2050,337
+4,Inequality (SSP4),SSP4,Portugal,620,10--14,2050,357.2
+4,Inequality (SSP4),SSP4,Portugal,620,15--19,2050,387.6
+4,Inequality (SSP4),SSP4,Portugal,620,20--24,2050,401.9
+4,Inequality (SSP4),SSP4,Portugal,620,25--29,2050,431
+4,Inequality (SSP4),SSP4,Portugal,620,30--34,2050,479
+4,Inequality (SSP4),SSP4,Portugal,620,35--39,2050,494.7
+4,Inequality (SSP4),SSP4,Portugal,620,40--44,2050,527.6
+4,Inequality (SSP4),SSP4,Portugal,620,45--49,2050,553.7
+4,Inequality (SSP4),SSP4,Portugal,620,50--54,2050,554.4
+4,Inequality (SSP4),SSP4,Portugal,620,55--59,2050,552.6
+4,Inequality (SSP4),SSP4,Portugal,620,60--64,2050,562.7
+4,Inequality (SSP4),SSP4,Portugal,620,65--69,2050,638.7
+4,Inequality (SSP4),SSP4,Portugal,620,70--74,2050,704.8
+4,Inequality (SSP4),SSP4,Portugal,620,75--79,2050,673.6
+4,Inequality (SSP4),SSP4,Portugal,620,80--84,2050,574.4
+4,Inequality (SSP4),SSP4,Portugal,620,85--89,2050,445.3
+4,Inequality (SSP4),SSP4,Portugal,620,90--94,2050,233
+4,Inequality (SSP4),SSP4,Portugal,620,95--99,2050,74.1
+4,Inequality (SSP4),SSP4,Portugal,620,100+,2050,10.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,0--4,2030,383.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,5--9,2030,418.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,10--14,2030,477.4
+5,Conventional Development (SSP5),SSP5,Portugal,620,15--19,2030,490.4
+5,Conventional Development (SSP5),SSP5,Portugal,620,20--24,2030,514.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,25--29,2030,543.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,30--34,2030,554.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,35--39,2030,553.5
+5,Conventional Development (SSP5),SSP5,Portugal,620,40--44,2030,574
+5,Conventional Development (SSP5),SSP5,Portugal,620,45--49,2030,673.1
+5,Conventional Development (SSP5),SSP5,Portugal,620,50--54,2030,768.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,55--59,2030,768.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,60--64,2030,720.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,65--69,2030,703.1
+5,Conventional Development (SSP5),SSP5,Portugal,620,70--74,2030,625
+5,Conventional Development (SSP5),SSP5,Portugal,620,75--79,2030,544.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,80--84,2030,427.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,85--89,2030,260.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,90--94,2030,127.1
+5,Conventional Development (SSP5),SSP5,Portugal,620,95--99,2030,33.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,100+,2030,3.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,0--4,2040,379.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,5--9,2040,401.4
+5,Conventional Development (SSP5),SSP5,Portugal,620,10--14,2040,419.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,15--19,2040,448
+5,Conventional Development (SSP5),SSP5,Portugal,620,20--24,2040,490.5
+5,Conventional Development (SSP5),SSP5,Portugal,620,25--29,2040,507
+5,Conventional Development (SSP5),SSP5,Portugal,620,30--34,2040,533.9
+5,Conventional Development (SSP5),SSP5,Portugal,620,35--39,2040,547
+5,Conventional Development (SSP5),SSP5,Portugal,620,40--44,2040,556.2
+5,Conventional Development (SSP5),SSP5,Portugal,620,45--49,2040,563.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,50--54,2040,584.1
+5,Conventional Development (SSP5),SSP5,Portugal,620,55--59,2040,669.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,60--64,2040,749.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,65--69,2040,743.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,70--74,2040,689
+5,Conventional Development (SSP5),SSP5,Portugal,620,75--79,2040,650.9
+5,Conventional Development (SSP5),SSP5,Portugal,620,80--84,2040,535.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,85--89,2040,385.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,90--94,2040,195.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,95--99,2040,54.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,100+,2040,7.9
+5,Conventional Development (SSP5),SSP5,Portugal,620,0--4,2050,388.4
+5,Conventional Development (SSP5),SSP5,Portugal,620,5--9,2050,401.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,10--14,2050,413.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,15--19,2050,426.9
+5,Conventional Development (SSP5),SSP5,Portugal,620,20--24,2050,429.9
+5,Conventional Development (SSP5),SSP5,Portugal,620,25--29,2050,465.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,30--34,2050,522.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,35--39,2050,527.5
+5,Conventional Development (SSP5),SSP5,Portugal,620,40--44,2050,544.1
+5,Conventional Development (SSP5),SSP5,Portugal,620,45--49,2050,558.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,50--54,2050,566.8
+5,Conventional Development (SSP5),SSP5,Portugal,620,55--59,2050,575.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,60--64,2050,595.3
+5,Conventional Development (SSP5),SSP5,Portugal,620,65--69,2050,668.7
+5,Conventional Development (SSP5),SSP5,Portugal,620,70--74,2050,733
+5,Conventional Development (SSP5),SSP5,Portugal,620,75--79,2050,714.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,80--84,2050,632.5
+5,Conventional Development (SSP5),SSP5,Portugal,620,85--89,2050,522.6
+5,Conventional Development (SSP5),SSP5,Portugal,620,90--94,2050,304.4
+5,Conventional Development (SSP5),SSP5,Portugal,620,95--99,2050,109.4
+5,Conventional Development (SSP5),SSP5,Portugal,620,100+,2050,17
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,0--4,2030,396.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,5--9,2030,406.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,10--14,2030,435.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,15--19,2030,455.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,20--24,2030,504.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,25--29,2030,544
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,30--34,2030,548.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,35--39,2030,545.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,40--44,2030,562.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,45--49,2030,664.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,50--54,2030,768.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,55--59,2030,765
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,60--64,2030,710.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,65--69,2030,691.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,70--74,2030,612.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,75--79,2030,531.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,80--84,2030,415.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,85--89,2030,249.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,90--94,2030,119.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,95--99,2030,31.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,100+,2030,3.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,0--4,2040,396.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,5--9,2040,400.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,10--14,2040,396.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,15--19,2040,406.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,20--24,2040,435.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,25--29,2040,454.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,30--34,2040,503
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,35--39,2040,542.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,40--44,2040,545.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,45--49,2040,540.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,50--54,2040,553.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,55--59,2040,647.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,60--64,2040,740
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,65--69,2040,725.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,70--74,2040,660.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,75--79,2040,617.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,80--84,2040,497.5
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,85--89,2040,345
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,90--94,2040,166.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,95--99,2040,44
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,100+,2040,6.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,0--4,2050,372.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,5--9,2050,385.8
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,10--14,2050,396.2
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,15--19,2050,400.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,20--24,2050,396.1
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,25--29,2050,405.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,30--34,2050,434.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,35--39,2050,453.6
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,40--44,2050,501
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,45--49,2050,538.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,50--54,2050,538.9
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,55--59,2050,529.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,60--64,2050,537.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,65--69,2050,622.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,70--74,2050,701.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,75--79,2050,669.3
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,80--84,2050,567.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,85--89,2050,441.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,90--94,2050,231.4
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,95--99,2050,73.7
+22,Medium - Zero Migration (SSP2-ZM),SSP2-ZM,Portugal,620,100+,2050,10.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,0--4,2030,402.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,5--9,2030,428.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,10--14,2030,474.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,15--19,2030,488.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,20--24,2030,514.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,25--29,2030,541.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,30--34,2030,553.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,35--39,2030,552.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,40--44,2030,570.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,45--49,2030,668.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,50--54,2030,764.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,55--59,2030,765
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,60--64,2030,716.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,65--69,2030,697.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,70--74,2030,617.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,75--79,2030,535
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,80--84,2030,415.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,85--89,2030,249.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,90--94,2030,119.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,95--99,2030,31.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,100+,2030,3.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,0--4,2040,419
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,5--9,2040,434
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,10--14,2040,443.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,15--19,2040,463.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,20--24,2040,491.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,25--29,2040,505.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,30--34,2040,532.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,35--39,2040,547.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,40--44,2040,558.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,45--49,2040,564.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,50--54,2040,580.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,55--59,2040,663.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,60--64,2040,741.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,65--69,2040,731.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,70--74,2040,673.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,75--79,2040,627.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,80--84,2040,503.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,85--89,2040,347.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,90--94,2040,166.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,95--99,2040,44
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,100+,2040,6.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,0--4,2050,436.7
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,5--9,2050,449.4
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,10--14,2050,461.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,15--19,2050,469.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,20--24,2050,462.9
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,25--29,2050,482.5
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,30--34,2050,520.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,35--39,2050,526.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,40--44,2050,545.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,45--49,2050,561.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,50--54,2050,570
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,55--59,2050,574.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,60--64,2050,585.8
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,65--69,2050,653.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,70--74,2050,709
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,75--79,2050,679.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,80--84,2050,581.2
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,85--89,2050,449.1
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,90--94,2050,234.6
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,95--99,2050,74.3
+23,Medium - Double Migration (SSP2-DM),SSP2-DM,Portugal,620,100+,2050,10.6

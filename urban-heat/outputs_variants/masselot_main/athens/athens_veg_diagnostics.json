@@ -1,0 +1,19 @@
+{
+  "city": "Athens",
+  "slug": "athens",
+  "policy": "uniform_Q3_target",
+  "target_gvi": 13.0,
+  "total_dGVI_points": 9.56098583340175,
+  "citywide_dGVI_popw": 1.2837166706610346,
+  "dLST_summer_mean": -0.10017991065979004,
+  "dLST_summer_popw": -0.09809721261262894,
+  "dT2M_summer_approx_mean": -0.06487061083316803,
+  "dT2M_summer_approx_popw": -0.06391565501689911,
+  "cum_avoided_trees_only_25y": 82.76127331556644,
+  "cum_avoided_trees_on_top_25y": 76.33327323126143,
+  "pv_capex": 66594743.3564966,
+  "pv_om_base": 76868778.04118605,
+  "pv_total_base": 143463521.39768267,
+  "eac_base": 8238804.605645267,
+  "cost_per_death_base": 1733461.9883222464
+}

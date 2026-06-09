@@ -1,0 +1,5 @@
+year,n_warning_days,threshold_deaths_per_day,threshold_method,season_start_md,season_end_md,season_source
+2020,37,14.068923687027395,epi_deaths_file,05-01,09-30,warning_season
+2030,45,13.383613490361457,epi_deaths_file,05-01,09-30,warning_season
+2040,48,13.00740877644593,epi_deaths_file,05-01,09-30,warning_season
+2050,52,12.708463743910821,epi_deaths_file,05-01,09-30,warning_season

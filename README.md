@@ -148,15 +148,44 @@ jupyter-lab
 
 ## Data access
 
-Input data are **not included in the repository** (size). They are stored on Google Drive and synced via city-specific manifests in `urban-heat/data_manifests/` using `gdown`. The first pipeline notebook (`01_setup_*.ipynb`) performs the sync automatically.
+Input data are **not included in the repository** (size). They live in three places:
 
-**DRMKC vulnerability data** (used for dynamic SVI projection) require a personal JWT token from the [JRC Risk Data Hub](https://drmkc.jrc.ec.europa.eu/risk-data-hub):
+1. **Google Drive** — most static inputs (FUA, LCZ, vulnerability rasters, AC tables, T2M climate deltas, emulator bundle, etc.) are stored on Drive and synced by `urban-heat/notebooks/.../01_setup_*.ipynb` via city-specific manifests in `urban-heat/data_manifests/` using `gdown`. Each manifest entry has an optional `base_kind` field: `"data"` (default) writes under `urban-heat/data/<city>/`; `"outputs"` writes under `urban-heat/outputs/<city>/` (or `urban-heat/outputs_variants/<variant>/<city>/` when an output variant is active) — used for the city-agnostic emulator bundle which NB07 expects under `OUT`.
+2. **PROVIDE/VITO API** — UrbClim daily-mean T2M NetCDFs are fetched directly during `01_setup_*.ipynb`. Endpoints and city identifiers are specified per city in `urban-heat/configs/<city>.yml` under `climate.urbclim_api`.
+3. **WorldPop R2025A age-structures API** — 100 m age-stratified population rasters are fetched directly from the [WorldPop hub REST API](https://hub.worldpop.org/rest/data/age_structures) during NB02, using the `WP_ISO3` country code and `WP_YEARS` declared in the city's YAML config. NB02 lands the files under `urban-heat/data/<city>/worldpop/<ISO3>/<year>/` and re-uses them on subsequent runs. No manual download is required.
+
+### Reproducibility of generated inputs
+
+Three input tables are produced by helper scripts in `urban-heat/scripts/`. The script outputs are mirrored to Drive for convenience (so a fresh clone + Drive sync gives a working pipeline out of the box), but the scripts themselves remain the source of truth for refreshing them:
+
+**1. `scripts/build_delta_bands.py`** — produces `T2MmeanDeltas/climate_change_provide_markups_bands.csv` and `..._gcm.csv` from the PROVIDE per-GCM delta files (the input root defaults to a sibling project directory; override with `--deltas-root`):
 
 ```bash
-python scripts/download_drmkc_vulnerability.py --token YOUR_JWT_TOKEN --country IT
+python scripts/build_delta_bands.py \
+    --cities Rome Athens Lisbon Copenhagen \
+    --scenarios CurPol GS SP ssp585 \
+    --gcm-low-pct 25 --gcm-high-pct 75
 ```
 
-**UrbClim climate data** are fetched from the PROVIDE/VITO API; endpoints and city identifiers are specified in each city YAML config.
+**2. `scripts/download_drmkc_vulnerability.py`** — produces `vulnerability/drmkc_vulnerability_projection.csv` from the JRC Risk Data Hub API. **Requires a personal JWT token** obtained manually from the [Risk Data Hub user info page](https://drmkc.jrc.ec.europa.eu/risk-data-hub-api/risk-data-hub-ui/userinfo):
+
+```bash
+export RDH_API_TOKEN='your-jwt-token-here'
+python scripts/download_drmkc_vulnerability.py \
+    --country-code IT --country-code GR --country-code PT --country-code DK \
+    --output-dir urban-heat/data/Rome/vulnerability/
+```
+
+**3. `scripts/prepare_gvi_projections.py`** — produces `vulnerability/gvi_projections.csv` from the [Huisman et al. (2025) SSP-GVI](https://doi.org/10.1038/s41597-024-04150-x) source CSV (download separately from the Huisman et al. Scientific Data paper):
+
+```bash
+python scripts/prepare_gvi_projections.py \
+    --input /path/to/huisman_2025_ssp_gvi.csv \
+    --iso3 ITA --iso3 GRC --iso3 PRT --iso3 DNK \
+    --output urban-heat/data/Rome/vulnerability/gvi_projections.csv
+```
+
+A new user cloning the repo does **not** need to run these three scripts — NB01's Drive sync covers the standard 4-city pilot. Run them only when refreshing the underlying data sources (new GCM run, updated RDH snapshot, newer SSP-GVI release) or when adding a new city outside the pilot four.
 
 ---
 

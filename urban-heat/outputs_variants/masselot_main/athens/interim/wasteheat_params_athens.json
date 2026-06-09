@@ -1,0 +1,56 @@
+{
+  "use_feedback": true,
+  "reference_branch": "current_ac",
+  "policy_branch": "policy_ac",
+  "lut_case": "central",
+  "dailymean_from_night": 0.5,
+  "lut": {
+    "0.0": {
+      "low": 0.0,
+      "central": 0.0,
+      "high": 0.0
+    },
+    "0.35": {
+      "low": 0.25,
+      "central": 0.375,
+      "high": 0.5
+    },
+    "0.65": {
+      "low": 0.5,
+      "central": 0.75,
+      "high": 1.0
+    },
+    "1.0": {
+      "low": 1.0,
+      "central": 1.25,
+      "high": 1.5
+    }
+  },
+  "lut_source": "Salamanca et al. 2014 (Phoenix WRF+BEM)",
+  "activation_method": "kou_cdd_share",
+  "activation_temperature_metric": "citymean_dailymean",
+  "t_on_c": 18.0,
+  "t_full_c": 25.0,
+  "cop_degradation_enabled": true,
+  "cop_sensitivity": {
+    "low": 0.04,
+    "central": 0.065,
+    "high": 0.09
+  },
+  "cop_ref": 3.0,
+  "cop_source": "Kou et al. 2026 (Science Bulletin)",
+  "T": 25,
+  "start_year": 2020,
+  "pen_base_final": 0.695930599369206,
+  "pen_current_final": 0.695930599369206,
+  "pen_policy_final": 0.7820715049759189,
+  "dT_dm_base_max": 0.4174164207304964,
+  "dT_dm_current_max": 0.4174164207304964,
+  "dT_dm_policy_max": 0.4820639060813642,
+  "dT_dm_incremental_max": 0.06760508880632882,
+  "activity_share_mean": 0.3825646664581205,
+  "activity_days_equiv_mean": 139.848908247457,
+  "penalty_current_cumulative": 2580.6536190495126,
+  "penalty_policy_cumulative": 2949.3712741259196,
+  "penalty_incremental_cumulative": 368.71765507640606
+}

@@ -1,0 +1,77 @@
+"metavar","label","source","nmis","propmis"
+"pop","Total population","Urban Audit",0,0
+"isol","Isolation","Urban Audit / NUTS2",0,0
+"prop_65p","Population above 65","Urban Audit / NUTS3",0,0
+"popdens","Population density","Urban Audit",0,0
+"ndvi","NDVI","GEE MODIS",0,0
+"pm25","PM2.5","Atmospheric Composition Analysis Group",0,0
+"no2","NO2","Atmospheric Composition Analysis Group",0,0
+"imperv","Imperviousness","Copernicus / HRL",0,0
+"tree","Tree Cover Density","Copernicus / HRL",0,0
+"grass","Grassland","Copernicus / HRL",0,0
+"water","Wetness and Water","Copernicus / HRL",0,0
+"woody","Small Woody Features","Copernicus / HRL",0,0
+"elevation","Elevation","Amazon Web Services Terrain Tiles",0,0
+"coast_dist","Distance to coast","Natural Earth",0,0
+"tmean","Mean temperature","Copernicus",0,0
+"trange","Temperature range","Copernicus",0,0
+"prop_0004","Proportion of population in ages 0004","NUTS3",0,0
+"prop_0509","Proportion of population in ages 0509","NUTS3",0,0
+"prop_1014","Proportion of population in ages 1014","NUTS3",0,0
+"prop_1519","Proportion of population in ages 1519","NUTS3",0,0
+"prop_2024","Proportion of population in ages 2024","NUTS3",0,0
+"prop_2529","Proportion of population in ages 2529","NUTS3",0,0
+"prop_3034","Proportion of population in ages 3034","NUTS3",0,0
+"prop_3539","Proportion of population in ages 3539","NUTS3",0,0
+"prop_4044","Proportion of population in ages 4044","NUTS3",0,0
+"prop_4549","Proportion of population in ages 4549","NUTS3",0,0
+"prop_5054","Proportion of population in ages 5054","NUTS3",0,0
+"prop_5559","Proportion of population in ages 5559","NUTS3",0,0
+"prop_6064","Proportion of population in ages 6064","NUTS3",0,0
+"prop_6569","Proportion of population in ages 6569","NUTS3",0,0
+"prop_7074","Proportion of population in ages 7074","NUTS3",0,0
+"prop_7579","Proportion of population in ages 7579","NUTS3",0,0
+"prop_8084","Proportion of population in ages 8084","NUTS3",0,0
+"prop_8599","Proportion of population in ages 8599","NUTS3",0,0
+"lifexp_00","Life expectancy ","NUTS2",0,0
+"lifexp_05","Life expectancy Y5","NUTS2",0,0
+"lifexp_10","Life expectancy Y10","NUTS2",0,0
+"lifexp_15","Life expectancy Y15","NUTS2",0,0
+"lifexp_20","Life expectancy Y20","NUTS2",0,0
+"lifexp_25","Life expectancy Y25","NUTS2",0,0
+"lifexp_30","Life expectancy Y30","NUTS2",0,0
+"lifexp_35","Life expectancy Y35","NUTS2",0,0
+"lifexp_40","Life expectancy Y40","NUTS2",0,0
+"lifexp_45","Life expectancy Y45","NUTS2",0,0
+"lifexp_50","Life expectancy Y50","NUTS2",0,0
+"lifexp_55","Life expectancy Y55","NUTS2",0,0
+"lifexp_60","Life expectancy Y60","NUTS2",0,0
+"lifexp_65","Life expectancy Y65","NUTS2",0,0
+"lifexp_70","Life expectancy Y70","NUTS2",0,0
+"lifexp_75","Life expectancy Y75","NUTS2",0,0
+"lifexp_80","Life expectancy Y80","NUTS2",0,0
+"lifexp_85","Life expectancy Y_GE85","NUTS2",0,0
+"gdp","GDP","NUTS3 / ONS",0,0
+"educ","Education level","NUTS2",0,0
+"unempl","Unemployment rate","NUTS2",0,0
+"depriv","Deprivation rate","NUTS2",0,0
+"bedrates","Hospital bed rates","NUTS2",0,0
+"deathrate_tot","Death rate","NUTS3",0,0
+"deathrate_0004","Death rate in ages 00 to 04","NUTS3",0,0
+"deathrate_1014","Death rate in ages 10 to 14","NUTS3",0,0
+"deathrate_1519","Death rate in ages 15 to 19","NUTS3",0,0
+"deathrate_2024","Death rate in ages 20 to 24","NUTS3",0,0
+"deathrate_2529","Death rate in ages 25 to 29","NUTS3",0,0
+"deathrate_3034","Death rate in ages 30 to 34","NUTS3",0,0
+"deathrate_3539","Death rate in ages 35 to 39","NUTS3",0,0
+"deathrate_4044","Death rate in ages 40 to 44","NUTS3",0,0
+"deathrate_4549","Death rate in ages 45 to 49","NUTS3",0,0
+"deathrate_0509","Death rate in ages 05 to 09","NUTS3",0,0
+"deathrate_5054","Death rate in ages 50 to 54","NUTS3",0,0
+"deathrate_5559","Death rate in ages 55 to 59","NUTS3",0,0
+"deathrate_6064","Death rate in ages 60 to 64","NUTS3",0,0
+"deathrate_6569","Death rate in ages 65 to 69","NUTS3",0,0
+"deathrate_7074","Death rate in ages 70 to 74","NUTS3",0,0
+"deathrate_7579","Death rate in ages 75 to 79","NUTS3",0,0
+"deathrate_8084","Death rate in ages 80 to 84","NUTS3",0,0
+"deathrate_8599","Death rate in ages 85 to 99","NUTS3",0,0

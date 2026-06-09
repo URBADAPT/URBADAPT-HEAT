@@ -1,0 +1,97 @@
+{
+  "slug": "athens",
+  "worldpop_direct_years": [
+    2020,
+    2030
+  ],
+  "wcde_scale_base_year": 2030,
+  "wcde_country": "Greece",
+  "wcde_iso3": "GRC",
+  "age_groups": [
+    "<15",
+    "15-64",
+    "65+"
+  ],
+  "direct_worldpop": {
+    "2020": {
+      "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_2020.npz",
+      "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_2020.npz"
+    },
+    "2030": {
+      "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_2030.npz",
+      "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_2030.npz"
+    }
+  },
+  "scenarios": {
+    "SSP1": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP1_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP1_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP1_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP1_2050.npz"
+      }
+    },
+    "SSP2": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP2_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP2_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP2_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP2_2050.npz"
+      }
+    },
+    "SSP2-DM": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP2-DM_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP2-DM_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP2-DM_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP2-DM_2050.npz"
+      }
+    },
+    "SSP2-ZM": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP2-ZM_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP2-ZM_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP2-ZM_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP2-ZM_2050.npz"
+      }
+    },
+    "SSP3": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP3_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP3_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP3_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP3_2050.npz"
+      }
+    },
+    "SSP4": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP4_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP4_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP4_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP4_2050.npz"
+      }
+    },
+    "SSP5": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP5_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP5_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/age_on_ref_athens_SSP5_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/athens/interim/pop_on_ref_athens_SSP5_2050.npz"
+      }
+    }
+  }
+}

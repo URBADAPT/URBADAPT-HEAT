@@ -1,0 +1,24 @@
+{
+  "model_name": "pooled_all_quadratic_holdout_safe",
+  "cities": ["addis_abeba", "alicante", "amman", "amsterdam", "antwerp", "auckland", "barcelona", "bari", "basel", "belgrado", "berlin", "bilbao", "birmingham", "bogota", "bordeaux", "brasov", "bratislava", "brussels", "bucharest", "buenos_aires", "cairo", "cape_town", "charleroi", "chennai", "cluj_napoca", "cologne", "copenhagen", "curitiba", "dakar", "debrecen", "dhaka", "dubai", "dublin", "dusseldorf", "edinburgh", "frankfurt_am_main", "gdansk", "geneva", "genoa", "ghent", "glasgow", "graz", "gyor", "hamburg", "helsinki", "ho_chi_minh", "hong_kong", "islamabad", "istanbul", "jakarta", "karachi", "klaipeda", "kosice", "krakow", "lagos", "leeds", "leipzig", "liege", "lille", "lima", "lisbon", "ljubljana", "lodz", "london", "los_angeles", "luxembourg", "lyon", "malaga", "marrakesh", "marseille", "medina", "melbourne", "mexico_city", "milan", "miskolc", "mogadishu", "montpellier", "moscow", "murcia", "nairobi", "nanjing", "nantes", "naples", "new_york", "nice", "novi_sad", "oslo", "padua", "palermo", "palma_de_mallorca", "paris", "pecs", "phoenix", "podgorica", "porto", "prague", "rabat", "reykjavik", "riga", "rome", "rotterdam", "salvador", "santiago", "sarajevo", "singapore", "skopje", "sofia", "split", "strasbourg", "sydney", "szeged", "tallinn", "tartu", "teheran", "thessaloniki", "tirana", "tokyo", "toronto", "toulouse", "trieste", "tschwane", "turin", "utrecht", "varna", "vienna", "vilnius", "warsaw", "wroclaw", "zagreb", "zurich"],
+  "n_cities": 130,
+  "years": [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017],
+  "n_obs": 33391358,
+  "t2m_center": 17.0117,
+  "reference_lcz": "1",
+  "beta_t2m_c": 1.3756,
+  "beta_t2m_c2": 0.0061,
+  "beta_t2m_c_out_b": -0.3865,
+  "beta_t2m_c_water": -0.0001,
+  "beta_t2m_c_lcz": {
+    "2": 0.0932,
+    "3": 0.0362,
+    "4": -0.037,
+    "5": 0.0937,
+    "6": 0.1128,
+    "7": 0.3494,
+    "8": 0.12,
+    "9": -0.0602,
+    "10": 0.0758
+  }
+}

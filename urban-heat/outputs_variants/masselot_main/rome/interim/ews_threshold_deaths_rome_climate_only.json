@@ -1,0 +1,17 @@
+{
+  "city_slug": "rome",
+  "metric": "city_total_heat_deaths_per_day",
+  "baseline_year": 2020,
+  "target_activation_days": 23,
+  "season_start_md": "05-01",
+  "season_end_md": "09-30",
+  "threshold_deaths_per_day": 9.50431990162098,
+  "mode": "climate_only_frozen_vulnerability_2020",
+  "frozen_inputs": {
+    "population": 2020,
+    "age_grid": 2020,
+    "impact_functions": 2020,
+    "ac_coverage_base": 2020,
+    "ac_coverage_policy": 2020
+  }
+}

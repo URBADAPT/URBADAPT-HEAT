@@ -89,7 +89,7 @@ trees:
   # "zones"   = use NB05 zones layer (fallback when regions disabled)
   veg_regions: regions          # Rome: 15 Municipi (NB05 regions, admin_level=7)
   veg_region_label: Municipio   # label for plots/tables
-  veg_emulator_bundle: "emulator/bundles/emulator_bundle_rome_quadratic_holdout_safe.json"
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
   
 electricity_feedback:
   enabled: true
@@ -213,7 +213,11 @@ zones:
 regions:
   enabled: true                     # Rome has Municipi as a separate region level
   source: "osm"
-  osm_admin_level: 7                # admin_level for Municipi
+  # OSM re-tagged Rome's Municipi from admin_level=7 to admin_level=10
+  # in 2025-2026; the name prefix isolates the 15 Municipi from the ~146
+  # other features at level 10 (Piani di zona, sub-districts, etc.).
+  osm_admin_level: 10
+  osm_name_prefix: "Municipio Roma "
   cache_file: "municipi_rome.gpkg"
 
 vulnerability: 

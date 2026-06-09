@@ -1,0 +1,25 @@
+{
+  "slug": "rome",
+  "hazard_type": "t2m_daily_mean",
+  "units": "degC",
+  "run_tag": "bm-climatology-mean__sc-curpol__pb-central",
+  "baseline_mode": "climatology_mean",
+  "baseline_description": "2008-2017 month/day climatological mean",
+  "baseline_peak_day": null,
+  "baseline_peak_year": null,
+  "delta_pct_band": "central",
+  "grid_crs_epsg": 3035,
+  "variable_name": "T2M",
+  "files": {
+    "2020": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2020_FUA_degC__bm-climatology-mean__sc-curpol__pb-central.nc",
+    "2030": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2030_FUA_degC__bm-climatology-mean__sc-curpol__pb-central.nc",
+    "2040": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2040_FUA_degC__bm-climatology-mean__sc-curpol__pb-central.nc",
+    "2050": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2050_FUA_degC__bm-climatology-mean__sc-curpol__pb-central.nc"
+  },
+  "files_legacy": {
+    "2020": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2020_FUA_degC.nc",
+    "2030": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2030_FUA_degC.nc",
+    "2040": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2040_FUA_degC.nc",
+    "2050": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/hazard/T2M_daily_mean_2050_FUA_degC.nc"
+  }
+}

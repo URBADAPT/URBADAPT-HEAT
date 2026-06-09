@@ -1,0 +1,19 @@
+{
+  "city": "Copenhagen",
+  "slug": "copenhagen",
+  "policy": "uniform_Q3_target",
+  "target_gvi": 14.0,
+  "total_dGVI_points": 19.907892733184568,
+  "citywide_dGVI_popw": 2.1357116714933664,
+  "dLST_summer_mean": -0.0363016203045845,
+  "dLST_summer_popw": -0.01426559779793024,
+  "dT2M_summer_approx_mean": -0.02605336718261242,
+  "dT2M_summer_approx_popw": -0.009931119158864021,
+  "cum_avoided_trees_only_25y": 0.647305323255964,
+  "cum_avoided_trees_on_top_25y": 0.6146679198337494,
+  "pv_capex": 138663630.55402526,
+  "pv_om_base": 160056234.2042958,
+  "pv_total_base": 298719864.75832105,
+  "eac_base": 17154845.870166548,
+  "cost_per_death_base": 461482169.2733063
+}

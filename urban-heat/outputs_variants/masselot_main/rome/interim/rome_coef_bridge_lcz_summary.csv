@@ -1,0 +1,8 @@
+lcz,median_abs_gap,median_ratio_abs,winter_both_zero,summer_rank_corr,ordering_flag,magnitude_flag,sign_ok_share,n_months
+2,0.020476597277051832,4.294628666718728,False,0.0,weakly_similar,large_gap,1.0,12
+3,0.06257343355436257,,False,,uninformative,no_nonzero_ref,1.0,12
+4,0.0,,True,,uninformative,no_nonzero_ref,1.0,12
+5,0.0,,True,,uninformative,no_nonzero_ref,1.0,12
+6,0.0,,True,,uninformative,no_nonzero_ref,1.0,12
+8,0.019500599917136416,7.352925468977986,True,0.6,similar,large_gap,1.0,12
+9,0.09250824297871156,2.461358367980739,False,0.09999999999999999,weakly_similar,moderate_gap,1.0,12

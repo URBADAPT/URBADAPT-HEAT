@@ -1,0 +1,21 @@
+{
+  "capex_per_index_pt": 10000000.0,
+  "capex_per_tree": 210.0,
+  "om_per_tree_yr": 27.0,
+  "om_per_index_pt_yr": 1285714.2857142857,
+  "lifetime_years": 25,
+  "ramp_years": 12,
+  "start_age_central": 5,
+  "start_age_sens": 0,
+  "discount_rate": 0.03,
+  "horizon_years": 25,
+  "annuity_factor": 17.413147691278027,
+  "delta_index_total": 19.907892733184568,
+  "pv_capex": 138663630.55402526,
+  "pv_om_base": 160056234.2042958,
+  "pv_om_5x": 693318152.7701263,
+  "pv_total_base": 298719864.75832105,
+  "pv_total_5x": 831981783.3241516,
+  "eac_base": 17154845.870166548,
+  "eac_5x": 47778942.559642926
+}

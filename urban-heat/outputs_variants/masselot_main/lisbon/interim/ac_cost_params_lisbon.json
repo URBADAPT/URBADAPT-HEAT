@@ -1,0 +1,7 @@
+{
+  "capex_per_user": 500.0,
+  "maint_rate": 0.05,
+  "lifetime_years": 10,
+  "tariff_eur_per_kwh": 0.18,
+  "maint_per_user_yr": 25.0
+}

@@ -1,0 +1,19 @@
+{
+  "city": "Lisbon",
+  "slug": "lisbon",
+  "policy": "uniform_Q3_target",
+  "target_gvi": 18.7,
+  "total_dGVI_points": 93.89826817136719,
+  "citywide_dGVI_popw": 3.982622585311837,
+  "dLST_summer_mean": -0.4534454643726349,
+  "dLST_summer_popw": -0.35218337178230286,
+  "dT2M_summer_approx_mean": -0.30504217743873596,
+  "dT2M_summer_approx_popw": -0.23678404092788696,
+  "cum_avoided_trees_only_25y": 118.6700341441682,
+  "cum_avoided_trees_on_top_25y": 111.8253646807798,
+  "pv_capex": 654025764.6492985,
+  "pv_om_base": 754926872.6349025,
+  "pv_total_base": 1408952637.2842011,
+  "eac_base": 80913150.35419607,
+  "cost_per_death_base": 11872859.458121605
+}

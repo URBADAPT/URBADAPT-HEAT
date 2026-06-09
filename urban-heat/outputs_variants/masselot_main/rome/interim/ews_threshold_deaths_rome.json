@@ -1,0 +1,11 @@
+{
+  "city_slug": "rome",
+  "metric": "city_total_heat_deaths_per_day",
+  "baseline_year": 2020,
+  "target_activation_days": 23,
+  "season_start_md": "05-01",
+  "season_end_md": "09-30",
+  "threshold_deaths_per_day": 9.50431990162098,
+  "achieved_activation_days_baseline": 23,
+  "notes": "Calibrated on baseline modeled daily heat deaths (NB4 scaled IF + NB5 baseline AC attenuation)."
+}

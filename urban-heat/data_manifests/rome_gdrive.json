@@ -17,13 +17,29 @@
     { "type": "file", "id": "1_0JAwVfEjxCbrjMygbOEQniKcq1KhQuO", "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff" },
     { "type": "file", "id": "1ufB1PmOPzJj0sV-XiNepi9b231sAlBXO", "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff" },
     { "type": "file", "id": "11ElJfkC1BucZOEsPBqpQw_98DrwCf2QW", "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff" },
+    { "type": "file", "id": "1gdZocCPPC-k3XXhy_I1FLbb9gdktlWeV", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
+    { "type": "file", "id": "1ogi4NOdve73u7SUXtlcukwNQT_wDx3US", "dest": "vulnerability/gvi_projections.csv" },
 
     { "type": "file", "id": "1ot4pbvzSIbZneaxiTQIiKPRKOtOnUlCH", "dest": "CoolingEff/coefs_GVI_lst.csv"},
 
     { "type": "file", "id": "1Q1iZrTvXXA3wY92pmssg5zSqiuKwqceA", "dest": "T2MmeanDeltas/climate_change_provide_markups_avg.csv" },
+    { "type": "file", "id": "1X8fCmUUw1KlGY7PTtqhRnlfoMb1LNFoN", "dest": "T2MmeanDeltas/climate_change_provide_markups_bands.csv" },
+    { "type": "file", "id": "1QHEFnae2IO4gsXJrvyBVEyBhnDkI0b25", "dest": "T2MmeanDeltas/climate_change_provide_markups_gcm.csv" },
 
     { "type": "file", "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
-    { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcomunale_CSV_2023.csv" }
+    { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcomunale_CSV_2023.csv" },
+
+    { "type": "file", "id": "1a9xFLMi_y8_KscTdUJX9qz6fBWx3_kMZ", "dest": "CAPZONE/CAPZONE.shp" },
+    { "type": "file", "id": "1NDD_ACPlLyOoDMcQU-tN0b6bI5Uzt8qc", "dest": "CAPZONE/CAPZONE.dbf" },
+    { "type": "file", "id": "1mVyPNw8yzIKWooISYlBurwq4DyThwhID", "dest": "CAPZONE/CAPZONE.shx" },
+    { "type": "file", "id": "1l98cRL63FGA7Kg-nt9kFVjhtiKXz-FCg", "dest": "CAPZONE/CAPZONE.prj" },
+    { "type": "file", "id": "1jCTXh-zgRl-ePogJTBLTl9DhudLNR-eS", "dest": "CAPZONE/CAPZONE.cpg" },
+    { "type": "file", "id": "1ufjByYStiTh2GHi4PUzExxchJ42AwOsl", "dest": "CAPZONE/CAPZONE.sbn" },
+    { "type": "file", "id": "1lnp-LKLdCvKImY2jd8DEDutcPb8-1sbj", "dest": "CAPZONE/CAPZONE.sbx" },
+    { "type": "file", "id": "1o4KbZ3ZtLCutwDIHS3DH-WzF3u2LGdG-", "dest": "CAPZONE/CAPZONE.shp.xml" },
+
+    { "type": "file", "id": "1TG1szYP98JAwHLF_j8EyBf95fswQxk7a", "dest": "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json", "base_kind": "outputs" },
+    { "type": "file", "id": "1dGNb4Y-bdwnXf-11by_H602Y-rp3yJ_z", "dest": "interim/municipi_rome.gpkg", "base_kind": "outputs" }
   ]
 }

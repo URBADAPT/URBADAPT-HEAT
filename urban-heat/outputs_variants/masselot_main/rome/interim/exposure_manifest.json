@@ -1,0 +1,97 @@
+{
+  "slug": "rome",
+  "worldpop_direct_years": [
+    2020,
+    2030
+  ],
+  "wcde_scale_base_year": 2030,
+  "wcde_country": "Italy",
+  "wcde_iso3": "ITA",
+  "age_groups": [
+    "<15",
+    "15-64",
+    "65+"
+  ],
+  "direct_worldpop": {
+    "2020": {
+      "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_2020.npz",
+      "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_2020.npz"
+    },
+    "2030": {
+      "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_2030.npz",
+      "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_2030.npz"
+    }
+  },
+  "scenarios": {
+    "SSP1": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP1_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP1_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP1_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP1_2050.npz"
+      }
+    },
+    "SSP2": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP2_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP2_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP2_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP2_2050.npz"
+      }
+    },
+    "SSP2-DM": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP2-DM_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP2-DM_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP2-DM_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP2-DM_2050.npz"
+      }
+    },
+    "SSP2-ZM": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP2-ZM_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP2-ZM_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP2-ZM_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP2-ZM_2050.npz"
+      }
+    },
+    "SSP3": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP3_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP3_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP3_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP3_2050.npz"
+      }
+    },
+    "SSP4": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP4_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP4_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP4_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP4_2050.npz"
+      }
+    },
+    "SSP5": {
+      "2040": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP5_2040.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP5_2040.npz"
+      },
+      "2050": {
+        "age_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/age_on_ref_rome_SSP5_2050.npz",
+        "pop_npz": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main/rome/interim/pop_on_ref_rome_SSP5_2050.npz"
+      }
+    }
+  }
+}

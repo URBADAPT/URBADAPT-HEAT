@@ -17,10 +17,14 @@
     { "type": "file", "id": "1_0JAwVfEjxCbrjMygbOEQniKcq1KhQuO", "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff" },
     { "type": "file", "id": "1ufB1PmOPzJj0sV-XiNepi9b231sAlBXO", "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff" },
     { "type": "file", "id": "11ElJfkC1BucZOEsPBqpQw_98DrwCf2QW", "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff" },
+    { "type": "file", "id": "1j-a9wBehS0KwZHS0MuIrMd-R2fjTLqTo", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
+    { "type": "file", "id": "1_j-WkB5JribgiVlKddKyltZb1Io5wVOw", "dest": "vulnerability/gvi_projections.csv" },
 
     { "type": "file", "id": "1ot4pbvzSIbZneaxiTQIiKPRKOtOnUlCH", "dest": "CoolingEff/coefs_GVI_lst.csv"},
 
     { "type": "file", "id": "1Q1iZrTvXXA3wY92pmssg5zSqiuKwqceA", "dest": "T2MmeanDeltas/climate_change_provide_markups_avg.csv" },
+    { "type": "file", "id": "1SOCjgocdd--lqEYE-yJjp8PPE5IU6Da1", "dest": "T2MmeanDeltas/climate_change_provide_markups_bands.csv" },
+    { "type": "file", "id": "168HEaYYmobLq_Ak0QU7PCYhGovVo5QGB", "dest": "T2MmeanDeltas/climate_change_provide_markups_gcm.csv" },
 
     { "type": "file", "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
@@ -29,7 +33,9 @@
     { "type": "folder", "id": "1yBArUzoHl9jQrOoj3ax7WYhc3S6ZQp6F", "dest": "boundaries/synoikia0" },
     { "type": "folder", "id": "1IZvn6XCocpdGYkAHDV12p-t2nPpD2b6j", "dest": "boundaries/geitonies0" },
     { "type": "folder", "id": "1UXi3j0nLNd_CMO6gZEi1Vg6WTFxS0dlv", "dest":
-"boundaries/dimotikes_koinotites1" }
+"boundaries/dimotikes_koinotites1" },
+
+    { "type": "file", "id": "1TG1szYP98JAwHLF_j8EyBf95fswQxk7a", "dest": "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json", "base_kind": "outputs" }
 
   ]
 }

@@ -88,7 +88,7 @@ trees:
   # Lisbon: use zones (Freguesias, admin_level=8)
   veg_regions: zones
   veg_region_label: Freguesia
-  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled7_quadratic_holdout_safe.json"
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
   
 electricity_feedback:
   enabled: true
