@@ -357,7 +357,7 @@ def plot_section_8_if_family_sensitivity(
     headline_pawn = _top_pawn_axes_per_source(sp, n_top=10).get("masselot_headline")
     if headline_pawn is not None and not headline_pawn.empty:
         top = headline_pawn.sort_values("aai_agg")
-        labels = [_base.PARAM_LABELS.get(p, str(p)) for p in top["param"]]
+        labels = [_ext_param_label(p) for p in top["param"]]
         axes[1].barh(labels, top["aai_agg"], color="#fb923c", alpha=0.9)
         axes[1].set_title("Top 10 PAWN axes — Masselot headline LHS")
         axes[1].set_xlabel("PAWN median KS")
@@ -555,7 +555,15 @@ def plot_section_9_if_source_comparison(
         d = medians_by_family.get(den_family, np.nan)
         if not np.isfinite(n) or not np.isfinite(d) or d <= 0:
             return "n/a"
-        return f"{(n / d):.2f}x"
+        r = n / d
+        # Treat denominators below 1e-5 deaths/yr or ratios above 1000x as
+        # not meaningfully comparable. This catches the Copenhagen
+        # Burke power-law case where the median is essentially zero
+        # (~7e-7 deaths/yr) and would otherwise produce ratios in the
+        # thousands that have no analytical value.
+        if d < 1e-5 or r > 1000.0:
+            return "n/a (denom ~ 0)"
+        return f"{r:.2f}x"
 
     ratio_lines = [
         "Masselot vs Burke P50 ratios:",
@@ -591,7 +599,7 @@ def plot_section_9_if_source_comparison(
         for source_key, color, label in available:
             df = pawn_per_source[source_key].sort_values("aai_agg")
             for _, row in df.iterrows():
-                all_records.append((source_key, color, _base.PARAM_LABELS.get(str(row["param"]), str(row["param"])), float(row["aai_agg"])))
+                all_records.append((source_key, color, _ext_param_label(row["param"]), float(row["aai_agg"])))
         if all_records:
             y_positions = np.arange(len(all_records))
             for idx, (_, color, _label, value) in enumerate(all_records):
@@ -785,6 +793,272 @@ def plot_section_4_mortality_if(
     return [sp.savefig(fig, _base.SECTION_STEMS["4_mortality_if"])]
 
 
+# Section 7 override (uncertainty panel with readable PAWN labels)
+
+# The base PARAM_LABELS dictionary in cityheat.nb10_summary covers only 13
+# axes; the LHS samples 50+ axes under masselot-main, so the base figure
+# shows raw codes like "AC_EFF_SCEN_IDX" or "WH_RATIO" on the y-axis ticks.
+# This extended table provides readable labels for every axis the
+# masselot-main LHS samples (verified against
+# cityheat/nb09_improved_fast.py:_build_param_specs).
+_EXTENDED_PARAM_LABELS: dict[str, str] = {
+    **_base.PARAM_LABELS,
+    # AC parameters
+    "AC_EFF_SCEN_IDX": "AC efficacy scenario",
+    "AC_SSP_IDX": "AC SSP pathway",
+    "AC_CAPEX_PER_USER_IDX": "AC CAPEX per user",
+    "AC_TARIFF_EUR_PER_KWH_IDX": "AC electricity tariff",
+    "AC_LIFETIME_YEARS_IDX": "AC equipment lifetime",
+    # Waste-heat and COP parameters
+    "WH_ENABLED_IDX": "Waste-heat enabled",
+    "WH_LUT_CASE_IDX": "Waste-heat LUT case",
+    "WH_RATIO": "Waste-heat day/night ratio",
+    "COP_ENABLED_IDX": "COP degradation enabled",
+    "COP_CASE_IDX": "COP degradation case",
+    # Tree / vegetation parameters
+    "TREE_CAP_UPLIFT": "Tree canopy uplift",
+    "TREE_RAMP_YEARS_IDX": "Tree ramp years",
+    "TREE_START_AGE_IDX": "Tree starting age",
+    "TREE_CAPEX_PER_TREE_IDX": "Tree CAPEX per tree",
+    "TREE_OM_PER_TREE_YR_IDX": "Tree O&M per tree per year",
+    # Electricity feedback (Falchetta-De Cian-Lunghi 2026)
+    "ELEC_FEEDBACK_ENABLED_IDX": "Veg-AC elec feedback enabled",
+    "ELEC_COEFF_SCALE": "Veg-AC elec feedback scale",
+    # Impact-function / epidemiology
+    "MDD_SCALE_LT15": "MDD scale <15",
+    "MDD_SCALE_15_64": "MDD scale 15-64",
+    "MDD_SCALE_65P": "MDD scale 65+",
+    "PAA_SCALE": "PAA scale",
+    # EWS parameters
+    "EWS_INTERP_IDX": "EWS interpretation",
+    "EWS_CF_EFF_LEVEL_IDX": "EWS counterfactual efficacy",
+    "EWS_EFF_LT15_LEVEL_IDX": "EWS marginal efficacy <15",
+    "EWS_EFF_15_64_LEVEL_IDX": "EWS marginal efficacy 15-64",
+    "EWS_EFF_65P_LEVEL_IDX": "EWS marginal efficacy 65+",
+    "EWS_OVERLAP_LEVEL_IDX": "EWS-AC overlap",
+    "EWS_DISP_LT15_LEVEL_IDX": "EWS displacement <15",
+    "EWS_DISP_15_64_LEVEL_IDX": "EWS displacement 15-64",
+    "EWS_DISP_65P_LEVEL_IDX": "EWS displacement 65+",
+    "EWS_RAMP_YEARS_IDX": "EWS ramp years",
+    "EWS_COST_MODEL_IDX": "EWS cost model",
+    "EWS_TARGET_DAYS_IDX": "EWS target activation days",
+    "EWS_RECALIB_YEARS_IDX": "EWS recalibration interval",
+    # Demographic / exposure
+    "EXP_SSP_IDX": "Population SSP",
+    # Economics
+    "DISCOUNT_RATE_IDX": "Discount rate",
+    # Climate
+    "CLIM_SOURCE_IDX": "Climate source",
+    # Vulnerability projection axes
+    "VULN_K": "SVI persistence k",
+    "VULN_PHI_2050": "SVI spatial smoothing phi (2050)",
+    "VULN_DRMKC_SCALE_FB": "DRMKC scale, foreign-born",
+    "VULN_DRMKC_SCALE_UE": "DRMKC scale, non-employment",
+    "VULN_GVI_SCALE_FB": "GVI scale, foreign-born",
+    "VULN_GVI_SCALE_UE": "GVI scale, non-employment",
+    "VULN_RETROFIT_RATE": "Building retrofit rate",
+}
+
+
+def _ext_param_label(value: Any) -> str:
+    """Translate a PAWN parameter code to a readable label.
+
+    Falls back to the raw code if the parameter is not in the extended
+    table.
+    """
+    return _EXTENDED_PARAM_LABELS.get(str(value), str(value))
+
+
+def plot_section_7_uncertainty(
+    sp: _base.SummaryPaths, cfg: dict[str, Any]
+) -> list[Path]:
+    """Section 7 override for masselot-main.
+
+    Same panel layout and data sources as the base implementation
+    (cityheat.nb10_summary.plot_section_7_uncertainty), but:
+
+    * The figure suptitle and per-panel titles explicitly attribute the
+      data to the Masselot headline LHS (and note that Burke families are
+      surfaced in Section 9).
+    * PAWN parameter codes on y-ticks use the extended readable
+      label table so axes like ``AC_EFF_SCEN_IDX``, ``WH_RATIO``, and
+      ``VULN_GVI_SCALE_UE`` become ``AC efficacy scenario``,
+      ``Waste-heat day/night ratio``, and ``GVI scale, non-employment``.
+    """
+    del cfg
+    impact_path = sp.optional(
+        "uncertainty impact summary",
+        sp.uq_dir / f"unc_impact_summary_{sp.slug}_improved_fast.csv",
+        sp.uq_dir / f"unc_samples_{sp.slug}_improved_fast.csv",
+    )
+    sens_aai_path = sp.optional(
+        "AAI sensitivity",
+        sp.uq_dir / f"sens_aai_agg_{sp.slug}_improved_fast.csv",
+    )
+    sens_cba_path = sp.optional(
+        "CBA/EWS sensitivity",
+        sp.uq_dir / f"sens_cba_ews_{sp.slug}_improved_fast.csv",
+    )
+    if impact_path is None:
+        warnings.warn(
+            f"[NB10 masselot-main] Section 7 uncertainty inputs unavailable "
+            f"for {sp.slug}."
+        )
+        return []
+
+    impact = pd.read_csv(impact_path)
+    sens_aai = pd.read_csv(sens_aai_path) if sens_aai_path is not None else None
+    sens_cba = pd.read_csv(sens_cba_path) if sens_cba_path is not None else None
+    vuln_sens_path = sp.optional(
+        "vulnerability sensitivity",
+        sp.uq_dir / f"sens_vulnerability_{sp.slug}_improved_fast.csv",
+    )
+    vuln_sens = pd.read_csv(vuln_sens_path) if vuln_sens_path is not None else None
+
+    ncols = 5 if vuln_sens is not None else 4
+    fig, axes = plt.subplots(1, ncols, figsize=(5.5 * ncols, 5), constrained_layout=True)
+    if ncols == 1:
+        axes = np.array([axes])
+    fig.suptitle(
+        f"{sp.city} — Uncertainty and Sensitivity "
+        "(Masselot headline LHS; Burke families compared in Section 9)",
+        fontsize=14,
+        fontweight="bold",
+    )
+
+    # Panel 0: AAI distribution
+    if "aai_agg" in impact.columns:
+        vals = pd.to_numeric(impact["aai_agg"], errors="coerce").dropna()
+        axes[0].hist(vals, bins=30, color="#60a5fa", edgecolor="white", alpha=0.85)
+        if not vals.empty:
+            p5, p50, p95 = np.percentile(vals, [5, 50, 95])
+            axes[0].axvline(
+                p50, color="#1d4ed8", linewidth=2, linestyle="--",
+                label=f"Median {p50:.2f}",
+            )
+            axes[0].axvspan(
+                p5, p95, color="#bfdbfe", alpha=0.4,
+                label=f"P5-P95 {p5:.2f}-{p95:.2f}",
+            )
+            axes[0].legend(frameon=False, fontsize=8)
+        axes[0].set_title("AAI distribution\n(Masselot headline LHS)")
+        axes[0].set_xlabel("AAI aggregate (deaths/yr)")
+        axes[0].set_ylabel("Count")
+        axes[0].grid(alpha=0.2)
+    else:
+        _base._placeholder(axes[0], "AAI distribution", "aai_agg unavailable")
+
+    # Panel 1: Frequency curve uncertainty (Masselot headline LHS)
+    freq_path = sp.optional(
+        "frequency curve",
+        sp.uq_dir / f"unc_freq_curve_{sp.slug}_improved_fast.csv",
+    )
+    if freq_path is not None:
+        freq = pd.read_csv(freq_path)
+    else:
+        freq = impact[[col for col in ("rp2", "rp5", "rp10", "rp20") if col in impact.columns]].copy()
+    rp_cols = [col for col in ("rp2", "rp5", "rp10", "rp20") if col in freq.columns]
+    if rp_cols:
+        rps = [int(col.replace("rp", "")) for col in rp_cols]
+        medians = [pd.to_numeric(freq[col], errors="coerce").median() for col in rp_cols]
+        p5s = [pd.to_numeric(freq[col], errors="coerce").quantile(0.05) for col in rp_cols]
+        p95s = [pd.to_numeric(freq[col], errors="coerce").quantile(0.95) for col in rp_cols]
+        axes[1].fill_between(rps, p5s, p95s, color="#c7d2fe", alpha=0.55)
+        axes[1].plot(rps, medians, color="#4338ca", marker="o", linewidth=2)
+        axes[1].set_title("Frequency curve uncertainty\n(Masselot headline LHS)")
+        axes[1].set_xlabel("Return period (years)")
+        axes[1].set_ylabel("Deaths")
+        axes[1].grid(alpha=0.2)
+    else:
+        _base._placeholder(
+            axes[1], "Frequency curve uncertainty", "Frequency outputs unavailable"
+        )
+
+    # Panel 2: Top AAI sensitivities (PAWN median, readable labels)
+    if sens_aai is not None and {"si", "param", "aai_agg"}.issubset(sens_aai.columns):
+        median_rows = sens_aai[sens_aai["si"] == "median"].dropna(subset=["aai_agg"]).copy()
+        top = median_rows.nlargest(10, "aai_agg").sort_values("aai_agg")
+        labels = [_ext_param_label(p) for p in top["param"]]
+        axes[2].barh(labels, top["aai_agg"], color="#fb923c", alpha=0.9)
+        axes[2].set_title("Top AAI sensitivities\n(Masselot headline PAWN median)")
+        axes[2].set_xlabel("PAWN median KS")
+        axes[2].grid(axis="x", alpha=0.2)
+    else:
+        _base._placeholder(
+            axes[2], "Top AAI sensitivities", "AAI sensitivity CSV unavailable"
+        )
+
+    # Panel 3: EWS / CBA sensitivities (readable labels)
+    if sens_cba is not None and {"si", "param"}.issubset(sens_cba.columns):
+        median_rows = sens_cba[sens_cba["si"] == "median"].copy()
+        target = _base._select_sensitivity_column(
+            median_rows,
+            (
+                "ews_net_avoided_deaths_25y_cum",
+                "ews_cost_per_net_death_25y_cum",
+                "ews_pv_cost_25y",
+            ),
+        )
+        if target is not None:
+            top = median_rows.dropna(subset=[target]).nlargest(10, target).sort_values(target)
+            labels = [_ext_param_label(p) for p in top["param"]]
+            axes[3].barh(labels, top[target], color="#60a5fa", alpha=0.9)
+            axes[3].set_title(target.replace("_", " "))
+            axes[3].set_xlabel("PAWN median KS")
+            axes[3].grid(axis="x", alpha=0.2)
+        else:
+            _base._placeholder(
+                axes[3], "EWS/CBA sensitivities", "No populated sensitivity target"
+            )
+    else:
+        _base._placeholder(
+            axes[3], "EWS/CBA sensitivities", "CBA/EWS sensitivity CSV unavailable"
+        )
+
+    # Panel 4: Vulnerability sensitivities (only if vuln_sens CSV present)
+    if vuln_sens is not None:
+        preferred_targets = (
+            "vuln_2050_svi_p90_p10_gap",
+            "vuln_2050_svi_mean",
+            "vuln_2050_pop_weighted_svi",
+            "vuln_svi_p90_p10_gap",
+            "vuln_svi_mean",
+            "vuln_pop_weighted_svi",
+        )
+        target = _base._select_sensitivity_column(vuln_sens, preferred_targets)
+        title_map = {
+            "vuln_2050_svi_p90_p10_gap": "Vulnerability sensitivities\n(2050 SVI gap)",
+            "vuln_2050_svi_mean": "Vulnerability sensitivities\n(2050 SVI mean)",
+            "vuln_2050_pop_weighted_svi": "Vulnerability sensitivities\n(2050 pop-weighted SVI)",
+            "vuln_svi_p90_p10_gap": "Vulnerability sensitivities\n(SVI gap)",
+            "vuln_svi_mean": "Vulnerability sensitivities\n(SVI mean)",
+            "vuln_pop_weighted_svi": "Vulnerability sensitivities\n(pop-weighted SVI)",
+        }
+        if target is not None:
+            summary = _base._summarize_sensitivity(
+                vuln_sens, target, si="median", exclude_params={"YEAR_IDX"},
+            )
+            if not summary.empty:
+                top = summary.head(10).sort_values(target)
+                labels = [_ext_param_label(p) for p in top["param"]]
+                axes[4].barh(labels, top[target], color="#c084fc", alpha=0.9)
+                axes[4].set_title(title_map.get(target, "Vulnerability sensitivities"))
+                axes[4].set_xlabel("PAWN median KS")
+                axes[4].grid(axis="x", alpha=0.2)
+            else:
+                _base._placeholder(
+                    axes[4], "Vulnerability sensitivities",
+                    "No aggregated vulnerability sensitivities",
+                )
+        else:
+            _base._placeholder(
+                axes[4], "Vulnerability sensitivities",
+                "No populated vulnerability target",
+            )
+
+    return [sp.savefig(fig, _base.SECTION_STEMS["7_uncertainty"])]
+
+
 # Extended summary metrics
 
 def _build_summary_metrics(sp: _base.SummaryPaths, cfg: dict[str, Any]) -> pd.DataFrame:
@@ -935,11 +1209,17 @@ def _build_summary_metrics(sp: _base.SummaryPaths, cfg: dict[str, Any]) -> pd.Da
         d = medians_by_family.get(den_family, np.nan)
         if not (np.isfinite(n) and np.isfinite(d) and d > 0):
             return
+        r = n / d
+        # Don't emit the metric row when the comparison would be meaningless
+        # (denominator essentially zero or ratio implausibly large).
+        # See Copenhagen Burke power-law band: median ~ 7e-7 deaths/yr.
+        if d < 1e-5 or r > 1000.0:
+            return
         rows.append(
             {
                 "section": "if_family_sensitivity",
                 "metric": f"aai_agg_ratio_{num_family}_to_{den_family}",
-                "value": round(float(n / d), 3),
+                "value": round(float(r), 3),
                 "unit": "ratio",
             }
         )
@@ -993,6 +1273,7 @@ def run_nb10_summary(
     original_build_paths = _base._build_paths
     original_build_summary_metrics = _base._build_summary_metrics
     original_section_4 = _base.plot_section_4_mortality_if
+    original_section_7 = _base.plot_section_7_uncertainty
     original_section_8 = _base.plot_section_8_if_family_sensitivity
 
     try:
@@ -1000,6 +1281,7 @@ def run_nb10_summary(
         _base._build_paths = _build_paths
         _base._build_summary_metrics = _build_summary_metrics
         _base.plot_section_4_mortality_if = plot_section_4_mortality_if
+        _base.plot_section_7_uncertainty = plot_section_7_uncertainty
         _base.plot_section_8_if_family_sensitivity = plot_section_8_if_family_sensitivity
 
         if verbose:
@@ -1047,5 +1329,6 @@ def run_nb10_summary(
         _base._build_paths = original_build_paths
         _base._build_summary_metrics = original_build_summary_metrics
         _base.plot_section_4_mortality_if = original_section_4
+        _base.plot_section_7_uncertainty = original_section_7
         _base.plot_section_8_if_family_sensitivity = original_section_8
         _ORIGINAL_BUILD_SUMMARY_METRICS = None
