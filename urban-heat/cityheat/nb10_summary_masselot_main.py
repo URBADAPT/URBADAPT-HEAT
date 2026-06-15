@@ -630,6 +630,161 @@ def plot_section_9_if_source_comparison(
     return [sp.savefig(fig, _SECTION_9_STEM)]
 
 
+# Section 4 override (mortality IF curves + annual baseline deaths)
+
+def _load_if_curves_json(
+    sp: _base.SummaryPaths, filename_stem: str
+) -> dict[str, Any]:
+    """Load an IF curves JSON by filename stem; return ``{}`` if missing/invalid."""
+    path = sp.int_dir / filename_stem
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def plot_section_4_mortality_if(
+    sp: _base.SummaryPaths, cfg: dict[str, Any]
+) -> list[Path]:
+    """Replacement for the base Section 4 showing all four IF families.
+
+    The base implementation reads only two JSONs (the canonical
+    ``if_curves_by_year_{slug}.json`` labelled as "polynomial" and the
+    ``if_curves_by_year_{slug}_powerlaw.json`` labelled as "powerlaw") and
+    plots only those. Under masselot-main, the canonical JSON is actually
+    the Masselot log-linear-tail curve (NB04 masselot-main rewrites it),
+    so the base figure plots Masselot (mislabelled "polynomial") and Burke
+    power-law (correctly labelled).
+
+    This override:
+
+    * Loads all four IF family JSONs from ``int_dir``:
+      ``_masselot_tail.json``, ``_masselot.json``, ``_burke_polynomial.json``,
+      and the legacy ``_powerlaw.json`` (which NB04 masselot-main keeps as
+      Burke power-law for backward compatibility).
+    * Plots a 2x2 figure: per-age impact-function panels for <15 / 15-64 /
+      65+ with all four families overlaid (Masselot families solid, Burke
+      families dashed; canonical family is drawn thicker).
+    * The annual-baseline-deaths panel reads the same
+      ``annual_heat_deaths_generic_{slug}.csv`` (which under masselot-main
+      already contains the Masselot canonical death counts) but now carries
+      a title that names the canonical IF source.
+
+    Burke-vs-Masselot AAI distribution comparison lives in Section 9.
+    """
+    del cfg
+    family_files = {
+        "masselot_tail": f"if_curves_by_year_{sp.slug}_masselot_tail.json",
+        "masselot": f"if_curves_by_year_{sp.slug}_masselot.json",
+        "burke_polynomial": f"if_curves_by_year_{sp.slug}_burke_polynomial.json",
+        # NB04 masselot-main keeps the Burke power-law at the legacy
+        # ``_powerlaw.json`` filename. Prefer the explicit
+        # ``_burke_powerlaw.json`` if present.
+        "burke_powerlaw": f"if_curves_by_year_{sp.slug}_burke_powerlaw.json",
+    }
+    family_data: dict[str, dict[str, Any]] = {}
+    for family, filename in family_files.items():
+        data = _load_if_curves_json(sp, filename)
+        if not data and family == "burke_powerlaw":
+            data = _load_if_curves_json(sp, f"if_curves_by_year_{sp.slug}_powerlaw.json")
+        if data:
+            family_data[family] = data
+
+    curve_year = _base._choose_if_year(*family_data.values()) if family_data else None
+
+    deaths: pd.DataFrame | None
+    try:
+        deaths_path = _base._resolve_annual_deaths_csv(sp)
+        deaths = pd.read_csv(deaths_path).sort_values("year")
+    except FileNotFoundError:
+        deaths = None
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
+    fig.suptitle(
+        f"{sp.city} — Heat-Mortality Impact Functions and Baseline Deaths "
+        "(Masselot-main)",
+        fontsize=14,
+        fontweight="bold",
+    )
+    age_axes = {"<15": axes[0, 0], "15-64": axes[0, 1], "65+": axes[1, 0]}
+    deaths_ax = axes[1, 1]
+
+    if_main_family = get_if_main_family()
+    canonical_family = if_main_family if if_main_family in family_data else next(
+        iter(family_data), "masselot_tail"
+    )
+
+    for age, ax in age_axes.items():
+        if curve_year is None:
+            _base._placeholder(ax, f"Impact functions — age {age}", "IF JSONs unavailable")
+            continue
+        any_drawn = False
+        for family in _ALL_FAMILIES:
+            data = family_data.get(family)
+            if not data:
+                continue
+            curve = data.get("ifs_by_year", {}).get(curve_year, {}).get(age, {})
+            intensity = curve.get("intensity", [])
+            mdd = curve.get("mdd", [])
+            if not intensity or not mdd:
+                continue
+            color = _base.IF_FAMILY_COLORS.get(family, "#888888")
+            label = _base.IF_FAMILY_LABELS.get(family, family)
+            ax.plot(
+                intensity,
+                mdd,
+                color=color,
+                linewidth=2.6 if family == canonical_family else 1.6,
+                linestyle="-" if family.startswith("masselot") else "--",
+                label=label + (" (canonical)" if family == canonical_family else ""),
+                alpha=1.0 if family == canonical_family else 0.85,
+            )
+            any_drawn = True
+        if any_drawn:
+            ax.set_title(f"Impact functions — age {age} ({curve_year})")
+            ax.set_xlabel("Daily mean 2 m temperature (°C)")
+            ax.set_ylabel("MDD (mean damage degree)")
+            ax.grid(alpha=0.25)
+            ax.legend(frameon=False, fontsize=8, loc="upper left")
+        else:
+            _base._placeholder(ax, f"Impact functions — age {age}", "No data for this age band")
+
+    if deaths is not None:
+        age_columns = [col for col in ("<15", "15-64", "65+") if col in deaths.columns]
+        if age_columns:
+            bottom = np.zeros(len(deaths))
+            for age in age_columns:
+                values = pd.to_numeric(deaths[age], errors="coerce").fillna(0.0).to_numpy()
+                deaths_ax.bar(
+                    deaths["year"],
+                    values,
+                    bottom=bottom,
+                    color=_base.AGE_COLORS.get(age, "#888888"),
+                    label=age,
+                    width=7,
+                )
+                bottom += values
+            deaths_ax.legend(frameon=False, fontsize=8, loc="upper left")
+        else:
+            total = _base._series_overall(deaths)
+            deaths_ax.bar(deaths["year"], total, color="#991b1b", width=7)
+        canonical_label = _base.IF_FAMILY_LABELS.get(canonical_family, canonical_family)
+        deaths_ax.set_title(
+            f"Annual baseline deaths — {canonical_label} canonical\n"
+            "(stacked by age; Burke-family comparison in Section 9)"
+        )
+        deaths_ax.set_xlabel("Year")
+        deaths_ax.set_ylabel("Heat-attributable deaths per year")
+        deaths_ax.grid(axis="y", alpha=0.25)
+    else:
+        _base._placeholder(deaths_ax, "Annual baseline deaths", "deaths CSV unavailable")
+
+    return [sp.savefig(fig, _base.SECTION_STEMS["4_mortality_if"])]
+
+
 # Extended summary metrics
 
 def _build_summary_metrics(sp: _base.SummaryPaths, cfg: dict[str, Any]) -> pd.DataFrame:
@@ -837,12 +992,14 @@ def run_nb10_summary(
 
     original_build_paths = _base._build_paths
     original_build_summary_metrics = _base._build_summary_metrics
+    original_section_4 = _base.plot_section_4_mortality_if
     original_section_8 = _base.plot_section_8_if_family_sensitivity
 
     try:
         _ORIGINAL_BUILD_SUMMARY_METRICS = original_build_summary_metrics
         _base._build_paths = _build_paths
         _base._build_summary_metrics = _build_summary_metrics
+        _base.plot_section_4_mortality_if = plot_section_4_mortality_if
         _base.plot_section_8_if_family_sensitivity = plot_section_8_if_family_sensitivity
 
         if verbose:
@@ -889,5 +1046,6 @@ def run_nb10_summary(
     finally:
         _base._build_paths = original_build_paths
         _base._build_summary_metrics = original_build_summary_metrics
+        _base.plot_section_4_mortality_if = original_section_4
         _base.plot_section_8_if_family_sensitivity = original_section_8
         _ORIGINAL_BUILD_SUMMARY_METRICS = None
