@@ -263,7 +263,20 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
                 + "\n".join(candidates)
             )
         if self.use_extreme_track:
+            self.haz_events_csv = self._find_first_existing(
+                [
+                    self.int_dir / f"hazard_T2M_daily_events_{self.slug}_extreme.csv",
+                    self.out / f"hazard_T2M_daily_events_{self.slug}_extreme.csv",
+                ]
+            )
             self._load_extreme_track_meta()
+        else:
+            self.haz_events_csv = self.int_dir / f"hazard_T2M_daily_events_{self.slug}.csv"
+
+        req = [self.template_tif, self.city_mask_npz, self.exp_manifest_path, self.haz_events_csv, *self.if_jsons.values()]
+        for path in req:
+            if not path.exists():
+                raise FileNotFoundError(f"Missing required input: {path}")
 
     def save_outputs(self, *args: Any, **kwargs: Any) -> dict[str, Path]:
         paths = super().save_outputs(*args, **kwargs)
