@@ -1,0 +1,87 @@
+# ============================================================================
+# Within-city income distribution emulator - configuration
+# ============================================================================
+# Edit paths/columns to match your data, then run:  python run.py --config config.yaml
+# ----------------------------------------------------------------------------
+
+io:
+  # Tabular file (CSV or GeoPackage) with ONE ROW PER SUB-CITY ZONE.
+  # Must contain the id/city/target columns named below plus the predictor columns.
+  subdivisions: "data/subdivisions.csv"
+  # Where predictions / models / reports are written.
+  out_dir: "results"
+
+columns:
+  # Defaults follow URBADAPT-HEAT's zone_stats table (CAP/freguesia/district).
+  subdivision_id: "zone_code"  # unique id of the sub-city zone
+  city_id: "city"              # id grouping zones into a municipality/FUA
+  population: "pop_zone"       # zone population (gridded GHS-POP; sample weight & ref mean)
+  # Observed income label. ONLY required for cities used in training.
+  # Leave rows blank/NaN for cities you want to predict (e.g. Barcelona, the 356 GVI cities).
+  income: "inc_mean"           # mean/median income per unit (any currency/year/definition)
+
+target:
+  # How the within-city reference (the "1.0" point) is computed per city:
+  #   pop_weighted_mean | mean | median | provided
+  reference: "pop_weighted_mean"
+  # If reference == provided, give the column holding the municipal reference value:
+  reference_column: null
+  # Model the log-ratio ln(income / reference) instead of the raw ratio. Recommended.
+  log_ratio: true
+
+features:
+  # Predictor columns to use. These should already be zonal-aggregated to each
+  # zone (see pipeline/zonal.py; in URBADAPT-HEAT the rasters are already
+  # reprojected to the reference grid by cityheat/vulnerability_layer.py).
+  predictors:
+    - pop_density          # GHS-POP / area
+    - built_fraction       # GHS-BUILT-S / area
+    - volume_per_capita    # GHS-BUILT-V / population  (living-space proxy)
+    - mean_building_height # GHS-BUILT-H
+    - built_age_index      # GHS-AGE mean class on built pixels (older stock proxy)
+    - smod_urban_centre_share  # GHS-SMOD class shares
+    - share_65plus         # GISCO 2021 census grid (ESTAT_OBS-VALUE-T age bands)
+    - share_under15
+    - employment_rate      # EMP / Y_1564 (census)
+    - foreign_born_share   # OTH / T (census place-of-birth proxy)
+    - gvi_mean             # green view index (gvi_356_cities.csv) - amenity proxy
+    - dist_to_centre       # km to city centroid / CBD (monocentric gradient)
+    - nightlights_pc       # optional VIIRS radiance per capita
+  # Transform each predictor to a WITHIN-CITY relative form so one pooled model
+  # transfers across cities:  zscore_within | ratio_to_mean | none
+  within_city_transform: "zscore_within"
+  # City-level context features kept in RAW form (allow conditional effects).
+  context:
+    - city_population      # total municipal population
+  # Optional categorical context (e.g. country) -> one-hot encoded.
+  categorical_context:
+    - country
+
+model:
+  # auto -> lightgbm if available, else sklearn GBR, else numpy ridge fallback.
+  backend: "auto"          # auto | lightgbm | sklearn_gbr | sklearn_rf | ridge_numpy
+  params:
+    n_estimators: 600
+    learning_rate: 0.03
+    max_depth: -1
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+    alpha: 1.0
+  # Weight observations by zone population.
+  weight_by_population: true
+
+validation:
+  # leave_one_city_out is the deployment-realistic test (predict unseen cities).
+  scheme: "leave_one_city_out"   # leave_one_city_out | leave_one_country_out | kfold
+  kfold: 5
+  group_column: "country"        # used for leave_one_country_out
+
+postprocess:
+  # Renormalise predicted index so pop-weighted mean == 1 within each city.
+  renormalise_to_reference: true
+  # Also emit p_inc: population-weighted income percentile rank (0-1, poorer=low).
+  # This is the field URBADAPT-HEAT's ac_downscale / AC sigmoid consumes directly.
+  emit_rank: true

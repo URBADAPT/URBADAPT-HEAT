@@ -1,0 +1,13 @@
+# Core (the model + CV run with these alone via the numpy ridge fallback):
+numpy>=1.24
+pandas>=2.0
+pyyaml>=6.0
+
+# Recommended for real modelling (gradient-boosted trees):
+lightgbm>=4.0          # preferred backend
+scikit-learn>=1.3      # alternative backend (sklearn_gbr / sklearn_rf)
+
+# Only needed if you build the zone predictor table from rasters (zonal.py):
+geopandas>=0.14
+rasterio>=1.3
+rasterstats>=0.19
