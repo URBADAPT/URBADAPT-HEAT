@@ -54,7 +54,11 @@ def cross_validate(train: pd.DataFrame, cfg: dict):
     backend = M.resolve_backend(cfg["model"]["backend"])
     X_all, feat_names = F.build_features(train, cfg)
     y_all = F.build_target(train, cfg).values
-    pop = pd.to_numeric(train[c["population"]], errors="coerce").fillna(0.0).values
+    pop_col = c.get("population")
+    if pop_col and pop_col in train.columns:
+        pop = pd.to_numeric(train[pop_col], errors="coerce").fillna(0.0).values
+    else:
+        pop = np.ones(len(train))
     weight = pop if cfg["model"]["weight_by_population"] else None
 
     oof = np.full(len(train), np.nan)
@@ -68,7 +72,8 @@ def cross_validate(train: pd.DataFrame, cfg: dict):
 
     idx_obs = F.target_to_index(y_all, cfg)
     idx_pred = F.target_to_index(oof, cfg)
-    df = train[[c["city_id"], c["subdivision_id"], c["population"]]].copy()
+    df = train[[c["city_id"], c["subdivision_id"]]].copy()
+    df["__w"] = pop
     df["index_obs"] = idx_obs
     df["index_pred"] = idx_pred
 
@@ -77,12 +82,15 @@ def cross_validate(train: pd.DataFrame, cfg: dict):
         mask = np.isfinite(g["index_pred"])
         if mask.sum() < 3:
             continue
+        w = g["__w"][mask]
+        if w.sum() <= 0:
+            w = None
         rows.append({
             "fold": city,
             "n_zones": int(mask.sum()),
-            "spearman": _spearman(g["index_obs"][mask], g["index_pred"][mask], g[c["population"]][mask]),
-            "pop_w_mae": float(np.average(np.abs(g["index_obs"][mask] - g["index_pred"][mask]),
-                                          weights=g[c["population"]][mask])),
+            "spearman": _spearman(g["index_obs"][mask], g["index_pred"][mask], w),
+            "wmae": float(np.average(np.abs(g["index_obs"][mask] - g["index_pred"][mask]),
+                                     weights=(w if w is not None else np.ones(int(mask.sum()))))),
         })
     per_fold = pd.DataFrame(rows)
     return per_fold, df

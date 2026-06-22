@@ -44,11 +44,21 @@ def city_reference(df: pd.DataFrame, cfg: dict) -> pd.Series:
 
 
 def build_target(df: pd.DataFrame, cfg: dict) -> pd.Series:
-    """Relative income index (the thing we predict). 1.0 == municipal reference."""
-    c = cfg["columns"]
-    income = pd.to_numeric(df[c["income"]], errors="coerce")
-    ref = city_reference(df, cfg)
-    ratio = income / ref
+    """Relative income index (the thing we predict). 1.0 == municipal reference.
+
+    If target.precomputed_column is set (e.g. inc_rel_to_city_median), use it
+    directly instead of deriving the index from raw income. This is the path for
+    the harmonized URBADAPT income file, whose relative index is already PPP- and
+    definition-harmonized per city.
+    """
+    pre = cfg["target"].get("precomputed_column")
+    if pre:
+        ratio = pd.to_numeric(df[pre], errors="coerce")
+    else:
+        c = cfg["columns"]
+        income = pd.to_numeric(df[c["income"]], errors="coerce")
+        ref = city_reference(df, cfg)
+        ratio = income / ref
     if cfg["target"]["log_ratio"]:
         return np.log(ratio.where(ratio > 0))
     return ratio
@@ -131,9 +141,19 @@ def weighted_percentile_rank(values: np.ndarray, weights: np.ndarray) -> np.ndar
 
 
 def index_to_rank(df_pred: pd.DataFrame, idx: np.ndarray, cfg: dict) -> np.ndarray:
-    """Per-city population-weighted percentile rank (p_inc) of the predicted index."""
+    """Per-city percentile rank (p_inc) of the predicted index.
+
+    Population-weighted when a usable population column exists; otherwise equal
+    weights (matching the unweighted inc_pct_within_city in the harmonized file).
+    """
     c = cfg["columns"]
-    pop = pd.to_numeric(df_pred[c["population"]], errors="coerce").fillna(0.0).values
+    pop_col = c.get("population")
+    if pop_col and pop_col in df_pred.columns:
+        pop = pd.to_numeric(df_pred[pop_col], errors="coerce").fillna(0.0).values
+        if not np.isfinite(pop).any() or pop.sum() <= 0:
+            pop = np.ones(len(idx))
+    else:
+        pop = np.ones(len(idx))
     cities = df_pred[c["city_id"]].values
     out = np.full(len(idx), np.nan)
     for city in pd.unique(cities):
@@ -143,19 +163,31 @@ def index_to_rank(df_pred: pd.DataFrame, idx: np.ndarray, cfg: dict) -> np.ndarr
 
 
 def renormalise_index(df_pred: pd.DataFrame, idx: np.ndarray, cfg: dict) -> np.ndarray:
-    """Force the population-weighted mean of the predicted index to 1.0 per city.
+    """Rescale the predicted index per city so it matches the index definition.
 
-    Keeps predictions internally consistent with the definition of the index.
+    mode (postprocess.renormalise_mode):
+      - "pop_weighted_mean": per-city population-weighted mean -> 1.0
+      - "median"           : per-city median -> 1.0 (matches inc_rel_to_city_median)
+      - "none"             : leave predictions untouched
     """
+    mode = cfg.get("postprocess", {}).get("renormalise_mode", "pop_weighted_mean")
+    if mode == "none":
+        return idx.astype(float)
     c = cfg["columns"]
     out = idx.astype(float).copy()
-    pop = pd.to_numeric(df_pred[c["population"]], errors="coerce").fillna(0.0).values
     cities = df_pred[c["city_id"]].values
+    pop_col = c.get("population")
+    if pop_col and pop_col in df_pred.columns:
+        pop = pd.to_numeric(df_pred[pop_col], errors="coerce").fillna(0.0).values
+    else:
+        pop = np.ones(len(idx))
     for city in pd.unique(cities):
         m = cities == city
-        w = pop[m]
-        wsum = w.sum()
-        mean = (out[m] * w).sum() / wsum if wsum > 0 else out[m].mean()
-        if mean and np.isfinite(mean):
-            out[m] = out[m] / mean
+        if mode == "median":
+            anchor = np.nanmedian(out[m])
+        else:
+            w = pop[m]
+            anchor = (out[m] * w).sum() / w.sum() if w.sum() > 0 else np.nanmean(out[m])
+        if anchor and np.isfinite(anchor):
+            out[m] = out[m] / anchor
     return out

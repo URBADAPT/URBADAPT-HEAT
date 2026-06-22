@@ -1,0 +1,107 @@
+# ============================================================================
+# URBADAPT-HEAT within-city income emulator - REAL DATA configuration
+# ============================================================================
+# Two stages:
+#   1) covariates.py  reads `covariate_sources` + a sub-city boundary layer and
+#      writes a per-unit predictor table.
+#   2) run.py         merges that predictor table with the harmonized income
+#      labels and trains / validates / predicts.
+# File paths below are the ones confirmed on 2026-06-22. Adjust if you move data.
+# ----------------------------------------------------------------------------
+
+# ---- STAGE 1: covariate extraction -----------------------------------------
+covariate_sources:
+  # Sub-city boundary polygons (city + subcity_code + geometry). SUPPLIED LATER.
+  # One layer for all 36 cities, or a folder of per-country layers (see covariates.py).
+  boundaries: "data/boundaries/subcity_boundaries.gpkg"
+  boundaries_city_col: "city"
+  boundaries_code_col: "subcity_code"
+
+  # GHSL R2023A, global, EPSG:4326, 3 arc-sec (~100 m). On OneDrive.
+  ghs_pop:     "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_POP_E2020_GLOBE_R2023A_4326_3ss_V1_0.tif"
+  ghs_built_v: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_BUILT_V_E2020_GLOBE_R2023A_4326_3ss_V1_0.tif"
+  ghs_built_h: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_BUILT_H_AGBH_E2018_GLOBE_R2023A_4326_3ss_V1_0.tif"
+
+  # Local Climate Zones, filtered hard classes (confirmed choice). On OneDrive.
+  lcz: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/climate/lcz/lcz_filter_v3.tif"
+
+  # Eurostat 2021 census grid V3 (1 km, EPSG:3035). Parquet table + GRD_ID cell codes.
+  census_parquet: "data/gisco/Eurostat_Census-GRID_2021_V3/Eurostat_Census-GRID_2021_V3/ESTAT_Census_2021_V3.parquet"
+
+  # EU facility point layers (accessibility predictors).
+  health_facilities:    "data/gisco/EU_health_facilites.gpkg"
+  education_facilities:  "data/gisco/EU_education_facilites.gpkg"
+
+  # City centres for distance-to-centre (GHS Urban Centre DB).
+  ucdb: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/boundaries/GHS_STAT_UCDB2015MT_GLOBE_R2019A_V1_2.gpkg"
+
+  # Where covariates.py writes the per-unit predictor table.
+  out_table: "data/covariates_subcity.csv"
+
+# ---- STAGE 2: emulator ------------------------------------------------------
+io:
+  # Predictor table (from stage 1) merged with income labels on city+subcity_code.
+  subdivisions: "data/covariates_subcity.csv"
+  income_labels: "data/income/income_subcity_harmonized.csv"
+  merge_on: ["city", "subcity_code"]
+  out_dir: "results"
+
+columns:
+  subdivision_id: "subcity_code"
+  city_id: "city"
+  group: "country"            # used for leave-one-country-out
+  population: "pop_zone"      # from GHS-POP (covariates.py); optional
+  income: "inc_level"         # fallback only; not used when precomputed target set
+
+target:
+  # Use the precomputed within-city relative index directly (median per city = 1).
+  precomputed_column: "inc_rel_to_city_median"
+  precomputed_rank_column: "inc_pct_within_city"   # for QA / training reference
+  reference: "median"
+  log_ratio: true             # model ln(index); exp back afterwards
+
+features:
+  predictors:
+    - pop_density
+    - built_volume_pc
+    - mean_building_height
+    - lcz_compact_share
+    - lcz_open_share
+    - lcz_industrial_share
+    - lcz_vegetation_share
+    - share_under15
+    - share_65plus
+    - employment_rate
+    - foreign_born_share
+    - residential_churn
+    - health_fac_pc
+    - education_fac_pc
+    - dist_to_centre
+    - unit_area_km2          # MAUP control: zones differ hugely in size across cities
+  within_city_transform: "zscore_within"
+  context:
+    - city_population
+  categorical_context:
+    - country
+
+model:
+  backend: "auto"            # lightgbm -> sklearn -> ridge
+  params:
+    n_estimators: 800
+    learning_rate: 0.03
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+    alpha: 1.0
+  weight_by_population: true
+
+validation:
+  scheme: "leave_one_country_out"   # honest test for transfer to new countries
+  group_column: "country"
+  kfold: 5
+
+postprocess:
+  renormalise_mode: "median"        # match the target definition (per-city median = 1)
+  emit_rank: true

@@ -9,18 +9,24 @@ from __future__ import annotations
 import pandas as pd
 
 
+def _target_col(cfg: dict) -> str:
+    """Column whose presence marks a labelled row (precomputed index or raw income)."""
+    return cfg["target"].get("precomputed_column") or cfg["columns"]["income"]
+
+
 def validate(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     """Check required columns exist and types are sane. Returns df unchanged."""
     c = cfg["columns"]
-    required_ids = [c["subdivision_id"], c["city_id"], c["population"]]
+    required_ids = [c["subdivision_id"], c["city_id"]]
     missing = [col for col in required_ids if col not in df.columns]
     if missing:
-        raise ValueError(f"Missing required id/population columns: {missing}")
+        raise ValueError(f"Missing required id columns: {missing}")
 
-    if c["income"] not in df.columns:
+    tcol = _target_col(cfg)
+    if tcol not in df.columns:
         raise ValueError(
-            f"Income column '{c['income']}' not found. It can be blank/NaN for "
-            "cities you want to predict, but the column must exist."
+            f"Target column '{tcol}' not found. It can be blank/NaN for cities you "
+            "want to predict, but the column must exist."
         )
 
     preds = cfg["features"]["predictors"]
@@ -28,7 +34,7 @@ def validate(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     if missing_pred:
         raise ValueError(
             f"Missing predictor columns: {missing_pred}. "
-            "Either add them (see zonal.py) or remove them from config.features.predictors."
+            "Build them with covariates.py or remove them from config.features.predictors."
         )
 
     sid = c["subdivision_id"]
@@ -36,11 +42,11 @@ def validate(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         dups = df.loc[df[sid].duplicated(), sid].unique()[:5]
         raise ValueError(f"Duplicate subdivision ids, e.g. {list(dups)}")
 
-    pop = pd.to_numeric(df[c["population"]], errors="coerce")
-    if pop.isna().all():
-        raise ValueError("Population column is non-numeric / all-NaN.")
-    if (pop.dropna() < 0).any():
-        raise ValueError("Population contains negative values.")
+    pop_col = c.get("population")
+    if pop_col and pop_col in df.columns:
+        pop = pd.to_numeric(df[pop_col], errors="coerce")
+        if (pop.dropna() < 0).any():
+            raise ValueError("Population contains negative values.")
 
     return df
 
@@ -52,7 +58,7 @@ def split_train_predict(df: pd.DataFrame, cfg: dict):
     within-city variation to define a meaningful relative index).
     """
     c = cfg["columns"]
-    income = pd.to_numeric(df[c["income"]], errors="coerce")
+    income = pd.to_numeric(df[_target_col(cfg)], errors="coerce")
     labelled = income.notna()
     cnt = df.loc[labelled].groupby(df[c["city_id"]]).size()
     train_cities = set(cnt[cnt >= 2].index)

@@ -42,6 +42,15 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     df = load_table(cfg["io"]["subdivisions"])
+    # Optionally merge income labels (harmonized file) onto the covariate table.
+    if cfg["io"].get("income_labels"):
+        labels = load_table(cfg["io"]["income_labels"])
+        keys = cfg["io"].get("merge_on", [c["city_id"], c["subdivision_id"]])
+        label_cols = keys + [x for x in [
+            cfg["target"].get("precomputed_column"),
+            cfg["target"].get("precomputed_rank_column"),
+            c.get("group"), c["income"]] if x and x in labels.columns and x not in keys]
+        df = df.merge(labels[label_cols].drop_duplicates(keys), on=keys, how="left")
     df = schema.validate(df, cfg)
     train, predict, train_cities = schema.split_train_predict(df, cfg)
     print(f"Backend       : {M.resolve_backend(cfg['model']['backend'])}")
@@ -62,8 +71,11 @@ def main():
     backend = M.resolve_backend(cfg["model"]["backend"])
     X_tr, feat_names = F.build_features(train, cfg)
     y_tr = F.build_target(train, cfg).values
-    w_tr = (pd.to_numeric(train[c["population"]], errors="coerce").fillna(0.0).values
-            if cfg["model"]["weight_by_population"] else None)
+    pop_col = c.get("population")
+    if cfg["model"]["weight_by_population"] and pop_col and pop_col in train.columns:
+        w_tr = pd.to_numeric(train[pop_col], errors="coerce").fillna(0.0).values
+    else:
+        w_tr = None
     final = M.make_model(backend, cfg["model"]["params"])
     M.fit_predict(final, X_tr.values, y_tr, X_tr.values[:1], w_tr)  # fit
 
@@ -74,14 +86,21 @@ def main():
     raw_pred = final.predict(X_full.values)
     idx = F.target_to_index(raw_pred, cfg)
 
-    if cfg["postprocess"]["renormalise_to_reference"]:
-        idx = F.renormalise_index(full, idx, cfg)
+    # Resolve renormalisation mode (back-compatible with old renormalise_to_reference).
+    pp = cfg.setdefault("postprocess", {})
+    if "renormalise_mode" not in pp:
+        pp["renormalise_mode"] = "pop_weighted_mean" if pp.get("renormalise_to_reference") else "none"
+    idx = F.renormalise_index(full, idx, cfg)
 
-    full_out = full[[c["city_id"], c["subdivision_id"], c["population"]]].copy()
-    full_out["income_index_pred"] = idx           # 1.0 == municipal pop-weighted mean
-    if cfg["postprocess"].get("emit_rank", True):
+    keep = [c["city_id"], c["subdivision_id"]]
+    if c.get("population") and c["population"] in full.columns:
+        keep.append(c["population"])
+    full_out = full[keep].copy()
+    full_out["income_index_pred"] = idx           # 1.0 == per-city reference (median/mean)
+    if pp.get("emit_rank", True):
         full_out["p_inc"] = F.index_to_rank(full, idx, cfg)
-    full_out["income_obs"] = pd.to_numeric(full[c["income"]], errors="coerce").values
+    tcol = cfg["target"].get("precomputed_column") or c["income"]
+    full_out["target_obs"] = pd.to_numeric(full[tcol], errors="coerce").values
     full_out["is_training_city"] = full_out[c["city_id"]].isin(train_cities)
 
     full_out.to_csv(out_dir / "income_index_predictions.csv", index=False)
