@@ -11,11 +11,25 @@
 
 # ---- STAGE 1: covariate extraction -----------------------------------------
 covariate_sources:
-  # Sub-city boundary polygons (city + subcity_code + geometry). SUPPLIED LATER.
-  # One layer for all 36 cities, or a folder of per-country layers (see covariates.py).
-  boundaries: "data/boundaries/subcity_boundaries.gpkg"
-  boundaries_city_col: "city"
-  boundaries_code_col: "subcity_code"
+  # Sub-city boundaries: per-country GeoPackages. covariates.py concatenates them,
+  # renames the key column to subcity_code, and assigns city/country by joining the
+  # code to the harmonized income file (io.income_labels). Verified join coverage
+  # 97-100% per country (DK keys on district name, not code).
+  boundaries_dir: "data/boundaries"
+  boundaries_manifest:
+    - {country: BE, file: BE_Brussels_statistical_sectors_2022.gpkg, layer: brussels_sectors,                key_col: boundary_code}
+    - {country: CH, file: CH_Zurich_statistical_quarters.gpkg,       layer: zurich_quarters,                 key_col: boundary_code}
+    - {country: DK, file: DK_Copenhagen_districts.gpkg,              layer: copenhagen_districts,            key_col: boundary_name}
+    - {country: ES, file: ES_target_cities_postal_codes.gpkg,        layer: ES_target_cities_postal_codes,   key_col: boundary_code}
+    - {country: FI, file: FI_Helsinki_postal_areas_2023.gpkg,        layer: helsinki_postal_areas,           key_col: boundary_code}
+    - {country: FR, file: FR_Paris_Marseille_Lyon_IRIS_current.gpkg, layer: target_iris,                     key_col: boundary_code}
+    - {country: GB, file: GB_core_cities_MSOA_2011.gpkg,             layer: target_msoa,                     key_col: boundary_code}
+    - {country: IT, file: IT_target_cities_CAP.gpkg,                 layer: target_cap,                      key_col: boundary_code}
+    - {country: NL, file: NL_target_cities_buurten_2023.gpkg,        layer: target_buurten,                  key_col: boundary_code}
+    - {country: PT, file: PT_Lisbon_freguesias.gpkg,                 layer: PT_Lisbon_freguesias,            key_col: boundary_code}
+    - {country: SE, file: SE_target_cities_RegSO_2020.gpkg,          layer: target_regso,                    key_col: boundary_code}
+  # Common working CRS for boundaries / overlays.
+  work_crs: "EPSG:3035"
 
   # GHSL R2023A, global, EPSG:4326, 3 arc-sec (~100 m). On OneDrive.
   ghs_pop:     "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_POP_E2020_GLOBE_R2023A_4326_3ss_V1_0.tif"

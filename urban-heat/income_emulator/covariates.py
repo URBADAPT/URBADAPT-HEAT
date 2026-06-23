@@ -48,14 +48,50 @@ def _gdf(path, crs=None):
     return g
 
 
-def load_boundaries(cs: dict):
-    """Sub-city polygons with normalized 'city' and 'subcity_code' columns."""
-    g = _gdf(cs["boundaries"])
-    g = g.rename(columns={cs.get("boundaries_city_col", "city"): "city",
-                          cs.get("boundaries_code_col", "subcity_code"): "subcity_code"})
-    g = g[["city", "subcity_code", "geometry"]].copy()
-    g = g[g.geometry.notna() & ~g.geometry.is_empty]
-    return g
+def load_boundaries(cs: dict, income_labels: str | None = None):
+    """Unified sub-city polygons with normalized city / subcity_code / country.
+
+    Two modes:
+      - manifest: concatenate per-country GeoPackages (boundaries_manifest), rename
+        each key column to subcity_code, reproject to work_crs, and assign city by
+        joining the code to the harmonized income file.
+      - single file: read one layer that already has city + subcity_code columns.
+    """
+    import geopandas as gpd
+    import pandas as pd
+
+    manifest = cs.get("boundaries_manifest")
+    if not manifest:
+        g = _gdf(cs["boundaries"])
+        g = g.rename(columns={cs.get("boundaries_city_col", "city"): "city",
+                              cs.get("boundaries_code_col", "subcity_code"): "subcity_code"})
+        return g[["city", "subcity_code", "geometry"]].dropna(subset=["geometry"])
+
+    work_crs = cs.get("work_crs", "EPSG:3035")
+    bdir = Path(cs.get("boundaries_dir", "."))
+    parts = []
+    for m in manifest:
+        g = gpd.read_file(bdir / m["file"], layer=m.get("layer"))
+        g = g.rename(columns={m["key_col"]: "subcity_code"})
+        g["subcity_code"] = g["subcity_code"].astype(str).str.strip()
+        g["country"] = m["country"]
+        parts.append(g[["country", "subcity_code", "geometry"]].to_crs(work_crs))
+    bnd = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=work_crs)
+
+    # Assign city from the income file (codes are unique within country).
+    if income_labels:
+        inc = pd.read_csv(income_labels, dtype=str)
+        inc["subcity_code"] = inc["subcity_code"].astype(str).str.strip()
+        key = inc[["country", "subcity_code", "city"]].drop_duplicates()
+        bnd = bnd.merge(key, on=["country", "subcity_code"], how="left")
+    else:
+        bnd["city"] = bnd["country"]
+
+    n_nocity = bnd["city"].isna().sum()
+    if n_nocity:
+        print(f"  note: {n_nocity} boundary unit(s) had no income match (dropped).")
+        bnd = bnd[bnd["city"].notna()]
+    return bnd[bnd.geometry.notna() & ~bnd.geometry.is_empty].copy()
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +241,7 @@ def centre_distance(bnd, cs: dict) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 def build(cfg: dict) -> pd.DataFrame:
     cs = cfg["covariate_sources"]
-    bnd = load_boundaries(cs)
+    bnd = load_boundaries(cs, income_labels=cfg.get("io", {}).get("income_labels"))
     bnd_m = bnd.to_crs("EPSG:3035")
     area = pd.DataFrame({
         "city": bnd["city"].values, "subcity_code": bnd["subcity_code"].values,
