@@ -95,9 +95,14 @@ CRS/nodata and the census areal-overlay step.
    `cv_report.csv` Spearman. Worth wiring as a clean switch and running both.
 4. **Denmark** drops 1 district (name spelling mismatch between income file and
    `DK_Copenhagen_districts.gpkg`); reconcile if you want all 10.
-5. **Athens** is excluded (not in the harmonized file; income is raster-based, see
-   `data/boundaries/income_athens_raster.csv` + `GR_Athens_synoikia_districts.gpkg`).
-   Add a small ingestion if Athens is wanted.
+5. **Athens** is now integrated (`athens_ingest.py`). Its income is raster-based
+   (`data/boundaries/income_athens_raster.csv`), so the script does a
+   population-weighted (GHS-POP) extraction of those ~100 m cells onto the 53
+   synoikia districts (`GR_Athens_synoikia_districts.gpkg`), derives the harmonized
+   `inc_rel_to_city_median` / `inc_pct_within_city`, and appends Athens to
+   `income_subcity_harmonized_athens.csv` (the file `io.income_labels` now points
+   to). Run `python athens_ingest.py` before `covariates.py`. Leave-one-country-out
+   Spearman for the held-out Athens fold is 0.69.
 6. **data/covariates_subcity.csv** currently in the tree is a RANDOM placeholder
    from verification; `covariates.py` overwrites it on first real run.
 7. **MAUP**: unit size varies hugely across countries (London MSOA vs Italian CAP).
