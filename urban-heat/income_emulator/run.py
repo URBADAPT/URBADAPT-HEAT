@@ -46,11 +46,30 @@ def main():
     if cfg["io"].get("income_labels"):
         labels = load_table(cfg["io"]["income_labels"])
         keys = cfg["io"].get("merge_on", [c["city_id"], c["subdivision_id"]])
-        label_cols = keys + [x for x in [
-            cfg["target"].get("precomputed_column"),
-            cfg["target"].get("precomputed_rank_column"),
-            c.get("group"), c["income"]] if x and x in labels.columns and x not in keys]
+        # Dedupe: precomputed_column and precomputed_rank_column can be the same
+        # (e.g. the rank target), which would otherwise merge the column twice.
+        label_cols = list(keys)
+        for x in [cfg["target"].get("precomputed_column"),
+                  cfg["target"].get("precomputed_rank_column"),
+                  c.get("group"), c["income"]]:
+            if x and x in labels.columns and x not in label_cols:
+                label_cols.append(x)
         df = df.merge(labels[label_cols].drop_duplicates(keys), on=keys, how="left")
+
+    # Optional: drop units lacking required covariates (e.g. countries with no
+    # census coverage). Such units would otherwise be median-imputed to a flat
+    # within-city signal, adding noise to training and a meaningless CV fold.
+    req = [col for col in cfg.get("filters", {}).get("require_non_null", []) if col in df.columns]
+    if req:
+        mask = df[req].notna().all(axis=1)
+        n_drop = int((~mask).sum())
+        if n_drop:
+            grp = c.get("group")
+            tag = (" | by %s: %s" % (grp, df.loc[~mask].groupby(grp).size().to_dict())
+                   if grp and grp in df.columns else "")
+            print(f"filter: dropped {n_drop}/{len(df)} units missing {req}{tag}")
+            df = df[mask].copy()
+
     df = schema.validate(df, cfg)
     train, predict, train_cities = schema.split_train_predict(df, cfg)
     print(f"Backend       : {M.resolve_backend(cfg['model']['backend'])}")
@@ -61,7 +80,8 @@ def main():
     per_fold, oof = E.cross_validate(train, cfg)
     if not per_fold.empty:
         wm = np.average(per_fold["spearman"], weights=per_fold["n_zones"])
-        print("\nLeave-one-city-out CV (rank skill per held-out city):")
+        scheme = cfg["validation"]["scheme"]
+        print(f"\nCV ({scheme}) - per-city rank skill of held-out predictions:")
         print(per_fold.to_string(index=False))
         print(f"\n  zone-weighted mean Spearman = {wm:.3f}")
         per_fold.to_csv(out_dir / "cv_report.csv", index=False)

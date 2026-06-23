@@ -154,17 +154,27 @@ def census_features(bnd, cs: dict, res=1000) -> pd.DataFrame:
     from shapely.geometry import box
 
     g = bnd.to_crs("EPSG:3035")
-    minx, miny, maxx, maxy = g.total_bounds
     pad = res
 
     cols = ["GRD_ID", "T", "Y_LT15", "Y_1564", "Y_GE65", "EMP",
             "EU_OTH", "OTH", "SAME", "CHG_IN", "CHG_OUT"]
     cen = pd.read_parquet(cs["census_parquet"], columns=cols)
-    cen = cen[cen["GRD_ID"].str.startswith("CRS3035")]
+    cen = cen[cen["GRD_ID"].str.startswith("CRS3035")].copy()
     en = cen["GRD_ID"].map(_parse_grd_id)
     cen["E"] = en.map(lambda t: t[0]); cen["N"] = en.map(lambda t: t[1])
-    cen = cen[(cen["E"] >= minx - pad) & (cen["E"] <= maxx + pad) &
-              (cen["N"] >= miny - pad) & (cen["N"] <= maxy + pad)].copy()
+    # Keep only cells near an actual city. The cities span Portugal->Finland, so a
+    # single continent-wide bounding box would retain ~3M of 4.6M cells and make the
+    # overlay below blow up; per-city bounding boxes cut that to a few tens of thousands.
+    ub = g.bounds
+    ub["__city"] = g["city"].values
+    cb = ub.groupby("__city").agg(minx=("minx", "min"), miny=("miny", "min"),
+                                  maxx=("maxx", "max"), maxy=("maxy", "max"))
+    E = cen["E"].values; N = cen["N"].values
+    keep = np.zeros(len(cen), dtype=bool)
+    for _, r in cb.iterrows():
+        keep |= ((E >= r.minx - pad) & (E <= r.maxx + pad) &
+                 (N >= r.miny - pad) & (N <= r.maxy + pad))
+    cen = cen[keep].copy()
     for v in cols[1:]:
         cen[v] = pd.to_numeric(cen[v], errors="coerce")
         cen.loc[cen[v].isin(CENSUS_NODATA), v] = np.nan
@@ -228,7 +238,7 @@ def centre_distance(bnd, cs: dict) -> pd.DataFrame:
     d = np.full(len(g), np.nan)
     for city, idx in g.groupby("city").groups.items():
         idx = list(idx)
-        union = g.loc[idx].geometry.unary_union
+        union = g.loc[idx].geometry.union_all()
         # pick the UCDB centre nearest the city's footprint
         nearest = ucdb_c.distance(union.centroid).idxmin()
         cx, cy = ucdb_c.loc[nearest].x, ucdb_c.loc[nearest].y
