@@ -7,7 +7,10 @@ pyyaml>=6.0
 lightgbm>=4.0          # preferred backend
 scikit-learn>=1.3      # alternative backend (sklearn_gbr / sklearn_rf)
 
-# Only needed if you build the zone predictor table from rasters (zonal.py):
+# Only needed to build the covariate table from rasters/vectors (covariates.py):
 geopandas>=0.14
 rasterio>=1.3
 rasterstats>=0.19
+pyarrow>=14            # read the Eurostat census grid parquet
+pyogrio>=0.7           # geopandas vector engine; required on Python 3.14 where
+                       # fiona has no wheel yet (geopandas 1.x uses pyogrio by default)
