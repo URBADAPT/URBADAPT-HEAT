@@ -28,6 +28,7 @@ covariate_sources:
     - {country: NL, file: NL_target_cities_buurten_2023.gpkg,        layer: target_buurten,                  key_col: boundary_code}
     - {country: PT, file: PT_Lisbon_freguesias.gpkg,                 layer: PT_Lisbon_freguesias,            key_col: boundary_code}
     - {country: SE, file: SE_target_cities_RegSO_2020.gpkg,          layer: target_regso,                    key_col: boundary_code}
+    - {country: GR, file: GR_Athens_synoikia_districts.gpkg,         layer: GR_Athens_synoikia_districts,     key_col: boundary_code}
   # Common working CRS for boundaries / overlays.
   work_crs: "EPSG:3035"
 
@@ -56,7 +57,11 @@ covariate_sources:
 io:
   # Predictor table (from stage 1) merged with income labels on city+subcity_code.
   subdivisions: "data/covariates_subcity.csv"
-  income_labels: "data/income/income_subcity_harmonized.csv"
+  # Athens-inclusive labels: produced by `python athens_ingest.py` from the
+  # 36-city income_subcity_harmonized.csv + the rasterized Athens income layer
+  # (population-weighted onto the synoikia districts). Run athens_ingest.py before
+  # covariates.py so the GR boundaries get joined to the Athens income rows.
+  income_labels: "data/income/income_subcity_harmonized_athens.csv"
   merge_on: ["city", "subcity_code"]
   out_dir: "results"
 

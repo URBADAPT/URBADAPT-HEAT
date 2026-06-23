@@ -78,7 +78,8 @@ def main():
     for scheme in SCHEMES:
         res = {t: run(cfg, df, t, scheme) for t in TARGETS}
         nfolds = res["index"][4]
-        print(f"[{scheme}]  ({nfolds} held-out folds, 29 cities reported)")
+        nrep = len(res["index"][2])
+        print(f"[{scheme}]  ({nfolds} held-out folds, {nrep} cities reported)")
         print(f"{'  per-fold zone-wtd Spearman':28s}{res['index'][0]:>10.3f}{res['rank'][0]:>10.3f}")
         print(f"{'  per-fold simple-mean':28s}{res['index'][1]:>10.3f}{res['rank'][1]:>10.3f}")
         saved[scheme] = res
