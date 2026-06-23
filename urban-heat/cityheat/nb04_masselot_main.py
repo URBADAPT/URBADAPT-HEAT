@@ -374,8 +374,11 @@ def run_nb04_masselot_main(
     output_variant = (output_variant or os.environ.get("URBAN_HEAT_OUTPUT_VARIANT") or "masselot_main").strip()
     if audit_strict is None:
         audit_strict = os.environ.get("NB04_BURKE_AUDIT_STRICT", "0").strip().lower() in {"1", "true", "yes", "y"}
-    if output_variant != "masselot_main":
-        raise RuntimeError(f"Expected output_variant='masselot_main', got {output_variant!r}.")
+    if not output_variant.startswith("masselot_main"):
+        raise RuntimeError(
+            "Expected a 'masselot_main*' output variant (e.g. 'masselot_main' or "
+            f"'masselot_main_agnostic'), got {output_variant!r}."
+        )
     if main_family not in SUPPORTED_MASSELOT_FAMILIES:
         raise RuntimeError(f"Expected IF_MAIN_FAMILY in {sorted(SUPPORTED_MASSELOT_FAMILIES)}, got {main_family!r}.")
 
