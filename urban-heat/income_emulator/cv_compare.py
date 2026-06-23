@@ -83,10 +83,11 @@ def main():
         print(f"{'  per-fold simple-mean':28s}{res['index'][1]:>10.3f}{res['rank'][1]:>10.3f}")
         saved[scheme] = res
 
-    # Save the per-fold tables for the leave-one-city-out runs as artifacts.
-    for t, outdir in [("index", "results"), ("rank", "results_rank")]:
+    # Save the per-fold leave-one-city-out tables (both targets) as artifacts.
+    Path("results").mkdir(exist_ok=True)
+    for t in TARGETS:
         pf = saved["leave_one_city_out"][t][2]
-        p = Path(outdir) / "cv_report_leave_one_city_out.csv"
+        p = Path("results") / f"cv_report_leave_one_city_out_{t}.csv"
         pf.to_csv(p, index=False)
         print(f"\nwrote {p}  ({len(pf)} cities)")
 
