@@ -75,11 +75,16 @@ columns:
   income: "inc_level"         # fallback only; not used when precomputed target set
 
 target:
-  # Use the precomputed within-city relative index directly (median per city = 1).
-  precomputed_column: "inc_rel_to_city_median"
+  # DEFAULT: model the within-city percentile rank directly (0-1). The A/B in
+  # cv_compare.py showed it transfers marginally better than the log relative
+  # index across countries, and it is exactly the p_inc the downstream
+  # AC-downscaling consumes. To revert to the log income-ratio: set
+  # precomputed_column: inc_rel_to_city_median, log_ratio: true, and
+  # postprocess.renormalise_mode: median.
+  precomputed_column: "inc_pct_within_city"
   precomputed_rank_column: "inc_pct_within_city"   # for QA / training reference
   reference: "median"
-  log_ratio: true             # model ln(index); exp back afterwards
+  log_ratio: false            # rank is already a within-city quantity; no log
 
 features:
   predictors:
@@ -124,5 +129,5 @@ validation:
   kfold: 5
 
 postprocess:
-  renormalise_mode: "median"        # match the target definition (per-city median = 1)
+  renormalise_mode: "none"          # rank target is already within-city; no rescaling
   emit_rank: true
