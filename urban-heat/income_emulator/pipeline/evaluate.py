@@ -94,3 +94,39 @@ def cross_validate(train: pd.DataFrame, cfg: dict):
         })
     per_fold = pd.DataFrame(rows)
     return per_fold, df
+
+
+def per_group_skill(oof: pd.DataFrame, train: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Pool the out-of-fold predictions by the CV group (usually country) and score each.
+
+    cross_validate reports skill per held-out CITY; under leave-one-country-out this
+    rolls the same OOF predictions up to the held-out country, so each country gets
+    one honest Spearman over all its zones (the metric that matches the holdout unit).
+    Returns columns [<group>, n_cities, n_zones, spearman, wmae], sorted worst-first.
+    """
+    c = cfg["columns"]
+    grp = cfg["validation"].get("group_column") or c["city_id"]
+    if grp not in train.columns or oof.empty:
+        return pd.DataFrame()
+    o = oof.copy()
+    o[grp] = train[grp].values          # oof preserves train's row order
+    rows = []
+    for g, gg in o.groupby(grp):
+        m = np.isfinite(gg["index_pred"]).values
+        if m.sum() < 3:
+            continue
+        obs = gg["index_obs"].values[m]
+        pred = gg["index_pred"].values[m]
+        w = gg["__w"].values[m]
+        wv = w if w.sum() > 0 else None
+        rows.append({
+            grp: g,
+            "n_cities": int(pd.Series(gg[c["city_id"]].values[m]).nunique()),
+            "n_zones": int(m.sum()),
+            "spearman": _spearman(obs, pred, wv),
+            "wmae": float(np.average(np.abs(obs - pred),
+                                     weights=(wv if wv is not None else np.ones(int(m.sum()))))),
+        })
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values("spearman").reset_index(drop=True)

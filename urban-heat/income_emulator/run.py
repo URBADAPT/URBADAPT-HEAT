@@ -78,6 +78,7 @@ def main():
 
     # ---- 1. cross-validation (transfer skill) ---------------------------------
     per_fold, oof = E.cross_validate(train, cfg)
+    by_group = E.per_group_skill(oof, train, cfg)   # pooled by held-out country
     if not per_fold.empty:
         wm = np.average(per_fold["spearman"], weights=per_fold["n_zones"])
         scheme = cfg["validation"]["scheme"]
@@ -86,6 +87,13 @@ def main():
         print(f"\n  zone-weighted mean Spearman = {wm:.3f}")
         per_fold.to_csv(out_dir / "cv_report.csv", index=False)
         oof.to_csv(out_dir / "cv_out_of_fold_predictions.csv", index=False)
+    if not by_group.empty:
+        gcol = by_group.columns[0]
+        gwm = np.average(by_group["spearman"], weights=by_group["n_zones"])
+        print(f"\nPer-{gcol} CV (pooled across each {gcol}'s zones):")
+        print(by_group.to_string(index=False))
+        print(f"\n  zone-weighted mean Spearman = {gwm:.3f}")
+        by_group.to_csv(out_dir / "cv_report_by_country.csv", index=False)
 
     # ---- 2. refit on all training data ----------------------------------------
     backend = M.resolve_backend(cfg["model"]["backend"])
@@ -127,6 +135,7 @@ def main():
 
     summary = {
         "backend": backend,
+        "cv_scheme": cfg["validation"]["scheme"],
         "n_train_cities": len(train_cities),
         "n_train_zones": int(len(train)),
         "n_predicted_zones": int(len(predict)),
@@ -134,6 +143,10 @@ def main():
         "cv_zone_weighted_spearman": (float(np.average(per_fold["spearman"],
                                        weights=per_fold["n_zones"]))
                                        if not per_fold.empty else None),
+        "cv_by_country_zone_weighted_spearman": (float(np.average(by_group["spearman"],
+                                       weights=by_group["n_zones"]))
+                                       if not by_group.empty else None),
+        "cv_by_country": (by_group.to_dict("records") if not by_group.empty else []),
     }
     json.dump(summary, open(out_dir / "run_summary.json", "w"), indent=2)
     print(f"\nWrote -> {out_dir/'income_index_predictions.csv'}")
