@@ -37,10 +37,14 @@ def validate(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
             "Build them with covariates.py or remove them from config.features.predictors."
         )
 
+    # Identity is (city, subdivision) - subcity codes are only unique WITHIN a
+    # country (e.g. PT freguesia codes can collide with NO delomraade codes), so
+    # check the actual merge key, not the subdivision id alone.
     sid = c["subdivision_id"]
-    if df[sid].duplicated().any():
-        dups = df.loc[df[sid].duplicated(), sid].unique()[:5]
-        raise ValueError(f"Duplicate subdivision ids, e.g. {list(dups)}")
+    key = [c["city_id"], sid]
+    if df.duplicated(key).any():
+        dups = df.loc[df.duplicated(key), key].drop_duplicates().head(5).to_dict("records")
+        raise ValueError(f"Duplicate (city, subdivision) ids, e.g. {dups}")
 
     pop_col = c.get("population")
     if pop_col and pop_col in df.columns:

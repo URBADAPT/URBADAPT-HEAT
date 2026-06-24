@@ -64,12 +64,17 @@ city)` row (income left blank) to the labels file, so the boundary→city join i
 
 ## Preliminary skill
 
-Leave-one-country-out (honest transfer to a country with no income data), zone-weighted
-Spearman of predicted vs observed within-city ordering: **~0.63** overall, rising to
-**~0.67** for a new city in an already-sampled country (and 0.85–0.93 where many cities
-are observed, e.g. Italy). Great Britain is **excluded by default**
-(`filters.require_non_null`): the UK is absent from the Eurostat 2021 census grid, so its
-units have no demographic covariates (including it drops the average to ~0.47).
+Across 15 countries / 152 cities, zone-weighted Spearman of predicted vs observed
+within-city ordering:
+- **leave-one-country-out** (honest transfer to a country with *no* income data): **~0.57**
+  — strong for well-sampled countries (AT/FI/DK/NL/SE/BE/IT 0.66–0.85), lower for the
+  large, recently-added folds held out whole (NO ~0.53, IE ~0.55).
+- **leave-one-city-out** (a new city where the country is already sampled): **~0.68**,
+  reaching 0.9–1.0 where many sibling cities exist (e.g. Norway's 109 municipalities).
+
+Great Britain is **excluded by default** (`filters.require_non_null`): the UK is absent
+from the Eurostat 2021 census grid, so its units have no demographic covariates (including
+it lowers the average further).
 
 ## Quick start (synthetic smoke test, no real data)
 

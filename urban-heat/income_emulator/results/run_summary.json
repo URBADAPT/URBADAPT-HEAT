@@ -1,7 +1,7 @@
 {
   "backend": "lightgbm",
-  "n_train_cities": 30,
-  "n_train_zones": 3343,
+  "n_train_cities": 145,
+  "n_train_zones": 5135,
   "n_predicted_zones": 0,
   "features": [
     "pop_density__zw",
@@ -21,6 +21,7 @@
     "dist_to_centre__zw",
     "unit_area_km2__zw",
     "city_population",
+    "country_AT",
     "country_BE",
     "country_CH",
     "country_DK",
@@ -28,10 +29,12 @@
     "country_FI",
     "country_FR",
     "country_GR",
+    "country_IE",
     "country_IT",
     "country_NL",
+    "country_NO",
     "country_PT",
     "country_SE"
   ],
-  "cv_zone_weighted_spearman": 0.6344236216628661
+  "cv_zone_weighted_spearman": 0.571798200101162
 }
