@@ -1,5 +1,6 @@
 {
   "backend": "lightgbm",
+  "cv_scheme": "leave_one_country_out",
   "n_train_cities": 145,
   "n_train_zones": 5135,
   "n_predicted_zones": 0,
@@ -36,5 +37,106 @@
     "country_PT",
     "country_SE"
   ],
-  "cv_zone_weighted_spearman": 0.571798200101162
+  "cv_zone_weighted_spearman": 0.571798200101162,
+  "cv_by_country_zone_weighted_spearman": 0.5727461338855003,
+  "cv_by_country": [
+    {
+      "country": "CH",
+      "n_cities": 1,
+      "n_zones": 34,
+      "spearman": -0.0029076728197963597,
+      "wmae": 0.2407586576685111
+    },
+    {
+      "country": "PT",
+      "n_cities": 1,
+      "n_zones": 24,
+      "spearman": 0.39440784401784384,
+      "wmae": 0.22965770726820822
+    },
+    {
+      "country": "FR",
+      "n_cities": 3,
+      "n_zones": 1375,
+      "spearman": 0.4130005454796436,
+      "wmae": 0.22696783258266406
+    },
+    {
+      "country": "IE",
+      "n_cities": 5,
+      "n_zones": 719,
+      "spearman": 0.47309098157508667,
+      "wmae": 0.20806014078357968
+    },
+    {
+      "country": "NO",
+      "n_cities": 109,
+      "n_zones": 1050,
+      "spearman": 0.5878703222557126,
+      "wmae": 0.2096549199245369
+    },
+    {
+      "country": "ES",
+      "n_cities": 4,
+      "n_zones": 130,
+      "spearman": 0.5950905772433209,
+      "wmae": 0.18866804542387075
+    },
+    {
+      "country": "GR",
+      "n_cities": 1,
+      "n_zones": 53,
+      "spearman": 0.6310869390058209,
+      "wmae": 0.1791229506976694
+    },
+    {
+      "country": "IT",
+      "n_cities": 11,
+      "n_zones": 331,
+      "spearman": 0.7097537085823861,
+      "wmae": 0.15683715492344147
+    },
+    {
+      "country": "SE",
+      "n_cities": 3,
+      "n_zones": 362,
+      "spearman": 0.7130386507765591,
+      "wmae": 0.15702762060147485
+    },
+    {
+      "country": "NL",
+      "n_cities": 3,
+      "n_zones": 291,
+      "spearman": 0.7322920717816386,
+      "wmae": 0.15023927282701727
+    },
+    {
+      "country": "BE",
+      "n_cities": 1,
+      "n_zones": 651,
+      "spearman": 0.7530888262931104,
+      "wmae": 0.13988896588285896
+    },
+    {
+      "country": "DK",
+      "n_cities": 1,
+      "n_zones": 9,
+      "spearman": 0.7968570743337869,
+      "wmae": 0.18313285433069354
+    },
+    {
+      "country": "AT",
+      "n_cities": 1,
+      "n_zones": 23,
+      "spearman": 0.8488987701696561,
+      "wmae": 0.11941594612622788
+    },
+    {
+      "country": "FI",
+      "n_cities": 1,
+      "n_zones": 83,
+      "spearman": 0.8732579499637497,
+      "wmae": 0.13298809892337293
+    }
+  ]
 }
