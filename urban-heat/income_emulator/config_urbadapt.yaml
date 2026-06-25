@@ -129,7 +129,13 @@ model:
     colsample_bytree: 0.8
     random_state: 42
     alpha: 1.0
-  weight_by_population: true
+  weight_by_population: true   # back-compat; ignored when sample_weight is set
+  # Training sample weights. equal_country gives each country equal total weight so
+  # large folds (e.g. NO's 1050 units) don't dominate the pooled fit -- this recovered
+  # France's leave-one-country-out skill (0.41 -> 0.51) and lifted the overall
+  # (0.57 -> 0.60) in eval_variants.py. Options: population | uniform | sqrt_pop |
+  # equal_city | equal_country. The emitted p_inc percentile stays population-weighted.
+  sample_weight: "equal_country"
 
 validation:
   scheme: "leave_one_country_out"   # honest test for transfer to new countries

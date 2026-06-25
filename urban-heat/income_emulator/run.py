@@ -99,11 +99,7 @@ def main():
     backend = M.resolve_backend(cfg["model"]["backend"])
     X_tr, feat_names = F.build_features(train, cfg)
     y_tr = F.build_target(train, cfg).values
-    pop_col = c.get("population")
-    if cfg["model"]["weight_by_population"] and pop_col and pop_col in train.columns:
-        w_tr = pd.to_numeric(train[pop_col], errors="coerce").fillna(0.0).values
-    else:
-        w_tr = None
+    w_tr = F.sample_weights(train, cfg)
     final = M.make_model(backend, cfg["model"]["params"])
     M.fit_predict(final, X_tr.values, y_tr, X_tr.values[:1], w_tr)  # fit
 
