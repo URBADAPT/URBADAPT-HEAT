@@ -120,6 +120,37 @@ def build_features(df: pd.DataFrame, cfg: dict):
     return X, list(X.columns)
 
 
+def sample_weights(df: pd.DataFrame, cfg: dict) -> np.ndarray:
+    """Per-row TRAINING sample weights, selected by model.sample_weight.
+
+    Schemes: population (pop column), uniform, sqrt_pop, equal_city / equal_country
+    (each city / country sums to 1, so large units or large folds don't dominate the
+    pooled loss). Falls back to model.weight_by_population for back-compat when
+    sample_weight is unset. The emitted p_inc percentile and the CV metric stay
+    population-weighted regardless of this choice.
+    """
+    c = cfg["columns"]
+    m = cfg["model"]
+    n = len(df)
+    pop_col = c.get("population")
+    pop = (pd.to_numeric(df[pop_col], errors="coerce").fillna(0.0).values
+           if pop_col and pop_col in df.columns else np.ones(n))
+    scheme = m.get("sample_weight") or ("population" if m.get("weight_by_population") else "uniform")
+    if scheme == "uniform":
+        return np.ones(n)
+    if scheme == "population":
+        return pop
+    if scheme == "sqrt_pop":
+        return np.sqrt(np.clip(pop, 0, None))
+    if scheme in ("equal_city", "equal_country"):
+        gcol = c["city_id"] if scheme == "equal_city" else c.get("group")
+        if not gcol or gcol not in df.columns:
+            return pop
+        s = pd.Series(pop).groupby(df[gcol].values).transform("sum").to_numpy()
+        return np.where(s > 0, pop / s, 0.0)
+    raise ValueError(f"unknown model.sample_weight: {scheme!r}")
+
+
 def weighted_percentile_rank(values: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """Population-weighted percentile rank in [0,1], poorer -> lower.
 

@@ -59,7 +59,7 @@ def cross_validate(train: pd.DataFrame, cfg: dict):
         pop = pd.to_numeric(train[pop_col], errors="coerce").fillna(0.0).values
     else:
         pop = np.ones(len(train))
-    weight = pop if cfg["model"]["weight_by_population"] else None
+    weight = F.sample_weights(train, cfg)   # TRAINING weights; the CV metric below uses pop
 
     oof = np.full(len(train), np.nan)
     for name, tr, te in _folds(train, cfg):
