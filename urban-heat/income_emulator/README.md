@@ -57,10 +57,13 @@ Writes to `results/`: `income_index_predictions.csv`, `cv_report.csv` (per-held-
 Spearman + MAE), `cv_out_of_fold_predictions.csv`, `run_summary.json`.
 
 Every unit in the covariate table receives a `p_inc`, including unlabelled ones — the
-intended use is to predict cities without observed income. Wiring a genuinely new city in
-means adding its boundary layer to `boundaries_manifest` *and* a `(country, subcity_code,
-city)` row (income left blank) to the labels file, so the boundary→city join in
-`covariates.py` can place it.
+intended use is to predict cities without observed income. To add a genuinely new city,
+put its sub-city boundary layer (with `subcity_code` + `city` columns) in
+`boundaries_manifest` and rebuild: `covariates.py` takes the city from the boundary file
+when the unit isn't in the income labels, and any unit with no income value is treated as
+a prediction target (run.py reports `n_predicted_zones`). Verified end-to-end by holding a
+city out of the labels — it is excluded from training and predicted at ~0.8 within-city
+rank correlation.
 
 ## Preliminary skill
 
