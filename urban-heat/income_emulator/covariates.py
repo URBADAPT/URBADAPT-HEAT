@@ -75,7 +75,13 @@ def load_boundaries(cs: dict, income_labels: str | None = None):
         g = g.rename(columns={m["key_col"]: "subcity_code"})
         g["subcity_code"] = g["subcity_code"].astype(str).str.strip()
         g["country"] = m["country"]
-        parts.append(g[["country", "subcity_code", "geometry"]].to_crs(work_crs))
+        # Keep the boundary file's own city column (if any) as a fallback so a
+        # brand-new, unlabelled city can be carried through for prediction.
+        if "city" in g.columns:
+            g["__bnd_city"] = g["city"].astype(str).str.strip().where(g["city"].notna())
+        else:
+            g["__bnd_city"] = np.nan
+        parts.append(g[["country", "subcity_code", "__bnd_city", "geometry"]].to_crs(work_crs))
     bnd = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=work_crs)
 
     # Assign city from the income file (codes are unique within country).
@@ -84,12 +90,17 @@ def load_boundaries(cs: dict, income_labels: str | None = None):
         inc["subcity_code"] = inc["subcity_code"].astype(str).str.strip()
         key = inc[["country", "subcity_code", "city"]].drop_duplicates()
         bnd = bnd.merge(key, on=["country", "subcity_code"], how="left")
+        # Unlabelled units (not in the income file) fall back to the boundary's own
+        # city; they carry no income, so run.py treats them as prediction targets.
+        bnd["city"] = bnd["city"].fillna(bnd["__bnd_city"])
     else:
-        bnd["city"] = bnd["country"]
+        bnd["city"] = bnd["__bnd_city"].fillna(bnd["country"])
+    bnd = bnd.drop(columns="__bnd_city")
 
     n_nocity = bnd["city"].isna().sum()
     if n_nocity:
-        print(f"  note: {n_nocity} boundary unit(s) had no income match (dropped).")
+        print(f"  note: {n_nocity} boundary unit(s) had no city (no income match and "
+              f"no city column); dropped.")
         bnd = bnd[bnd["city"].notna()]
     return bnd[bnd.geometry.notna() & ~bnd.geometry.is_empty].copy()
 
