@@ -130,3 +130,27 @@ def per_group_skill(oof: pd.DataFrame, train: pd.DataFrame, cfg: dict) -> pd.Dat
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame(rows).sort_values("spearman").reset_index(drop=True)
+
+
+def tail_hit_rate(oof: pd.DataFrame, cfg: dict, q: float = 0.2) -> dict:
+    """Within-city top/bottom-quantile hit-rate of the OOF predictions (random ~ q).
+
+    For each city, the fraction of its observed top-q (and bottom-q) units that the
+    model also places in that tail, pooled over cities. The extremes are what the
+    downstream AC / heat-equity step is most sensitive to.
+    """
+    c = cfg["columns"]
+    th = tt = bh = bt = 0
+    for _, g in oof.groupby(c["city_id"]):
+        gg = g[np.isfinite(g["index_pred"])]
+        n = len(gg)
+        if n < 5:
+            continue
+        k = max(1, int(round(q * n)))
+        ot = set(gg["index_obs"].nlargest(k).index); pt = set(gg["index_pred"].nlargest(k).index)
+        ob = set(gg["index_obs"].nsmallest(k).index); pb = set(gg["index_pred"].nsmallest(k).index)
+        th += len(ot & pt); tt += len(ot); bh += len(ob & pb); bt += len(ob)
+    return {"quantile": q,
+            "top_hit_rate": (th / tt) if tt else None,
+            "bottom_hit_rate": (bh / bt) if bt else None,
+            "n_zones_top": int(tt), "n_zones_bottom": int(bt)}

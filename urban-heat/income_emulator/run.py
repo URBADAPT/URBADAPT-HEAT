@@ -94,6 +94,10 @@ def main():
         print(by_group.to_string(index=False))
         print(f"\n  zone-weighted mean Spearman = {gwm:.3f}")
         by_group.to_csv(out_dir / "cv_report_by_country.csv", index=False)
+    tail = E.tail_hit_rate(oof, cfg)
+    if tail.get("top_hit_rate") is not None:
+        print(f"\nWithin-city tail hit-rate (random ~{tail['quantile']}): "
+              f"top {tail['top_hit_rate']:.3f} / bottom {tail['bottom_hit_rate']:.3f}")
 
     # ---- 2. refit on all training data ----------------------------------------
     backend = M.resolve_backend(cfg["model"]["backend"])
@@ -143,6 +147,7 @@ def main():
                                        weights=by_group["n_zones"]))
                                        if not by_group.empty else None),
         "cv_by_country": (by_group.to_dict("records") if not by_group.empty else []),
+        "cv_tail_hit_rate": tail,
     }
     json.dump(summary, open(out_dir / "run_summary.json", "w"), indent=2)
     print(f"\nWrote -> {out_dir/'income_index_predictions.csv'}")

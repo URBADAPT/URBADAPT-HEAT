@@ -138,5 +138,12 @@
       "spearman": 0.8793313359863019,
       "wmae": 0.12812035332956784
     }
-  ]
+  ],
+  "cv_tail_hit_rate": {
+    "quantile": 0.2,
+    "top_hit_rate": 0.45330739299610895,
+    "bottom_hit_rate": 0.5369649805447471,
+    "n_zones_top": 1028,
+    "n_zones_bottom": 1028
+  }
 }
