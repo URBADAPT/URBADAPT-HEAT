@@ -4,9 +4,11 @@ file, training the emulator on every OTHER labelled city.
 
 Builds covariates for the target boundary with covariates.py (the boundary's own
 `city` column places it - no income label needed), fits the model on the labelled
-training cities, and writes per-unit income_index_pred + p_inc. Pass --exclude to drop
-the target's twin from training for an honest out-of-sample check; if the target city
-is also in the income labels, a validation Spearman is printed.
+training cities, and writes per-unit income_index_pred + p_inc plus a *_summary.json.
+Pass --exclude to drop the target's twin from training for an honest out-of-sample
+check; if the target city is also in the income labels, validation Spearman is reported
+both population-weighted (directly comparable to the leave-one-out CV in cv_report_*,
+which is population-weighted) and unweighted.
 
   python deploy_predict.py --boundary data/boundaries/IT_Venice_CAPZONE_2025.gpkg \
       --layer IT_Venice_CAPZONE_2025 --key boundary_code --city Venezia --country IT \
@@ -23,7 +25,7 @@ import pandas as pd
 import yaml
 
 import covariates as C
-from pipeline import schema, features as F, model as M
+from pipeline import schema, features as F, model as M, evaluate as E
 
 
 def target_covariates(cfg, boundary, layer, key, country):
@@ -108,11 +110,22 @@ def main():
                "n_train_cities": int(len(train_cities)), "n_train_zones": int(len(train))}
     v = out.dropna(subset=["inc_pct_observed"])
     if len(v) >= 3:
+        obs = v["inc_pct_observed"].to_numpy()
+        pred = v["p_inc"].to_numpy()
+        pop = (pd.to_numeric(v["pop_zone"], errors="coerce").fillna(0.0).to_numpy()
+               if "pop_zone" in v.columns else None)
         summary["validation_n"] = int(len(v))
-        summary["validation_spearman"] = float(v["p_inc"].rank().corr(v["inc_pct_observed"].rank()))
+        # population-weighted matches the cross_validate / cv_report metric (directly
+        # comparable to the leave-one-out CV); unweighted treats each unit equally.
+        if pop is not None and pop.sum() > 0:
+            summary["validation_spearman_pop_weighted"] = float(E._spearman(obs, pred, pop))
+        summary["validation_spearman_unweighted"] = float(E._spearman(obs, pred, None))
         summary["validation_mae_p_inc"] = float((v["p_inc"] - v["inc_pct_observed"]).abs().mean())
-        print(f"\nValidation vs observed inc_pct_within_city ({len(v)} units): "
-              f"Spearman={summary['validation_spearman']:.3f}  MAE(p_inc)={summary['validation_mae_p_inc']:.3f}")
+        pw = summary.get("validation_spearman_pop_weighted")
+        print(f"\nValidation vs observed inc_pct_within_city ({len(v)} units):  Spearman "
+              + (f"pop-weighted={pw:.3f} (= CV metric), " if pw is not None else "")
+              + f"unweighted={summary['validation_spearman_unweighted']:.3f}  "
+              f"MAE(p_inc)={summary['validation_mae_p_inc']:.3f}")
     sumpath = Path(args.out).with_name(Path(args.out).stem + "_summary.json")
     json.dump(summary, open(sumpath, "w"), indent=2)
     print(f"Wrote -> {args.out}\nWrote -> {sumpath}")
