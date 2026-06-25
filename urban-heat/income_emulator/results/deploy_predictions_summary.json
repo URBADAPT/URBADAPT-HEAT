@@ -1,0 +1,13 @@
+{
+  "city": "Venezia",
+  "country": "IT",
+  "excluded_from_training": "Venezia",
+  "sample_weight": "equal_country",
+  "n_target_units": 17,
+  "n_train_cities": 144,
+  "n_train_zones": 5118,
+  "validation_n": 17,
+  "validation_spearman_pop_weighted": 0.4123532028511743,
+  "validation_spearman_unweighted": 0.6470588235294119,
+  "validation_mae_p_inc": 0.256014347039151
+}
