@@ -15,6 +15,7 @@ is also in the income labels, a validation Spearman is printed.
 from __future__ import annotations
 import argparse
 import copy
+import json
 from pathlib import Path
 
 import numpy as np
@@ -89,23 +90,32 @@ def main():
 
     keep = [x for x in [c["city_id"], c["subdivision_id"], "pop_zone",
                         "income_index_pred", "p_inc"] if x in tgt.columns]
-    out = tgt[keep].sort_values("p_inc").reset_index(drop=True)
+    out = tgt[keep].copy()
+    # attach observed labels (validation + reproducibility) when the city is labelled
+    obs = lab[lab[c["city_id"]] == (args.exclude or args.city)][[c["subdivision_id"], "inc_pct_within_city"]]
+    out = out.merge(obs.rename(columns={"inc_pct_within_city": "inc_pct_observed"}),
+                    on=c["subdivision_id"], how="left")
+    out["inc_pct_observed"] = pd.to_numeric(out["inc_pct_observed"], errors="coerce")
+    out = out.sort_values("p_inc").reset_index(drop=True)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(args.out, index=False)
-    print(f"Wrote -> {args.out}")
 
-    # validation against observed labels for the (excluded) city, if available
-    obs = lab[lab[c["city_id"]] == (args.exclude or args.city)]
-    if len(obs):
-        v = tgt[[c["subdivision_id"], "p_inc"]].merge(
-            obs[[c["subdivision_id"], "inc_pct_within_city"]], on=c["subdivision_id"])
-        v["obs"] = pd.to_numeric(v["inc_pct_within_city"], errors="coerce")
-        v = v.dropna(subset=["obs"])
-        if len(v) >= 3:
-            sp = v["p_inc"].rank().corr(v["obs"].rank())
-            mae = (v["p_inc"] - v["obs"]).abs().mean()
-            print(f"\nValidation vs observed inc_pct_within_city ({len(v)} units): "
-                  f"Spearman={sp:.3f}  MAE(p_inc)={mae:.3f}")
+    # persist a reproducible eval summary alongside the predictions
+    summary = {"city": args.city, "country": args.country,
+               "excluded_from_training": args.exclude,
+               "sample_weight": cfg["model"].get("sample_weight"),
+               "n_target_units": int(len(out)),
+               "n_train_cities": int(len(train_cities)), "n_train_zones": int(len(train))}
+    v = out.dropna(subset=["inc_pct_observed"])
+    if len(v) >= 3:
+        summary["validation_n"] = int(len(v))
+        summary["validation_spearman"] = float(v["p_inc"].rank().corr(v["inc_pct_observed"].rank()))
+        summary["validation_mae_p_inc"] = float((v["p_inc"] - v["inc_pct_observed"]).abs().mean())
+        print(f"\nValidation vs observed inc_pct_within_city ({len(v)} units): "
+              f"Spearman={summary['validation_spearman']:.3f}  MAE(p_inc)={summary['validation_mae_p_inc']:.3f}")
+    sumpath = Path(args.out).with_name(Path(args.out).stem + "_summary.json")
+    json.dump(summary, open(sumpath, "w"), indent=2)
+    print(f"Wrote -> {args.out}\nWrote -> {sumpath}")
     print("\nlowest- and highest-income predicted units:")
     print(out.head(4).to_string(index=False))
     print(out.tail(4).to_string(index=False))

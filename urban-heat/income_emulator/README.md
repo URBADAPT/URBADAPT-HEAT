@@ -67,13 +67,16 @@ rank correlation.
 
 ## Preliminary skill
 
-Across 15 countries / 152 cities, zone-weighted Spearman of predicted vs observed
-within-city ordering:
-- **leave-one-country-out** (honest transfer to a country with *no* income data): **~0.57**
-  — strong for well-sampled countries (AT/FI/DK/NL/SE/BE/IT 0.66–0.85), lower for the
-  large, recently-added folds held out whole (NO ~0.53, IE ~0.55).
+Across 15 countries / 152 cities (GB excluded — no census), zone-weighted Spearman of
+predicted vs observed within-city ordering, with `equal_country` training weights:
+- **leave-one-country-out** (honest transfer to a country with *no* income data): **~0.60**
+  — strong for well-sampled countries (FI 0.88, AT 0.84, DK 0.80, BE/NL/IT 0.72–0.76),
+  lower for the large recently-added folds held out whole (NO ~0.54, IE ~0.51).
 - **leave-one-city-out** (a new city where the country is already sampled): **~0.68**,
   reaching 0.9–1.0 where many sibling cities exist (e.g. Norway's 109 municipalities).
+
+Per-country folds vary hugely in size (DK 9 units, AT 23, PT 24, CH 34 up to FR 1,375,
+NO 1,050) — small single-city folds give noisy Spearman; see `cv_report_by_country.csv`.
 
 Great Britain is **excluded by default** (`filters.require_non_null`): the UK is absent
 from the Eurostat 2021 census grid, so its units have no demographic covariates (including
