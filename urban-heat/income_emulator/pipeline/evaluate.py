@@ -1,0 +1,156 @@
+"""Spatially-honest cross-validation and metrics.
+
+The deployment scenario is: predict the income distribution of a city that has
+NO observed income. The correct test therefore holds out WHOLE cities (or whole
+countries), never individual zones. Per-zone random CV would leak the city's
+income level and grossly overstate skill.
+
+Headline metric is the per-city Spearman rank correlation between observed and
+predicted index: does the emulator order rich vs poor zones correctly? That is
+exactly what the downstream AC sigmoid needs.
+"""
+from __future__ import annotations
+import numpy as np
+import pandas as pd
+
+from . import features as F
+from . import model as M
+
+
+def _spearman(a, b, w=None):
+    a = pd.Series(np.asarray(a, float)).rank().values
+    b = pd.Series(np.asarray(b, float)).rank().values
+    if w is None:
+        w = np.ones_like(a, float)
+    w = np.asarray(w, float)
+    ma, mb = np.average(a, weights=w), np.average(b, weights=w)
+    cov = np.average((a - ma) * (b - mb), weights=w)
+    sa = np.sqrt(np.average((a - ma) ** 2, weights=w))
+    sb = np.sqrt(np.average((b - mb) ** 2, weights=w))
+    return cov / (sa * sb) if sa > 0 and sb > 0 else np.nan
+
+
+def _folds(train: pd.DataFrame, cfg: dict):
+    c = cfg["columns"]
+    scheme = cfg["validation"]["scheme"]
+    if scheme == "leave_one_city_out":
+        groups = train[c["city_id"]]
+    elif scheme == "leave_one_country_out":
+        groups = train[cfg["validation"]["group_column"]]
+    else:  # kfold over cities
+        cities = train[c["city_id"]].unique()
+        k = cfg["validation"]["kfold"]
+        rng = np.random.RandomState(cfg["model"]["params"].get("random_state", 42))
+        assign = {city: i % k for i, city in enumerate(rng.permutation(cities))}
+        groups = train[c["city_id"]].map(assign)
+    for g in pd.unique(groups):
+        te = groups == g
+        yield str(g), ~te.values, te.values
+
+
+def cross_validate(train: pd.DataFrame, cfg: dict):
+    """Returns (per_fold_df, oof_predictions_df)."""
+    c = cfg["columns"]
+    backend = M.resolve_backend(cfg["model"]["backend"])
+    X_all, feat_names = F.build_features(train, cfg)
+    y_all = F.build_target(train, cfg).values
+    pop_col = c.get("population")
+    if pop_col and pop_col in train.columns:
+        pop = pd.to_numeric(train[pop_col], errors="coerce").fillna(0.0).values
+    else:
+        pop = np.ones(len(train))
+    weight = F.sample_weights(train, cfg)   # TRAINING weights; the CV metric below uses pop
+
+    oof = np.full(len(train), np.nan)
+    for name, tr, te in _folds(train, cfg):
+        if tr.sum() == 0 or te.sum() == 0:
+            continue
+        mdl = M.make_model(backend, cfg["model"]["params"])
+        w_tr = weight[tr] if weight is not None else None
+        pred = M.fit_predict(mdl, X_all.values[tr], y_all[tr], X_all.values[te], w_tr)
+        oof[te] = pred
+
+    idx_obs = F.target_to_index(y_all, cfg)
+    idx_pred = F.target_to_index(oof, cfg)
+    df = train[[c["city_id"], c["subdivision_id"]]].copy()
+    df["__w"] = pop
+    df["index_obs"] = idx_obs
+    df["index_pred"] = idx_pred
+
+    rows = []
+    for city, g in df.groupby(c["city_id"]):
+        mask = np.isfinite(g["index_pred"])
+        if mask.sum() < 3:
+            continue
+        w = g["__w"][mask]
+        if w.sum() <= 0:
+            w = None
+        rows.append({
+            "fold": city,
+            "n_zones": int(mask.sum()),
+            "spearman": _spearman(g["index_obs"][mask], g["index_pred"][mask], w),
+            "wmae": float(np.average(np.abs(g["index_obs"][mask] - g["index_pred"][mask]),
+                                     weights=(w if w is not None else np.ones(int(mask.sum()))))),
+        })
+    per_fold = pd.DataFrame(rows)
+    return per_fold, df
+
+
+def per_group_skill(oof: pd.DataFrame, train: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Pool the out-of-fold predictions by the CV group (usually country) and score each.
+
+    cross_validate reports skill per held-out CITY; under leave-one-country-out this
+    rolls the same OOF predictions up to the held-out country, so each country gets
+    one honest Spearman over all its zones (the metric that matches the holdout unit).
+    Returns columns [<group>, n_cities, n_zones, spearman, wmae], sorted worst-first.
+    """
+    c = cfg["columns"]
+    grp = cfg["validation"].get("group_column") or c["city_id"]
+    if grp not in train.columns or oof.empty:
+        return pd.DataFrame()
+    o = oof.copy()
+    o[grp] = train[grp].values          # oof preserves train's row order
+    rows = []
+    for g, gg in o.groupby(grp):
+        m = np.isfinite(gg["index_pred"]).values
+        if m.sum() < 3:
+            continue
+        obs = gg["index_obs"].values[m]
+        pred = gg["index_pred"].values[m]
+        w = gg["__w"].values[m]
+        wv = w if w.sum() > 0 else None
+        rows.append({
+            grp: g,
+            "n_cities": int(pd.Series(gg[c["city_id"]].values[m]).nunique()),
+            "n_zones": int(m.sum()),
+            "spearman": _spearman(obs, pred, wv),
+            "wmae": float(np.average(np.abs(obs - pred),
+                                     weights=(wv if wv is not None else np.ones(int(m.sum()))))),
+        })
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values("spearman").reset_index(drop=True)
+
+
+def tail_hit_rate(oof: pd.DataFrame, cfg: dict, q: float = 0.2) -> dict:
+    """Within-city top/bottom-quantile hit-rate of the OOF predictions (random ~ q).
+
+    For each city, the fraction of its observed top-q (and bottom-q) units that the
+    model also places in that tail, pooled over cities. The extremes are what the
+    downstream AC / heat-equity step is most sensitive to.
+    """
+    c = cfg["columns"]
+    th = tt = bh = bt = 0
+    for _, g in oof.groupby(c["city_id"]):
+        gg = g[np.isfinite(g["index_pred"])]
+        n = len(gg)
+        if n < 5:
+            continue
+        k = max(1, int(round(q * n)))
+        ot = set(gg["index_obs"].nlargest(k).index); pt = set(gg["index_pred"].nlargest(k).index)
+        ob = set(gg["index_obs"].nsmallest(k).index); pb = set(gg["index_pred"].nsmallest(k).index)
+        th += len(ot & pt); tt += len(ot); bh += len(ob & pb); bt += len(ob)
+    return {"quantile": q,
+            "top_hit_rate": (th / tt) if tt else None,
+            "bottom_hit_rate": (bh / bt) if bt else None,
+            "n_zones_top": int(tt), "n_zones_bottom": int(bt)}

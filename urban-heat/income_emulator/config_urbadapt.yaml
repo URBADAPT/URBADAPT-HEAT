@@ -1,0 +1,147 @@
+# ============================================================================
+# URBADAPT-HEAT within-city income emulator - REAL DATA configuration
+# ============================================================================
+# Two stages:
+#   1) covariates.py  reads `covariate_sources` + a sub-city boundary layer and
+#      writes a per-unit predictor table.
+#   2) run.py         merges that predictor table with the harmonized income
+#      labels and trains / validates / predicts.
+# File paths below are the ones confirmed on 2026-06-22. Adjust if you move data.
+# ----------------------------------------------------------------------------
+
+# ---- STAGE 1: covariate extraction -----------------------------------------
+covariate_sources:
+  # Sub-city boundaries: per-country GeoPackages. covariates.py concatenates them,
+  # renames the key column to subcity_code, and assigns city/country by joining the
+  # code to the harmonized income file (io.income_labels). Verified join coverage
+  # 97-100% per country (DK keys on district name, not code).
+  boundaries_dir: "data/boundaries"
+  boundaries_manifest:
+    - {country: BE, file: BE_Brussels_statistical_sectors_2022.gpkg, layer: brussels_sectors,                key_col: boundary_code}
+    - {country: CH, file: CH_Zurich_statistical_quarters.gpkg,       layer: zurich_quarters,                 key_col: boundary_code}
+    - {country: DK, file: DK_Copenhagen_districts.gpkg,              layer: copenhagen_districts,            key_col: boundary_name}
+    - {country: ES, file: ES_target_cities_postal_codes.gpkg,        layer: ES_target_cities_postal_codes,   key_col: boundary_code}
+    - {country: FI, file: FI_Helsinki_postal_areas_2023.gpkg,        layer: helsinki_postal_areas,           key_col: boundary_code}
+    - {country: FR, file: FR_Paris_Marseille_Lyon_IRIS_current.gpkg, layer: target_iris,                     key_col: boundary_code}
+    - {country: GB, file: GB_core_cities_MSOA_2011.gpkg,             layer: target_msoa,                     key_col: boundary_code}
+    - {country: IT, file: IT_target_cities_CAP.gpkg,                 layer: target_cap,                      key_col: boundary_code}
+    - {country: NL, file: NL_target_cities_buurten_2023.gpkg,        layer: target_buurten,                  key_col: boundary_code}
+    - {country: PT, file: PT_Lisbon_freguesias.gpkg,                 layer: PT_Lisbon_freguesias,            key_col: boundary_code}
+    - {country: SE, file: SE_target_cities_RegSO_2020.gpkg,          layer: target_regso,                    key_col: boundary_code}
+    - {country: GR, file: GR_Athens_synoikia_districts.gpkg,         layer: GR_Athens_synoikia_districts,     key_col: boundary_code}
+    - {country: IE, file: IE_cities_ED_2022.gpkg,                    layer: IE_cities_ED_2022,                key_col: boundary_code}
+    - {country: "NO", file: NO_cities_delomrade_2023.gpkg,           layer: NO_cities_delomrade_2023,         key_col: boundary_code}  # quote: bare NO is YAML boolean false
+    - {country: AT, file: AT_Vienna_districts.gpkg,                  layer: AT_Vienna_districts,              key_col: boundary_code}
+  # Common working CRS for boundaries / overlays.
+  work_crs: "EPSG:3035"
+
+  # GHSL R2023A, global, EPSG:4326, 3 arc-sec (~100 m). On OneDrive.
+  ghs_pop:     "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_POP_E2020_GLOBE_R2023A_4326_3ss_V1_0.tif"
+  ghs_built_v: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_BUILT_V_E2020_GLOBE_R2023A_4326_3ss_V1_0.tif"
+  ghs_built_h: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/socioecon/GHS_BUILT_H_AGBH_E2018_GLOBE_R2023A_4326_3ss_V1_0.tif"
+
+  # Local Climate Zones, filtered hard classes (confirmed choice). On OneDrive.
+  lcz: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/climate/lcz/lcz_filter_v3.tif"
+
+  # Eurostat 2021 census grid V3 (1 km, EPSG:3035). Parquet table + GRD_ID cell codes.
+  census_parquet: "data/gisco/Eurostat_Census-GRID_2021_V3/Eurostat_Census-GRID_2021_V3/ESTAT_Census_2021_V3.parquet"
+
+  # EU facility point layers (accessibility predictors).
+  health_facilities:    "data/gisco/EU_health_facilites.gpkg"
+  education_facilities:  "data/gisco/EU_education_facilites.gpkg"
+
+  # City centres for distance-to-centre (GHS Urban Centre DB).
+  ucdb: "C:/Users/giaco/OneDrive - IIASA/IBGF_2024/implementation/boundaries/GHS_STAT_UCDB2015MT_GLOBE_R2019A_V1_2.gpkg"
+
+  # Where covariates.py writes the per-unit predictor table.
+  out_table: "data/covariates_subcity.csv"
+
+# ---- STAGE 2: emulator ------------------------------------------------------
+io:
+  # Predictor table (from stage 1) merged with income labels on city+subcity_code.
+  subdivisions: "data/covariates_subcity.csv"
+  # Athens-inclusive labels: produced by `python athens_ingest.py` from the
+  # 36-city income_subcity_harmonized.csv + the rasterized Athens income layer
+  # (population-weighted onto the synoikia districts). Run athens_ingest.py before
+  # covariates.py so the GR boundaries get joined to the Athens income rows.
+  income_labels: "data/income/income_subcity_harmonized_athens.csv"
+  merge_on: ["city", "subcity_code"]
+  out_dir: "results"
+
+filters:
+  # Drop sub-city units with no census coverage. share_under15 marks the Eurostat
+  # 2021 demographic census block; it is absent only for GB (the UK is not in the
+  # grid), so this drops exactly the 1443 GB units. Countries that merely lack the
+  # employment variable (FR, CH) keep their other census covariates and stay in.
+  require_non_null: ["share_under15"]
+
+columns:
+  subdivision_id: "subcity_code"
+  city_id: "city"
+  group: "country"            # used for leave-one-country-out
+  population: "pop_zone"      # from GHS-POP (covariates.py); optional
+  income: "inc_level"         # fallback only; not used when precomputed target set
+
+target:
+  # DEFAULT: model the within-city percentile rank directly (0-1). The A/B in
+  # cv_compare.py showed it transfers marginally better than the log relative
+  # index across countries, and it is exactly the p_inc the downstream
+  # AC-downscaling consumes. To revert to the log income-ratio: set
+  # precomputed_column: inc_rel_to_city_median, log_ratio: true, and
+  # postprocess.renormalise_mode: median.
+  precomputed_column: "inc_pct_within_city"
+  precomputed_rank_column: "inc_pct_within_city"   # for QA / training reference
+  reference: "median"
+  log_ratio: false            # rank is already a within-city quantity; no log
+
+features:
+  predictors:
+    - pop_density
+    - built_volume_pc
+    - mean_building_height
+    - lcz_compact_share
+    - lcz_open_share
+    - lcz_industrial_share
+    - lcz_vegetation_share
+    - share_under15
+    - share_65plus
+    - employment_rate
+    - foreign_born_share
+    - residential_churn
+    - health_fac_pc
+    - education_fac_pc
+    - dist_to_centre
+    - unit_area_km2          # MAUP control: zones differ hugely in size across cities
+  within_city_transform: "zscore_within"
+  context:
+    - city_population
+  categorical_context:
+    - country
+
+model:
+  backend: "auto"            # lightgbm -> sklearn -> ridge
+  params:
+    n_estimators: 800
+    learning_rate: 0.03
+    num_leaves: 31
+    min_child_samples: 20
+    subsample: 0.8
+    colsample_bytree: 0.8
+    random_state: 42
+    alpha: 1.0
+  weight_by_population: true   # back-compat; ignored when sample_weight is set
+  # Training sample weights. equal_country gives each country equal total weight so
+  # large folds (e.g. NO's 1050 units) don't dominate the pooled fit -- this recovered
+  # France's leave-one-country-out skill (0.41 -> 0.51) and lifted the overall
+  # (0.57 -> 0.60) in eval_variants.py. Options: population | uniform | sqrt_pop |
+  # equal_city | equal_country. The emitted p_inc percentile stays population-weighted.
+  sample_weight: "equal_country"
+
+validation:
+  scheme: "leave_one_country_out"   # honest test for transfer to new countries
+  group_column: "country"
+  kfold: 5
+
+postprocess:
+  renormalise_mode: "none"          # rank target is already within-city; no rescaling
+  emit_rank: true

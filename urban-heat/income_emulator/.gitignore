@@ -1,0 +1,5 @@
+# Claude Code agent memory (session-local notes, not shared)
+memory/
+
+# Heavy inputs/outputs live in data/ (also ignored at repo root); never commit.
+data/
