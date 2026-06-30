@@ -1,8 +1,8 @@
 {
   "backend": "lightgbm",
   "cv_scheme": "leave_one_country_out",
-  "n_train_cities": 145,
-  "n_train_zones": 5135,
+  "n_train_cities": 149,
+  "n_train_zones": 5450,
   "n_predicted_zones": 0,
   "features": [
     "pop_density__zw",
@@ -25,6 +25,7 @@
     "country_AT",
     "country_BE",
     "country_CH",
+    "country_DE",
     "country_DK",
     "country_ES",
     "country_FI",
@@ -37,113 +38,120 @@
     "country_PT",
     "country_SE"
   ],
-  "cv_zone_weighted_spearman": 0.5915458854940184,
-  "cv_by_country_zone_weighted_spearman": 0.5968842026656195,
+  "cv_zone_weighted_spearman": 0.625595693701984,
+  "cv_by_country_zone_weighted_spearman": 0.6271987241446018,
   "cv_by_country": [
     {
       "country": "CH",
       "n_cities": 1,
       "n_zones": 34,
-      "spearman": -0.036483138351846495,
-      "wmae": 0.24895077830853962
+      "spearman": 0.01460498987584425,
+      "wmae": 0.24369289155792237
     },
     {
       "country": "PT",
       "n_cities": 1,
       "n_zones": 24,
-      "spearman": 0.4698286543814669,
-      "wmae": 0.2198978547809611
-    },
-    {
-      "country": "FR",
-      "n_cities": 3,
-      "n_zones": 1375,
-      "spearman": 0.5067328379770739,
-      "wmae": 0.213975696764059
+      "spearman": 0.4852121755675012,
+      "wmae": 0.22033892344159137
     },
     {
       "country": "IE",
       "n_cities": 5,
       "n_zones": 719,
-      "spearman": 0.5106815558951996,
-      "wmae": 0.20271488702969534
-    },
-    {
-      "country": "NO",
-      "n_cities": 109,
-      "n_zones": 1050,
-      "spearman": 0.5430560883008757,
-      "wmae": 0.2203805522451245
+      "spearman": 0.487176979757076,
+      "wmae": 0.20258349570787643
     },
     {
       "country": "ES",
       "n_cities": 4,
       "n_zones": 130,
-      "spearman": 0.57733367884027,
-      "wmae": 0.1883424870391547
+      "spearman": 0.5061664351409206,
+      "wmae": 0.2058132268997483
+    },
+    {
+      "country": "NO",
+      "n_cities": 109,
+      "n_zones": 1050,
+      "spearman": 0.5646809216886189,
+      "wmae": 0.21622242759166674
+    },
+    {
+      "country": "DE",
+      "n_cities": 2,
+      "n_zones": 124,
+      "spearman": 0.5864258968329515,
+      "wmae": 0.21735666257691075
     },
     {
       "country": "GR",
       "n_cities": 1,
       "n_zones": 53,
-      "spearman": 0.6355075094139881,
-      "wmae": 0.17477273781521221
+      "spearman": 0.5999401213185981,
+      "wmae": 0.17840823670187755
+    },
+    {
+      "country": "FR",
+      "n_cities": 5,
+      "n_zones": 1566,
+      "spearman": 0.6369617365251039,
+      "wmae": 0.19256518547889065
     },
     {
       "country": "SE",
       "n_cities": 3,
       "n_zones": 362,
-      "spearman": 0.71846684084768,
-      "wmae": 0.1559001700376933
+      "spearman": 0.7177843727392327,
+      "wmae": 0.1544301644226636
     },
     {
       "country": "IT",
       "n_cities": 11,
       "n_zones": 331,
-      "spearman": 0.7248017474445753,
-      "wmae": 0.15494616010775866
+      "spearman": 0.7184924651087646,
+      "wmae": 0.15485937595005808
     },
     {
       "country": "NL",
       "n_cities": 3,
       "n_zones": 291,
-      "spearman": 0.7498955554467988,
-      "wmae": 0.14755354249284441
+      "spearman": 0.7369442398795912,
+      "wmae": 0.15308053938218824
     },
     {
       "country": "BE",
       "n_cities": 1,
       "n_zones": 651,
-      "spearman": 0.7594384152915887,
-      "wmae": 0.13665307395749093
+      "spearman": 0.7466463890416883,
+      "wmae": 0.13882791994914043
     },
     {
       "country": "DK",
       "n_cities": 1,
       "n_zones": 9,
       "spearman": 0.7968570743337869,
-      "wmae": 0.2046855094727079
-    },
-    {
-      "country": "AT",
-      "n_cities": 1,
-      "n_zones": 23,
-      "spearman": 0.8399328469051266,
-      "wmae": 0.11431405200235793
+      "wmae": 0.17264893454321434
     },
     {
       "country": "FI",
       "n_cities": 1,
       "n_zones": 83,
-      "spearman": 0.8793313359863019,
-      "wmae": 0.12812035332956784
+      "spearman": 0.8437835859420394,
+      "wmae": 0.1315889773034803
+    },
+    {
+      "country": "AT",
+      "n_cities": 1,
+      "n_zones": 23,
+      "spearman": 0.8572409408953239,
+      "wmae": 0.12127637457442532
     }
   ],
   "cv_tail_hit_rate": {
     "quantile": 0.2,
-    "top_hit_rate": 0.45330739299610895,
-    "bottom_hit_rate": 0.5369649805447471,
-    "n_zones_top": 1028,
-    "n_zones_bottom": 1028
+    "top_hit_rate": 0.445970695970696,
+    "bottom_hit_rate": 0.5897435897435898,
+    "n_zones_top": 1092,
+    "n_zones_bottom": 1092
   }
 }
