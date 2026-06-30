@@ -103,11 +103,25 @@ def main():
     out.to_csv(args.out, index=False)
 
     # persist a reproducible eval summary alongside the predictions
+    import hashlib
+    from datetime import datetime, timezone
+
+    def _sha(p, n=1 << 20):
+        try:
+            with open(p, "rb") as f:
+                return hashlib.sha256(f.read(n)).hexdigest()[:16]
+        except Exception:
+            return None
+
     summary = {"city": args.city, "country": args.country,
                "excluded_from_training": args.exclude,
                "sample_weight": cfg["model"].get("sample_weight"),
                "n_target_units": int(len(out)),
-               "n_train_cities": int(len(train_cities)), "n_train_zones": int(len(train))}
+               "n_train_cities": int(len(train_cities)), "n_train_zones": int(len(train)),
+               # provenance: traces this p_inc CSV back to its inputs
+               "boundary": args.boundary, "boundary_layer": args.layer,
+               "boundary_sha256_1mb": _sha(args.boundary), "config": args.config,
+               "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     v = out.dropna(subset=["inc_pct_observed"])
     if len(v) >= 3:
         obs = v["inc_pct_observed"].to_numpy()

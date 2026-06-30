@@ -1,0 +1,8 @@
+{
+  "income_source": "emulator",
+  "n_income_zones": 72,
+  "n_ac_zones": 118,
+  "n_matched": 72,
+  "match_rate": 0.6102,
+  "emulator_csv": "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/income_emulator/data/emulated/rome_p_inc.csv"
+}

@@ -1,0 +1,9 @@
+{
+  "city": "Munich",
+  "country": "DE",
+  "excluded_from_training": "Munich",
+  "sample_weight": "equal_country",
+  "n_target_units": 25,
+  "n_train_cities": 145,
+  "n_train_zones": 5135
+}

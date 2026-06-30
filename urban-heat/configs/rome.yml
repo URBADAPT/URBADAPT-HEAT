@@ -192,6 +192,19 @@ urbclim:
 cooling_city_aliases: ["rome", "roma"]
 
 income:
+  # Income source for NB05 AC downscaling: observed (default) | emulator.
+  # `emulator` drives AC off the within-city income emulator's prediction instead of
+  # the measured IRPEF table (for cities with no sub-city income, or for testing).
+  # Validated on Rome: with aggregation=mean the recomputed p_inc reproduces the
+  # emulator's emitted p_inc to machine precision (72/72 CAP zones). Keep `observed`
+  # for the paper; flip to `emulator` only for emulator tests.
+  source: observed
+  emulator:
+    csv: "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/income_emulator/data/emulated/rome_p_inc.csv"
+    city: "Roma"
+    columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}
+    aggregation: mean          # index_pred is already a per-zone mean; do NOT use weighted
+    min_coverage: 0.6          # Rome: 118 AC CAPs vs 72 income-covered (partial; city-mean fills the rest)
   city_aliases: ["Roma", "Roma Capitale"]
   columns:
     city: "Denominazione Comune"    # filter column

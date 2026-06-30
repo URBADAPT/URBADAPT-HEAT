@@ -15,8 +15,7 @@ OUTPUT_VARIANT = "masselot_main_agnostic"
 IF_MAIN_FAMILY = "masselot_tail"
 NB_NUMS = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10"]
 
-# Per-notebook base city. Copenhagen is the most-evolved superset for the
-# de-drift-heavy notebooks; Rome (warm consensus) for the trivial ones.
+# Per-notebook base city. 
 BASE_BY_NB = {
     "01": "Rome", "02": "Rome", "09": "Rome",
     "03": "Copenhagen", "04": "Copenhagen", "05": "Copenhagen",
@@ -101,7 +100,7 @@ def upsert_cell(nb: NotebookNode, predicate, source: str, tag: str, fallback_ind
     return fallback_index
 
 
-# Genericisation (surgical, safe). Order matters: neutralise the SLUG fallback
+# Genericisation. Order matters: neutralise the SLUG fallback
 # (which contains a quoted city name) BEFORE blanket capital-city replacement.
 # Only CAPITAL city names (comments / display strings) are touched; the lowercase
 # slug logic ("copenhagen") and runtime f"{CITY}" titles are left intact.
@@ -165,6 +164,104 @@ def apply_nb03_dual(nb: NotebookNode) -> None:
         return
     raise RuntimeError("NB03 save cell not found for dual city-mean transform.")
 
+# NB05: explicit, config-driven income-source switch (observed | emulator).
+# `observed` reproduces prior behaviour byte-for-byte (EFF_* == the original
+# expressions); `emulator` redirects the income load to the within-city income
+# emulator's per-zone prediction CSV (income_index_pred fed as the per-zone
+# income; the downstream percentile-rank + AC sigmoid are UNCHANGED). Proven
+# order-exact: weighted_percentile_rank(income_index_pred, pop) reproduces the
+# emulator's emitted p_inc (Spearman 1.0).
+NB05_INCOME_ANCHOR = 'income_csv = P(files["income_csv"])'
+NB05_SWITCH_MARKER = "Income source switch (config-driven"
+NB05_SWITCH_TAG = "agnostic-income-switch"
+NB05_OVERRIDE_TAG = "agnostic-income-emulator-override"
+NB05_REPLACEMENTS = [
+    ('inc_format  = inc_cfg.get("format", "tabular")  # "tabular" or "raster"',
+     'inc_format  = EFF_INCOME_FORMAT  # "tabular" or "raster" (emulator forces tabular; see income-source switch)'),
+    ('income_csv = P(files["income_csv"])',
+     'income_csv = (Path(EFF_INCOME_CSV) if Path(str(EFF_INCOME_CSV)).is_absolute() else P(EFF_INCOME_CSV))'),
+    ('inc_cols = inc_cfg.get("columns", {})',
+     'inc_cols = EFF_INCOME_COLS'),
+    ('aggregation  = inc_cfg.get("aggregation", "mean")',
+     'aggregation  = EFF_INCOME_AGG'),
+    ('city_aliases = [c.upper() for c in inc_cfg.get("city_aliases", [CITY])]',
+     'city_aliases = [str(c).upper() for c in EFF_CITY_ALIASES]'),
+    # Emulator: don't let the (observed-style) income load filter the OSM zones by income
+    # keys -- inc_agg is rebuilt from the emulator after the zones load (override cell below).
+    ('# Load zone boundaries',
+     'if INCOME_SOURCE == "emulator":\n'
+     '    income_names = None  # emulator: zones not filtered by income keys; inc_agg rebuilt after load\n\n'
+     '# Load zone boundaries'),
+]
+
+
+def nb05_switch_cell_source() -> str:
+    return (
+        "# === Income source switch (config-driven, explicit): observed | emulator ===\n"
+        "# observed : load the city's measured sub-city income table (default; reproduces prior results).\n"
+        "# emulator : the per-zone income is the within-city income emulator's prediction; inc_agg is\n"
+        "#            (re)built below by cityheat.income_source with the correct join key + coverage assert.\n"
+        "from cityheat.income_source import resolve_income_inputs\n"
+        "INCOME_SPEC   = resolve_income_inputs(cfg)\n"
+        "INCOME_SOURCE = INCOME_SPEC['source']\n"
+        "EFF_INCOME_CSV    = INCOME_SPEC['csv']\n"
+        "EFF_INCOME_COLS   = INCOME_SPEC['columns']\n"
+        "EFF_INCOME_AGG    = INCOME_SPEC['aggregation']\n"
+        "EFF_INCOME_FORMAT = INCOME_SPEC['format']\n"
+        "EFF_CITY_ALIASES  = INCOME_SPEC['city_aliases'] or [CITY]\n"
+        "print(f'[income] source={INCOME_SOURCE}  ->  {EFF_INCOME_CSV}')\n"
+        "INCOME_SOURCE_NOTE = INCOME_SOURCE  # provenance, recorded alongside AC outputs\n"
+    )
+
+
+def nb05_override_cell_source() -> str:
+    return (
+        "# === income.source: rebuild inc_agg (emulator) + record provenance (both modes) ===\n"
+        "# emulator -> build inc_agg from the prediction, keyed to the AC zones via cityheat\n"
+        "# (correct match_by join + loud coverage assert). observed -> keep the cell-above's inc_agg.\n"
+        "if INCOME_SOURCE == 'emulator':\n"
+        "    from cityheat.income_source import load_emulator_inc_agg\n"
+        "    _min_cov = float((cfg.get('income', {}).get('emulator', {}) or {}).get('min_coverage', 0.95))\n"
+        "    inc_agg = load_emulator_inc_agg(INCOME_SPEC, zone_match,\n"
+        "                                    zone_codes=zone_ref['zone_code'], min_coverage=_min_cov)\n"
+        "# Provenance: record the income source + zone match-rate alongside the AC outputs.\n"
+        "import json as _json\n"
+        "_zk = set(zone_ref['zone_code']); _ik = set(inc_agg['zone_code'])\n"
+        "_prov = {'income_source': INCOME_SOURCE, 'n_income_zones': int(len(inc_agg)),\n"
+        "         'n_ac_zones': int(len(_zk)), 'n_matched': int(len(_zk & _ik)),\n"
+        "         'match_rate': round(len(_zk & _ik) / max(1, len(_zk)), 4),\n"
+        "         'emulator_csv': (INCOME_SPEC.get('csv') if INCOME_SOURCE == 'emulator' else None)}\n"
+        "(INT / f'income_provenance_{SLUG}.json').write_text(_json.dumps(_prov, indent=2))\n"
+        "print('[income provenance]', _prov)\n"
+    )
+
+
+def apply_nb05_income_switch(nb: NotebookNode) -> None:
+    """Insert the income-source resolver cell and rewire the income-load cell.
+
+    Idempotent and order-safe: asserts each anchor is present exactly once (so it
+    fails loud if the base notebook drifts), and is a no-op if already applied.
+    """
+    for c in nb.cells:
+        if c.cell_type == "code" and NB05_SWITCH_MARKER in str(c.source):
+            return  # already applied
+    for i, c in enumerate(nb.cells):
+        if c.cell_type != "code" or NB05_INCOME_ANCHOR not in str(c.source):
+            continue
+        s = str(c.source)
+        for a, b in NB05_REPLACEMENTS:
+            if s.count(a) != 1:
+                raise RuntimeError(f"NB05 switch: expected exactly one {a!r}, found {s.count(a)} (base changed).")
+            s = s.replace(a, b, 1)
+        c.source = s
+        # override cell AFTER the income/zone cell, resolver cell BEFORE it.
+        nb.cells.insert(i + 1, new_code_cell(source=nb05_override_cell_source(),
+                                             metadata={"tags": [NB05_OVERRIDE_TAG]}))
+        nb.cells.insert(i, new_code_cell(source=nb05_switch_cell_source(),
+                                         metadata={"tags": [NB05_SWITCH_TAG]}))
+        return
+    raise RuntimeError("NB05 income anchor not found (base changed).")
+
 # Template build + city stamp
 def build_template(root: Path, num: str) -> NotebookNode:
     base_city = BASE_BY_NB[num]
@@ -176,6 +273,8 @@ def build_template(root: Path, num: str) -> NotebookNode:
                 SEL_TAG, env_i + 1)
     if num == "03":
         apply_nb03_dual(nb)
+    if num == "05":
+        apply_nb05_income_switch(nb)
     return nb
 
 

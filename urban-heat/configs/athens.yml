@@ -189,6 +189,7 @@ urbclim:
 cooling_city_aliases: ["Athens", "Αθήνα"]
 
 income:
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
   city_aliases: ["Athens", "Αθήνα"]
   format: "raster"                      # raster-based income (lon/lat grid cells)
   columns:

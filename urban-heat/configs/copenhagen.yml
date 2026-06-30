@@ -184,6 +184,7 @@ urbclim:
 cooling_city_aliases: ["copenhagen", "kobenhavn", "københavn"]
 
 income:
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
   city_aliases: ["Copenhagen", "København"]
   format: "tabular"
   columns:
