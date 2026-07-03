@@ -37,7 +37,7 @@ ac:
     year: year
     value: value
 
-  tariff_eur_per_kwh: 0.31
+  tariff_eur_per_kwh: 0.30
   capex_per_user: 500.0
   maint_rate: 0.05
   lifetime_years: 10
@@ -80,7 +80,7 @@ electricity_feedback:
   source: "Falchetta_DeCian_Lunghi_2026"
   pct_reduction_per_gvi_point: 0.008
   summer_months: 3
-  co2_intensity_gCO2_per_kwh: 130
+  co2_intensity_gCO2_per_kwh: 76
 
 cba:
   discount_rate: 0.03

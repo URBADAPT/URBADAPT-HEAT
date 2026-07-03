@@ -40,7 +40,7 @@ ac:
     year: year
     value: value
 
-  tariff_eur_per_kwh: 0.25
+  tariff_eur_per_kwh: 0.17
   capex_per_user: 500.0
   maint_rate: 0.05
   lifetime_years: 10
@@ -98,7 +98,7 @@ electricity_feedback:
   # Calibrated from paper Figure 5 at ~30°C: 0.8%/point
   pct_reduction_per_gvi_point: 0.008
   summer_months: 3                    # Number of summer months (JJA)
-  co2_intensity_gCO2_per_kwh: 372     # Italy (paper value)
+  co2_intensity_gCO2_per_kwh: 180     
 
 cba:
   discount_rate: 0.03
