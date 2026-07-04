@@ -1,0 +1,405 @@
+slug: athens # city name 
+city_name: Athens 
+wp_iso3: GRC
+wp_country: Greece
+base_dir: data/athens                
+drive_manifest: data_manifests/athens_gdrive.json # all the data from the drive 
+
+# demo / exposure scenario from Wittgenstein population runs scenarios 
+# available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
+exp_scenario: SSP2   
+
+layers:                             
+  fua: fua
+  cap: cap
+  cap_wgs84: cap_wgs84
+  regions: regions
+  muni: muni
+
+ac:
+  ssp: 2 # AC data scenarios could be 1,3,5
+  years: [2020, 2030, 2040, 2050]
+  year: 2050
+
+  # AC electricity consumption at NUTS level
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_format: nuts_csv
+  kwh_nuts_ids: ["EL30", "EL3"]
+  kwh_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  # AC penetration
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv
+  penetration_format: nuts_csv
+  penetration_nuts_ids: ["EL30", "EL3"]
+  nuts_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  tariff_eur_per_kwh: 0.14   # GRC ely_prices.xlsx (2021 USD @ 0.846 EUR/USD)
+  capex_per_user: 1349   # €1543 2018 installed (product+€800) x PLI 87.4/100 [CALIB_AC S5]
+  maint_rate: 0.04   # prEN 15459:2006 via Lot-10: 4%/yr of purchase+install [CALIB_AC S3]
+  lifetime_years: 12   # Lot-10 Task4 / 2018 review; UQ range 9-16 [CALIB_AC S3]
+
+  # AC waste heat feedback (Salamanca et al. 2014 + Kou et al. 2026)
+  waste_heat:
+    enabled: true
+    lut_case_default: central          # low / central / high
+    lut_case_options: [low, central, high]
+    dailymean_from_night_default: 0.50
+    dailymean_from_night_range: [0.33, 0.67]  # for UQ sampling
+    activation:
+      method: kou_cdd_share
+      temperature_metric: citymean_dailymean
+      t_on_c: 18.0
+      t_full_c: 25.0
+
+    # Salamanca 2014 LUT: penetration → nighttime ΔT (°C)
+    lut:
+      0.00: {low: 0.00, central: 0.00, high: 0.00}
+      0.35: {low: 0.25, central: 0.375, high: 0.50}
+      0.65: {low: 0.50, central: 0.750, high: 1.00}
+      1.00: {low: 1.00, central: 1.250, high: 1.50}
+
+    # COP degradation feedback (Kou et al. 2026)
+    cop_degradation:
+      enabled: true
+      # COP sensitivity: fractional drop per °C of outdoor T rise
+      # Kou et al. 2026 Fig.2a: 4-9% per °C
+      sensitivity_per_C: {low: 0.04, central: 0.065, high: 0.09}
+      # Reference COP (typical residential split AC)
+      cop_ref: 3.0
+
+trees:
+  capex_per_index_pt_eur: 10000000
+  capex_per_tree_eur: 612   # park/low-engineering base x PLI 87.4/100 [D5.1/Prague; CALIB_AC S7]
+  om_per_tree_per_year_eur: 57   # park/low-engineering O&M base x PLI/100 [D5.1/Vogt; CALIB_AC S7]
+  lifetime_years: 25
+  ramp_years: 12
+  cap_uplift_0_1: 0.12
+  focus_year: 2050
+
+  # vegetation policy regions (NB07)
+  # Athens: use NB05 regions (7 municipal communities), like Rome uses Municipi
+  veg_regions: regions
+  veg_region_label: Community
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
+  
+electricity_feedback:
+  enabled: true
+  source: "Falchetta_DeCian_Lunghi_2026"
+  pct_reduction_per_gvi_point: 0.008   # PLACEHOLDER = flat 0.008 (Falchetta 2026 Fig5 @~30C); recompute per-city from JJA-Tmax once city_summer_tmax.csv is filled [calibration/gen_gvi_reduction.py]
+  summer_months: 3
+  co2_intensity_gCO2_per_kwh: 285     # GRC EEA 2024 grid emission intensity (gCO2e/kWh)
+
+cba:
+  discount_rate: 0.03
+  horizon_years: 25
+
+climate:
+  # which climate scenario to use from climate_change_provide_markups_avg.csv
+  t2m_clim_scen_default: CurPol     # default scenario
+  t2m_clim_scen_options: [CurPol, GS, SP, ssp585] # other scenario available 
+  # baseline year construction mode for UrbClim 2008-2017 data
+  # options:
+  # - climatology_mean: month/day climatological mean (current default)
+  # - pixelwise_doy_max: pixelwise month/day maxima (extreme sensitivity)
+  # - domain_peak_day: daily sequence from the year containing the hottest domain-mean day
+  # - warmest_summer: daily sequence from the year with highest JJA domain-mean temperature
+  t2m_baseline_mode_default: climatology_mean
+  t2m_baseline_mode_options: [climatology_mean, pixelwise_doy_max, domain_peak_day, warmest_summer]
+
+  # uncertainty band for future climate deltas (across-GCM spread)
+  # low = GCM p25, central = GCM median, high = GCM p75
+  # (PROVIDE within-month percentiles are NOT uncertainty — see build_delta_bands.py)
+  # requires climate_change_provide_markups_bands.csv (built by scripts/build_delta_bands.py)
+  t2m_delta_pct_band_default: central
+  t2m_delta_pct_band_options: [low, central, high]
+
+  # using mean daily temperature (tas)
+  t2m_var: tas
+
+  # optional: years for which to build future T2M (if omitted, we’ll fall back to ac.years)
+  years: [2020, 2030, 2040, 2050]
+
+  urbclim_api: # for the API of historical UrbClim data 2008-2017
+    enabled: true
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Athens/" 
+    local_dir: "UrbClim/UrbClimT2Mmean"
+    years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
+
+efficacy_scenarios:
+  sera_spain:
+    "<15": 0.10
+    "15-64": 0.14
+    "65+": 0.20
+  moderate:
+    "<15": 0.20
+    "15-64": 0.30
+    "65+": 0.40
+  optimistic:
+    "<15": 0.30
+    "15-64": 0.40
+    "65+": 0.55
+  flat_30:
+    "<15": 0.30
+    "15-64": 0.30
+    "65+": 0.30
+
+efficacy:
+  "<15": 0.20
+  "15-64": 0.30
+  "65+": 0.40
+  default: 0.30
+
+files:                               
+  gvi_csv: gvi/gvi_356_cities.csv
+  lcz_candidates:
+    - "LCZ/lcz_filter_v3.tif"
+    - "LCZ/lcz_v3.tif"
+  cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
+  income_csv: "income/df_gr_athens_income_raster_2013.csv"
+  # daily baselines (UrbClim mean daily temperature)
+  t2m_mean_daily_nc:
+    dir: "UrbClimT2Mmean"
+    pattern: "T2M_year_daily_mean_*.nc"
+
+  # single climate deltas table (long format: city, year, clim_scen, var, month, delta)
+  t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
+
+osm:
+  query: "Athens, Αθήνα"
+  admin_levels: [10, 8, 7]
+  boundary_tag: "administrative"
+  keep_outside_bucket: true
+  min_samples: 10
+
+urbclim:
+  folder: "UrbClim/UrbClimWBGTmax"
+  variable_candidates: ["wbgt_max","WBGT_max","wbgt","WBGT"]
+  thresh_wbgt: 28.0
+  hot_months: [6, 7, 8, 9]
+  f_bounds: [0.4, 1.0]
+
+cooling_city_aliases: ["Athens", "Αθήνα"]
+
+income:
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
+  city_aliases: ["Athens", "Αθήνα"]
+  format: "raster"                      # raster-based income (lon/lat grid cells)
+  columns:
+    city: "municipality"                # filter column
+    zone_id: null                       # no zone IDs — raster points spatial-joined to zones
+    zone_name: null                     # no zone names
+    income: "income_main_eur"           # income measure (per-person)
+    count: null                         # no taxpayer count (each raster cell is pre-aggregated)
+    year: "year"                        # year column
+    lon: "lon"                          # longitude column (raster format only)
+    lat: "lat"                          # latitude column (raster format only)
+  aggregation: "mean"                   # spatial mean within each zone
+
+zones:
+  source: "shapefile"                   # Athens uses official City of Athens districts
+  shapefile: "boundaries/synoikia0/synoikia0.shp"
+  shapefile_zone_col: "name"            # district name (53 zones)
+  osm_admin_level: null
+  match_by: "spatial_join"              # raster income → spatial join to zone polygons
+  cache_file: "districts_athens.gpkg"
+
+regions:
+  enabled: true                         # Athens uses separate reporting regions, like Rome
+  source: "shapefile"
+  shapefile: "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.shp"
+  shapefile_id_col: "no"               # official 1..7 community IDs
+  shapefile_name_col: "name"           # community label
+  osm_admin_level: null
+  cache_file: "communities_athens.gpkg"
+  raster_cache_file: "communities_on_ref_athens.npz"
+
+vulnerability: 
+    enabled: true 
+    weights:
+        thermal: 0.333 
+        foreign_born: 0.333
+        unemployment: 0.333 
+    svi_min_valid_components: 2
+    files:
+        ghs_age: "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
+        census_pop: "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"
+        census_oth: "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff"
+        census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
+        census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
+    census_nodata: -9999
+    dynamic:
+        enabled: true   # DRMKC and GVI inputs are now in place; projected vulnerability is the active workflow
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            # Conservative city-core anchor matching the current Athens policy focus.
+            region_id: "EL303"
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "GRC"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # Athens: strongest persistence because the baseline pattern is structurally old and slower to turn over
+        k:
+            default: 0.90
+            foreign_born: 0.90
+            unemployment: 0.90
+        phi:
+            default_2030: 0.95
+            default_2050: 0.85
+            foreign_born_2030: 0.96
+            foreign_born_2050: 0.85
+            unemployment_2030: 0.94
+            unemployment_2050: 0.80
+        thermal_projection:
+            retrofit_rate_per_year: 0.0093   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
+            new_build_vulnerability: 0.18
+            growth_sensitivity: 0.60
+            growth_cap: 0.25
+
+ews:
+  # ARCHETYPE B: Upgrade basic threshold system to comprehensive HHAP
+  # Context: Greece currently has basic temperature-threshold alerts
+  # from EMY/GSCP. No epidemiological model, no systematic HHAP.
+  # Bittner et al. 2014: Greece scored 8/20 (non-functional HHAP)
+  # Lowe et al. 2011: Greece absent from 12 EU countries with HEWS
+  # Urban et al. 2025: Greece absent from MCC efficacy analysis
+  #
+  # Policy modeled: establish comprehensive heat-health action plan
+  # including epidemiological forecasting, tiered alerts, targeted
+  # interventions for vulnerable groups, and healthcare protocols.
+  archetype: weak_threshold
+  operational_trigger_mode: epi_deaths_file
+  warning_season:
+    mode: exact_dates
+    start_md: "05-01"
+    end_md: "09-30"
+
+  alert_tiers:
+    levels: ["advisory", "watch", "warning"]
+    source: "Upgrade path from basic threshold alerts to structured HHAP"
+  targeting:
+    primary_groups: ["65+", "chronic conditions", "outdoor workers"]
+    channels: ["civil protection alerts", "health services", "municipal support"]
+  cost_components:
+    model_default: pavanello
+    source_note: "See pavanello/chiabai subsections below"
+
+  # Threshold 
+  threshold_method: epi_deaths_file
+  threshold_file: null
+  threshold_key: threshold_deaths_per_day
+  threshold_unit: heat_deaths_per_day
+  target_activation_days: 23
+  target_activation_days_options: [23, 30] # sensitivity for notebook 9 
+  threshold_ref_year: 2020
+  threshold_recalib_interval: 5   # recalibrate every N years (GHHIN guidance)
+  threshold_recalib_interval_options: [3, 5, 7]
+  warning_months: [5, 6, 7, 8, 9]
+
+  # Interpretation 
+  # Counterfactual: Greece has no effective HHAP (Bittner 2014: 8/20).
+  # We model the FULL benefit of establishing a comprehensive system.
+  interpretation: counterfactual
+
+  # Efficacy (counterfactual, flat) 
+  # Sources: Pavanello 2024 
+  #   Takacs 2025 (20% medium / 40% high for new systems),
+  #   Ahmedabad HAP (23% reduction, Knowlton 2014 via Takacs),
+  #   de'Donato 2018 (20-35% Italy overall)
+  # Conservative for Greece: new system, limited institutional capacity,
+  #   no prior epidemiological infrastructure
+  efficacy_counterfactual:
+    low: 0.10
+    central: 0.20
+    high: 0.35
+
+  # Marginal efficacy (age-differentiated, for sensitivity) 
+  # Not the primary interpretation for Athens (no baseline system to enhance).
+  # Provided for sensitivity if one assumes some baseline effect of EMY alerts.
+  efficacy_marginal:
+    "<15":   {low: 0.02, central: 0.05, high: 0.08}
+    "15-64": {low: 0.03, central: 0.07, high: 0.12}
+    "65+":   {low: 0.05, central: 0.10, high: 0.18}
+
+  # Ramp-up 
+  # Longer ramp than Rome (5 years vs 3): building from near-scratch,
+  # institutional capacity needs development. Pavanello 2024 Figure 4c:
+  # Italy's effects not significant in initial years even with existing
+  # infrastructure. Athens starts from weaker base => 5-year ramp.
+  ramp_years: 5
+  ramp_initial_efficacy: 0.05
+
+  # Costs 
+  # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
+  cost_model: pavanello
+
+  # Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS):
+  # $0.014/capita/activation day operating costs
+  pavanello:
+    usd_per_capita_per_day: 0.014   # Pavanello & Valenti 2025 (WP 35.2025) via Ebi 2004 [CALIB_EWS S6]
+    eur_usd_rate: 0.92
+    cost_source: "Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS)"
+
+  # Chiabai et al. 2018 (Madrid) Table 4 — for sensitivity analysis
+  # Athens needs FULL system → use basic + enhanced (not incremental)
+  chiabai:
+    opex_per_warning_day_basic: 7442   # Chiabai 2018 €7800 Madrid x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_enhanced: 13358   # Chiabai €14000 x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_incremental: 5916   # Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]
+    cost_source: "Chiabai et al. 2018 (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
+
+  # Setup costs (one-time, year 0)
+  # Ebi et al. 2004 via Takacs et al. 2025: around $150k USD (2020) for
+  # system setup in a comparable city (Philadelphia). Includes
+  # epidemiological model development, IT infrastructure, training.
+  # Note: Takacs applies PPP adjustment for India; we use the
+  # original US-based figure as closer to Greek cost levels.
+  capex_setup: 150000
+  opex_annual_fixed: 0
+  cost_scale_with_population: true
+  cost_ramp_with_efficacy: true
+
+  # AC-EWS interaction 
+  # Greece has low AC penetration 
+  # Lower overlap than Italy (30%): fewer deaths already prevented by AC,
+  # so more deaths addressable by EWS.
+  # Sera 2020: AC explains 14-20% of adaptation in Southern Europe.
+  ac_overlap_factor: {low: 0.15, central: 0.30, high: 0.50}
+
+  # Mortality displacement (harvesting) 
+  # Physiological phenomenon, not policy-dependent.
+  # Sources: Qiao 2015, Le Tertre 2012 France
+  displacement:
+    "<15":   {low: 0.05, central: 0.10, high: 0.20}
+    "15-64": {low: 0.05, central: 0.10, high: 0.20}
+    "65+":   {low: 0.10, central: 0.25, high: 0.40}
+
+  # Life-years for cost-effectiveness 
+  # Greece life tables (approximate residual life expectancy by age group)
+  # Greece life expectancy at birth 81 years (Eurostat 2020) => maybe need more calibration 
+  residual_life_years:
+    "<15": 60
+    "15-64": 25
+    "65+": 11

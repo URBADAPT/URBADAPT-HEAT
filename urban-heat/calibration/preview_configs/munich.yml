@@ -1,0 +1,337 @@
+# ============================================================================
+# PLACEHOLDER CONFIG for Munich (Germany)
+# Generated scaffold for model deployment (eu_urbclim_cities_urbadapt: include_final=Y).
+# Identity fields and city-agnostic defaults are filled in.
+# Every value tagged `# TODO` requires city-specific research / data before use.
+# Template structure mirrors configs/rome.yml.
+# ============================================================================
+
+slug: munich # city name
+city_name: Munich
+wp_iso3: DEU
+wp_country: Germany
+pop_k: 1500                       # approx population (thousands), from eu_urbclim_cities_urbadapt
+capital: false                  # national capital flag
+base_dir: data/munich
+drive_manifest: data_manifests/munich_gdrive.json # TODO: create Drive manifest for Munich
+
+# demo / exposure scenario from Wittgenstein population runs scenarios
+# available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
+exp_scenario: SSP2
+
+layers:
+  fua: fua
+  cap: cap
+  cap_wgs84: cap_wgs84
+  regions: regions
+  muni: muni
+
+ac:
+  ssp: 2 # AC data scenarios could be 1,3,5
+  years: [2020, 2030, 2040, 2050]
+  year: 2050
+
+  # AC electricity consumption at NUTS level
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_format: nuts_csv
+  kwh_nuts_ids: ["DE212"]   # NUTS-3 München, Kreisfreie Stadt (metro alt: NUTS-2 DE21 Oberbayern)
+  kwh_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  # AC penetration
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv
+  penetration_format: nuts_csv
+  penetration_nuts_ids: ["DE212"]   # NUTS-3 München, Kreisfreie Stadt (metro alt: NUTS-2 DE21 Oberbayern)
+  nuts_id: "DE212"                # legacy single-id; matches *_nuts_ids
+  nuts_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  tariff_eur_per_kwh: 0.27   # DEU ely_prices.xlsx (2021 USD @ 0.846 EUR/USD)
+  capex_per_user: 1671   # €1543 2018 installed (product+€800) x PLI 108.3/100 [CALIB_AC S5]
+  maint_rate: 0.04   # prEN 15459:2006 via Lot-10: 4%/yr of purchase+install [CALIB_AC S3]
+  lifetime_years: 12   # Lot-10 Task4 / 2018 review; UQ range 9-16 [CALIB_AC S3]
+
+  # AC waste heat feedback (Salamanca et al. 2014 + Kou et al. 2026)
+  waste_heat:
+    enabled: true
+    lut_case_default: central          # low / central / high
+    lut_case_options: [low, central, high]
+    dailymean_from_night_default: 0.50
+    dailymean_from_night_range: [0.33, 0.67]  # for UQ sampling
+    activation:
+      method: kou_cdd_share
+      temperature_metric: citymean_dailymean
+      t_on_c: 18.0
+      t_full_c: 25.0
+
+    # Salamanca 2014 LUT: penetration -> nighttime delta-T (degC)
+    lut:
+      0.00: {low: 0.00, central: 0.00, high: 0.00}
+      0.35: {low: 0.25, central: 0.375, high: 0.50}
+      0.65: {low: 0.50, central: 0.750, high: 1.00}
+      1.00: {low: 1.00, central: 1.250, high: 1.50}
+
+    # COP degradation feedback (Kou et al. 2026)
+    cop_degradation:
+      enabled: true
+      sensitivity_per_C: {low: 0.04, central: 0.065, high: 0.09}
+      cop_ref: 3.0
+
+trees:
+  capex_per_index_pt_eur: 10000000
+  capex_per_tree_eur: 758   # park/low-engineering base x PLI 108.3/100 [D5.1/Prague; CALIB_AC S7]
+  om_per_tree_per_year_eur: 70   # park/low-engineering O&M base x PLI/100 [D5.1/Vogt; CALIB_AC S7]
+  lifetime_years: 25
+  ramp_years: 12
+  cap_uplift_0_1: 0.12
+  focus_year: 2050
+
+  # vegetation policy regions (NB07)
+  veg_regions: regions          # Munich: 25 Stadtbezirke
+  veg_region_label: Stadtbezirk   # label for plots/tables
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
+
+electricity_feedback:
+  enabled: true
+  source: "Falchetta_DeCian_Lunghi_2026"
+  pct_reduction_per_gvi_point: 0.008   # PLACEHOLDER = flat 0.008 (Falchetta 2026 Fig5 @~30C); recompute per-city from JJA-Tmax once city_summer_tmax.csv is filled [calibration/gen_gvi_reduction.py]
+  summer_months: 3
+  co2_intensity_gCO2_per_kwh: 298     # DEU EEA 2024 grid emission intensity (gCO2e/kWh)
+
+cba:
+  discount_rate: 0.03
+  horizon_years: 25
+
+climate:
+  t2m_clim_scen_default: CurPol
+  t2m_clim_scen_options: [CurPol, GS, SP, ssp585]
+  t2m_baseline_mode_default: climatology_mean
+  t2m_baseline_mode_options: [climatology_mean, pixelwise_doy_max, domain_peak_day, warmest_summer]
+  t2m_delta_pct_band_default: central
+  t2m_delta_pct_band_options: [low, central, high]
+  t2m_var: tas
+  years: [2020, 2030, 2040, 2050]
+
+  urbclim_api: # for the API of historical UrbClim data 2008-2017
+    enabled: true
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Munich/"  # verified against compressed_daily/folders.json
+    local_dir: "UrbClim/UrbClimT2Mmean"
+    years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
+
+efficacy_scenarios:
+  sera_spain:
+    "<15": 0.10
+    "15-64": 0.14
+    "65+": 0.20
+  moderate:
+    "<15": 0.20
+    "15-64": 0.30
+    "65+": 0.40
+  optimistic:
+    "<15": 0.30
+    "15-64": 0.40
+    "65+": 0.55
+  flat_30:
+    "<15": 0.30
+    "15-64": 0.30
+    "65+": 0.30
+
+efficacy:
+  "<15": 0.20
+  "15-64": 0.30
+  "65+": 0.40
+  default: 0.30
+
+files:
+  gvi_csv: gvi/gvi_356_cities.csv
+  lcz_candidates:
+    - "LCZ/lcz_filter_v3.tif"
+    - "LCZ/lcz_v3.tif"
+  cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
+  income_csv: ""   # TODO: city income table (path relative to base_dir)
+  t2m_mean_daily_nc:
+    dir: "UrbClimT2Mmean"
+    pattern: "T2M_year_daily_mean_*.nc"
+  t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
+
+osm:
+  query: "München, Deutschland"
+  admin_levels: [9, 8, 7]           # downloaded OSM levels (regions level included)
+  boundary_tag: "administrative"
+  keep_outside_bucket: true
+  min_samples: 10
+
+urbclim:
+  folder: "UrbClim/UrbClimWBGTmax"
+  variable_candidates: ["wbgt_max","WBGT_max","wbgt","WBGT"]
+  thresh_wbgt: 28.0
+  hot_months: [6, 7, 8, 9]
+  f_bounds: [0.4, 1.0]
+
+cooling_city_aliases: ["munich", "münchen", "munchen"]
+
+# TODO: income source schema is city-specific (CSV columns / raster / shapefile).
+#       See configs/rome.yml (CAP code-based) and configs/athens.yml (raster) for the two patterns.
+income:
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
+  city_aliases: ["Munich"]
+  columns:
+    city: null
+    zone_id: null
+    zone_name: null
+    income: null
+    count: null
+    year: null
+  aggregation: "weighted"   # TODO: "weighted" | "mean"
+
+# TODO: spatial zoning source (shapefile vs OSM admin level).
+zones:
+  source: "osm"             # TODO: "shapefile" | "osm"
+  shapefile: null
+  shapefile_zone_col: null
+  osm_admin_level: null     # TODO
+  match_by: "code"          # TODO: "code" | "name" | "spatial_join"
+  cache_file: null
+
+# Reporting/vegetation region level — Munich: 25 Stadtbezirke at OSM admin_level=9 (verified 2026-06-29).
+regions:
+  enabled: true
+  source: "osm"
+  osm_admin_level: 9
+  cache_file: "stadtbezirke_munich.gpkg"
+
+vulnerability:
+    enabled: true
+    weights:
+        thermal: 0.333
+        foreign_born: 0.333
+        unemployment: 0.333
+    svi_min_valid_components: 2
+    files:
+        ghs_age: "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
+        census_pop: "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"
+        census_oth: "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff"
+        census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
+        census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
+    census_nodata: -9999
+    dynamic:
+        enabled: true
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            region_id: "DE212"          # NUTS-3 München, Kreisfreie Stadt (DRMKC anchor; verify present in drmkc CSV)
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "DEU"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # TODO: persistence params below are generic defaults; calibrate per city.
+        k:
+            default: 0.85
+            foreign_born: 0.85
+            unemployment: 0.85
+        phi:
+            default_2030: 0.92
+            default_2050: 0.75
+            foreign_born_2030: 0.92
+            foreign_born_2050: 0.75
+            unemployment_2030: 0.90
+            unemployment_2050: 0.70
+        thermal_projection:
+            retrofit_rate_per_year: 0.0089   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
+            new_build_vulnerability: 0.15
+            growth_sensitivity: 0.70
+            growth_cap: 0.30
+
+# EWS: Germany runs the DWD Hitzewarnsystem (national HHWS since 2005; biometeorological
+#      perceived-temperature thresholds, epidemiologically calibrated). Mature warning, but
+#      measured mortality benefit is marginal (Feldbusch 2025: pooled RR~1.00, urban-adjusted
+#      0.85) -> model a MODEST marginal benefit. See configs/EWS_REFERENCE.md.
+ews:
+  archetype: mature_hhwws
+  operational_trigger_mode: epi_deaths_file
+  warning_season:
+    mode: exact_dates
+    start_md: "05-01"
+    end_md: "09-30"
+  alert_tiers:
+    levels: ["advisory", "watch", "warning"]
+    source: "DWD Hitzewarnsystem (since 2005); perceived-temperature L1>=32C / L2>=38C, county-level"
+  targeting:
+    primary_groups: ["65+", "chronic conditions", "socially isolated"]
+    channels: ["health services", "municipal outreach", "media alerts"]
+  cost_components:
+    model_default: pavanello
+    source_note: "See pavanello/chiabai subsections below"
+
+  threshold_method: epi_deaths_file
+  threshold_file: null
+  threshold_key: threshold_deaths_per_day
+  threshold_unit: heat_deaths_per_day
+  target_activation_days: 23
+  target_activation_days_options: [15, 23, 30]
+  threshold_ref_year: 2020
+  threshold_recalib_interval: 5
+  threshold_recalib_interval_options: [3, 5, 7]
+  warning_months: [5, 6, 7, 8, 9]
+
+  interpretation: marginal       # mature DWD HHWS -> model modest marginal benefit (Feldbusch 2025 pooled RR~1.00)
+
+  efficacy_counterfactual:
+    low: 0.2
+    central: 0.35
+    high: 0.5
+  efficacy_marginal:
+    "<15":   {low: 0.02, central: 0.05, high: 0.08}
+    "15-64": {low: 0.03, central: 0.07, high: 0.12}
+    "65+":   {low: 0.08, central: 0.15, high: 0.25}
+
+  ramp_years: 3                  # mature system (Pavanello 2024: effects insignificant yrs 0-3)
+  ramp_initial_efficacy: 0.10
+
+  cost_model: pavanello
+  pavanello:
+    usd_per_capita_per_day: 0.014   # Pavanello & Valenti 2025 (WP 35.2025) via Ebi 2004 [CALIB_EWS S6]
+    eur_usd_rate: 0.92
+    cost_source: "Pavanello & Valenti 2024 via Ebi 2004"
+  chiabai:
+    opex_per_warning_day_basic: 9222   # Chiabai 2018 €7800 Madrid x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_enhanced: 16552   # Chiabai €14000 x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_incremental: 7330   # Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]
+    cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
+
+  capex_setup: 0                 # system already operational - no setup capex
+  opex_annual_fixed: 0
+  cost_scale_with_population: true
+  cost_ramp_with_efficacy: true
+
+  ac_overlap_factor: {low: 0.15, central: 0.30, high: 0.50}   # Germany: low AC penetration
+
+  displacement:
+    "<15":   {low: 0.05, central: 0.10, high: 0.20}
+    "15-64": {low: 0.05, central: 0.10, high: 0.20}
+    "65+":   {low: 0.10, central: 0.25, high: 0.40}
+
+  residual_life_years:           # Germany life table (Eurostat demo_mlexpec 2023, ~age 77)
+    "<15": 60
+    "15-64": 25
+    "65+": 11

@@ -1,0 +1,376 @@
+slug: rome # city name 
+city_name: Rome 
+wp_iso3: ITA
+wp_country: Italy
+base_dir: data/Rome                
+drive_manifest: data_manifests/rome_gdrive.json # all the data from the drive 
+
+# demo / exposure scenario from Wittgenstein population runs scenarios 
+# available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
+exp_scenario: SSP2   
+
+layers:                             
+  fua: fua
+  cap: cap
+  cap_wgs84: cap_wgs84
+  regions: regions
+  muni: muni
+
+ac:
+  ssp: 2 # AC data scenarios could be 1,3,5
+  years: [2020, 2030, 2040, 2050]
+  year: 2050
+
+  # AC electricity consumption at NUTS level
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_format: nuts_csv
+  kwh_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  # AC penetration 
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv # or ACgridded/ac_penetration_ssp1_ssp2_ssp3_ssp5_2020_2050.nc
+  penetration_format: nuts_csv # to delete if it's the nc
+  nuts_id: ITI43
+  nuts_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  tariff_eur_per_kwh: 0.17   # ITA ely_prices.xlsx (2021 USD @ 0.846 EUR/USD)
+  capex_per_user: 1498   # €1543 2018 installed (product+€800) x PLI 97.1/100 [CALIB_AC S5]
+  maint_rate: 0.04   # prEN 15459:2006 via Lot-10: 4%/yr of purchase+install [CALIB_AC S3]
+  lifetime_years: 12   # Lot-10 Task4 / 2018 review; UQ range 9-16 [CALIB_AC S3]
+
+  # AC waste heat feedback (Salamanca et al. 2014 + Kou et al. 2026)
+  waste_heat:
+    enabled: true
+    lut_case_default: central          # low / central / high
+    lut_case_options: [low, central, high]
+    dailymean_from_night_default: 0.50
+    dailymean_from_night_range: [0.33, 0.67]  # for UQ sampling
+    activation:
+      method: kou_cdd_share
+      temperature_metric: citymean_dailymean
+      t_on_c: 18.0
+      t_full_c: 25.0
+
+    # Salamanca 2014 LUT: penetration → nighttime ΔT (°C)
+    lut:
+      0.00: {low: 0.00, central: 0.00, high: 0.00}
+      0.35: {low: 0.25, central: 0.375, high: 0.50}
+      0.65: {low: 0.50, central: 0.750, high: 1.00}
+      1.00: {low: 1.00, central: 1.250, high: 1.50}
+
+    # COP degradation feedback (Kou et al. 2026)
+    cop_degradation:
+      enabled: true
+      # COP sensitivity: fractional drop per °C of outdoor T rise
+      # Kou et al. 2026 Fig.2a: 4-9% per °C
+      sensitivity_per_C: {low: 0.04, central: 0.065, high: 0.09}
+      # Reference COP (typical residential split AC)
+      cop_ref: 3.0
+
+trees:
+  capex_per_index_pt_eur: 10000000
+  capex_per_tree_eur: 680   # park/low-engineering base x PLI 97.1/100 [D5.1/Prague; CALIB_AC S7]
+  om_per_tree_per_year_eur: 63   # park/low-engineering O&M base x PLI/100 [D5.1/Vogt; CALIB_AC S7]
+  lifetime_years: 25
+  ramp_years: 12
+  cap_uplift_0_1: 0.12
+  focus_year: 2050
+
+  # vegetation policy regions (NB07)
+  # Which geographic layer to use for tree allocation
+  # "regions" = use NB05 regions layer (if regions.enabled)
+  # "zones"   = use NB05 zones layer (fallback when regions disabled)
+  veg_regions: regions          # Rome: 15 Municipi (NB05 regions, admin_level=7)
+  veg_region_label: Municipio   # label for plots/tables
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
+  
+electricity_feedback:
+  enabled: true
+  source: "Falchetta_DeCian_Lunghi_2026"
+  # Reduced-form: % reduction in summer AC electricity per GVI point
+  # Calibrated from paper Figure 5 at ~30°C: 0.8%/point
+  pct_reduction_per_gvi_point: 0.008   # PLACEHOLDER = flat 0.008 (Falchetta 2026 Fig5 @~30C); recompute per-city from JJA-Tmax once city_summer_tmax.csv is filled [calibration/gen_gvi_reduction.py]
+  summer_months: 3                    # Number of summer months (JJA)
+  co2_intensity_gCO2_per_kwh: 180     # ITA EEA 2024 grid emission intensity (gCO2e/kWh)
+
+cba:
+  discount_rate: 0.03
+  horizon_years: 25
+
+climate:
+  # which climate scenario to use from climate_change_provide_markups_avg.csv
+  t2m_clim_scen_default: CurPol     # default scenario
+  t2m_clim_scen_options: [CurPol, GS, SP, ssp585] # other scenario available 
+  # baseline year construction mode for UrbClim 2008-2017 data
+  # options:
+  # - climatology_mean: month/day climatological mean (current default)
+  # - pixelwise_doy_max: pixelwise month/day maxima (extreme sensitivity)
+  # - domain_peak_day: daily sequence from the year containing the hottest domain-mean day
+  # - warmest_summer: daily sequence from the year with highest JJA domain-mean temperature
+  t2m_baseline_mode_default: climatology_mean
+  t2m_baseline_mode_options: [climatology_mean, pixelwise_doy_max, domain_peak_day, warmest_summer]
+
+  # uncertainty band for future climate deltas (across-GCM spread)
+  # low = GCM p25, central = GCM median, high = GCM p75
+  # (PROVIDE within-month percentiles are NOT uncertainty — see build_delta_bands.py)
+  # requires climate_change_provide_markups_bands.csv (built by scripts/build_delta_bands.py)
+  t2m_delta_pct_band_default: central
+  t2m_delta_pct_band_options: [low, central, high]
+
+  # using surface temperature deltas (ts)
+  t2m_var: tas
+
+  # optional: years for which to build future T2M (if omitted, we’ll fall back to ac.years)
+  years: [2020, 2030, 2040, 2050]
+
+  urbclim_api: # for the API of historical UrbClim data 
+    enabled: true
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Rome/" 
+    local_dir: "UrbClim/UrbClimT2Mmean"
+    years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
+
+efficacy_scenarios:
+  sera_spain:
+    "<15": 0.10
+    "15-64": 0.14
+    "65+": 0.20
+  moderate:
+    "<15": 0.20
+    "15-64": 0.30
+    "65+": 0.40
+  optimistic:
+    "<15": 0.30
+    "15-64": 0.40
+    "65+": 0.55
+  flat_30:
+    "<15": 0.30
+    "15-64": 0.30
+    "65+": 0.30
+
+efficacy:
+  "<15": 0.20
+  "15-64": 0.30
+  "65+": 0.40
+  default: 0.30
+
+files:                               
+  gvi_csv: gvi/gvi_356_cities.csv
+  lcz_candidates:
+    - "LCZ/lcz_filter_v3.tif"
+    - "LCZ/lcz_v3.tif"
+  cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
+  income_csv: "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv"
+  # daily baselines (UrbClim mean daily temperature)
+  t2m_mean_daily_nc:
+    dir: "UrbClimT2Mmean"
+    pattern: "T2M_year_daily_mean_*.nc"
+
+  # single climate deltas table (long format: city, year, clim_scen, var, month, delta)
+  t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
+
+osm:
+  query: "Roma, Italia"
+  admin_levels: [10, 8, 7]
+  boundary_tag: "administrative"
+  keep_outside_bucket: true
+  min_samples: 10
+
+urbclim:
+  folder: "UrbClim/UrbClimWBGTmax"
+  variable_candidates: ["wbgt_max","WBGT_max","wbgt","WBGT"]
+  thresh_wbgt: 28.0
+  hot_months: [6, 7, 8, 9]
+  f_bounds: [0.4, 1.0]
+
+cooling_city_aliases: ["rome", "roma"]
+
+income:
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
+  city_aliases: ["Roma", "Roma Capitale"]
+  columns:
+    city: "Denominazione Comune"    # filter column
+    zone_id: "CAP"                  # spatial unit code (for code-based matching)
+    zone_name: null                 # no name-based matching for Rome
+    income: "Reddito complessivo - Ammontare in euro"  # total income column
+    count: "Numero contribuenti"    # taxpayer count (weighted aggregation)
+    year: null                      # snapshot (no year column)
+  aggregation: "weighted"           # weighted by taxpayer count
+
+zones:
+  source: "shapefile"               # Rome uses CAP shapefile
+  shapefile: "CAPZONE/CAPZONE.shp"  # path relative to base_dir
+  shapefile_zone_col: "CAP"         # column in shapefile for zone code
+  osm_admin_level: null
+  match_by: "code"                  
+  cache_file: null
+
+regions:
+  enabled: true                     # Rome has Municipi as a separate region level
+  source: "osm"
+  # OSM re-tagged Rome's Municipi from admin_level=7 to admin_level=10
+  # in 2025-2026; the name prefix isolates the 15 Municipi from the ~146
+  # other features at level 10 (Piani di zona, sub-districts, etc.).
+  osm_admin_level: 10
+  osm_name_prefix: "Municipio Roma "
+  cache_file: "municipi_rome.gpkg"
+
+vulnerability: 
+    enabled: true 
+    weights:
+        thermal: 0.333 
+        foreign_born: 0.333
+        unemployment: 0.333 
+    svi_min_valid_components: 2
+    files:
+        ghs_age: "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
+        census_pop: "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"
+        census_oth: "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff"
+        census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
+        census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
+    census_nodata: -9999
+    dynamic:
+        enabled: true   # DRMKC and GVI inputs are now in place; projected vulnerability is the active workflow
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            region_id: "ITI43"
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "ITA"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # Rome: moderate-long persistence of regional social patterns through 2050
+        k:
+            default: 0.85
+            foreign_born: 0.85
+            unemployment: 0.85
+        # Keep most neighborhood pattern in 2030, then allow partial smoothing by 2050
+        phi:
+            default_2030: 0.92
+            default_2050: 0.75
+            foreign_born_2030: 0.92
+            foreign_born_2050: 0.75
+            unemployment_2030: 0.90
+            unemployment_2050: 0.70
+        thermal_projection:
+            retrofit_rate_per_year: 0.0138   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
+            new_build_vulnerability: 0.15
+            growth_sensitivity: 0.70
+            growth_cap: 0.30
+
+ews:
+  # system archetype / trigger architecture 
+  archetype: mature_hhwws
+  operational_trigger_mode: epi_deaths_file
+  warning_season:
+    mode: exact_dates
+    start_md: "05-01"
+    end_md: "09-30"
+
+  # this doesn't exist yet, we could add it 
+  alert_tiers:
+    levels: ["advisory", "watch", "warning"]
+    source: "Rome HHWWS operational practice (simplified)"
+  targeting:
+    primary_groups: ["65+", "chronic conditions", "socially isolated"]
+    channels: ["health services", "municipal outreach", "media alerts"]
+  cost_components:
+    model_default: pavanello
+    source_note: "See pavanello/chiabai subsections below"
+
+  # Threshold 
+  threshold_method: epi_deaths_file
+  threshold_file: null
+  threshold_key: threshold_deaths_per_day
+  threshold_unit: heat_deaths_per_day
+  target_activation_days: 23
+  target_activation_days_options: [15, 23, 30]
+  threshold_ref_year: 2020
+  threshold_recalib_interval: 5   # recalibrate every N years (GHHIN guidance)
+  threshold_recalib_interval_options: [3, 5, 7]
+  warning_months: [5, 6, 7, 8, 9]
+
+  # Interpretation 
+  interpretation: marginal
+
+  # Efficacy (flat)
+  efficacy_counterfactual:
+    low: 0.2
+    central: 0.35
+    high: 0.5
+
+  # Age-differentiated marginal efficacy 
+  # Sources: de'Donato Italy 20-35%, Fouillet 2008 France 60% counterfactual,
+  #   Pavanello 22% HHWS-specific, "Long Live the Elderly" 13% targeted (75+),
+  #   Urban et al. 2025: 25.2% Europe-wide, Southern Europe -11.6%
+  # These are MARGINAL (on top of existing HHWS + AC), applied only to warning days
+  efficacy_marginal:
+    "<15":   {low: 0.02, central: 0.05, high: 0.08}
+    "15-64": {low: 0.03, central: 0.07, high: 0.12}
+    "65+":   {low: 0.08, central: 0.15, high: 0.25}
+
+  # Ramp-up 
+  # Italy (Pavanello Figure 4c): effects not significant years 0-3
+  ramp_years: 3
+  ramp_initial_efficacy: 0.10
+
+  # Costs 
+  # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
+  cost_model: pavanello   # or "chiabai"
+
+  # Pavanello & Valenti 2024 / Ebi 2004: ~$0.014/capita/activation day
+  pavanello:
+    usd_per_capita_per_day: 0.014   # Pavanello & Valenti 2025 (WP 35.2025) via Ebi 2004 [CALIB_EWS S6]
+    eur_usd_rate: 0.92          # approximate EUR/USD
+    cost_source: "Pavanello & Valenti 2024 via Ebi 2004"
+
+  # Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)
+  chiabai:
+    opex_per_warning_day_basic: 8268   # Chiabai 2018 €7800 Madrid x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_enhanced: 14841   # Chiabai €14000 x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_incremental: 6572   # Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]
+    cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)"
+
+  capex_setup: 0
+  opex_annual_fixed: 0
+  cost_scale_with_population: true
+  cost_ramp_with_efficacy: true
+
+  # AC-EWS interaction 
+  # As AC penetration rises, residual deaths are among harder-to-reach populations.
+  # EWS marginal efficacy declines. Sera 2020: AC explains only 14-20% of decline.
+  ac_overlap_factor: {low: 0.3, central: 0.5, high: 0.7}
+
+  # Mortality displacement (harvesting) 
+  # Fraction of avoided deaths that would have occurred within days-weeks anyway
+  displacement:
+    "<15":   {low: 0.05, central: 0.10, high: 0.20}
+    "15-64": {low: 0.05, central: 0.10, high: 0.20}
+    "65+":   {low: 0.10, central: 0.25, high: 0.40}
+
+  # Life-years for cost-effectiveness 
+  # Residual life expectancy by age group (Italy life tables, approximate)
+  residual_life_years:
+    "<15": 60
+    "15-64": 25
+    "65+": 12
