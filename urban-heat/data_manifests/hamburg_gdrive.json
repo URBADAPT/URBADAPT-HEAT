@@ -1,0 +1,106 @@
+{
+  "base_subdir": "",
+  "entries": [
+    {
+      "type": "file",
+      "id": "1OFcuy3o3azkJFbNFnPPdA2sB7qPQ1Rsd",
+      "dest": "fua/hamburg_fua_ghs_4326.dbf"
+    },
+    {
+      "type": "file",
+      "id": "1LrTFays3v7B81bqUnEg_8zeXphKXBN9m",
+      "dest": "fua/hamburg_fua_ghs_4326.geojson"
+    },
+    {
+      "type": "file",
+      "id": "1umF7GmE_6TZGxcj1DTt4RzS-l5fEJgS2",
+      "dest": "fua/hamburg_fua_ghs_4326.prj"
+    },
+    {
+      "type": "file",
+      "id": "1j95xncMiPWHZMwdex2WwzjGbuNSynRa3",
+      "dest": "fua/hamburg_fua_ghs_4326.shp"
+    },
+    {
+      "type": "file",
+      "id": "1SW4XuGrMiRxNKQh1aQskomH3O8HGApt5",
+      "dest": "fua/hamburg_fua_ghs_4326.shx"
+    },
+    {
+      "type": "file",
+      "id": "1etLUBp-AsbffdjnJtMZzu3ZQYi5I14NN",
+      "dest": "boundaries/DE_Hamburg_stadtteile.gpkg"
+    },
+    {
+      "type": "file",
+      "id": "1Bz6Il007m1CB0FTDfJU4xu4o4jewJjlS",
+      "dest": "income/income_subcity_harmonized.csv"
+    },
+    {
+      "type": "file",
+      "id": "1ir5ETWTbNjwEhsk9eWHjJgevOJs7YZ_T",
+      "dest": "gvi/gvi_356_cities.csv"
+    },
+    {
+      "type": "file",
+      "id": "1iIhFKVD1louZXlfYr2SMzjZl7jfDGHFB",
+      "dest": "LCZ/lcz_filter_v3.tif"
+    },
+    {
+      "type": "file",
+      "id": "1HOzWxMudcoFLAtkdK8C5tnUVzmeDbV3M",
+      "dest": "LCZ/lcz_v3.tif"
+    },
+    {
+      "type": "file",
+      "id": "1ot4pbvzSIbZneaxiTQIiKPRKOtOnUlCH",
+      "dest": "CoolingEff/coefs_GVI_lst.csv"
+    },
+    {
+      "type": "file",
+      "id": "10xVjwA29P0W7CIGpZO7G5INL2G9vY0oA",
+      "dest": "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
+    },
+    {
+      "type": "file",
+      "id": "18og5GnEJTZh18msCc4qb7nbZBWIr58sV",
+      "dest": "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"
+    },
+    {
+      "type": "file",
+      "id": "1_0JAwVfEjxCbrjMygbOEQniKcq1KhQuO",
+      "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff"
+    },
+    {
+      "type": "file",
+      "id": "1ufB1PmOPzJj0sV-XiNepi9b231sAlBXO",
+      "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
+    },
+    {
+      "type": "file",
+      "id": "11ElJfkC1BucZOEsPBqpQw_98DrwCf2QW",
+      "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
+    },
+    {
+      "type": "file",
+      "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR",
+      "dest": "ACgridded/ac_penetration_NUTSregions.csv"
+    },
+    {
+      "type": "file",
+      "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr",
+      "dest": "ACgridded/ac_kwh_NUTSregions.csv"
+    },
+    {
+      "type": "file",
+      "id": "1Q1iZrTvXXA3wY92pmssg5zSqiuKwqceA",
+      "dest": "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
+    },
+    {
+      "type": "file",
+      "id": "1TG1szYP98JAwHLF_j8EyBf95fswQxk7a",
+      "dest": "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json",
+      "base_kind": "outputs"
+    }
+  ]
+}

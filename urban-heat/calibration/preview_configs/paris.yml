@@ -154,7 +154,7 @@ files:
     - "LCZ/lcz_filter_v3.tif"
     - "LCZ/lcz_v3.tif"
   cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
-  income_csv: ""   # TODO: city income table (path relative to base_dir)
+  income_csv: "income/income_subcity_harmonized.csv"   # shared harmonized sub-city income; NB05 filters by income.city_aliases
   t2m_mean_daily_nc:
     dir: "UrbClimT2Mmean"
     pattern: "T2M_year_daily_mean_*.nc"
@@ -182,21 +182,21 @@ income:
   source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
   city_aliases: ["Paris"]
   columns:
-    city: null
-    zone_id: null
-    zone_name: null
-    income: null
+    city: city
+    zone_id: subcity_code
+    zone_name: subcity_code       # harmonized code; matches boundary_code under norm_name
+    income: inc_pct_within_city   # within-city income percentile 0-1 (AC ranks this)
     count: null
-    year: null
-  aggregation: "weighted"   # TODO: "weighted" | "mean"
+    year: null                    # (city,subcity_code) unique -> one row/zone, no year filter
+  aggregation: mean   # one row per (city,subcity_code); no pop-count col -> mean
 
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
-  source: "osm"             # TODO: "shapefile" | "osm"
-  shapefile: null
-  shapefile_zone_col: null
+  source: "shapefile"   # AC = observed-income boundary (IRIS 9-digit ~870); NB05 clips to FUA [emulator boundaries]
+  shapefile: "boundaries/FR_Paris_Marseille_Lyon_IRIS_current.gpkg"   # shared per-country emulator gpkg; place in data/<city>/ via manifest
+  shapefile_zone_col: "boundary_code"   # emulator key col = harmonized subcity_code
   osm_admin_level: null     # TODO
-  match_by: "code"          # TODO: "code" | "name" | "spatial_join"
+  match_by: "name"   # code=5-digit postal (to_cap5); name=exact norm (no truncation)
   cache_file: null
 
 # Reporting/vegetation region level — Paris: 20 arrondissements at OSM admin_level=9 (verified 2026-06-29).

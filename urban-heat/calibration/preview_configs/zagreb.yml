@@ -162,7 +162,7 @@ files:
 
 osm:
   query: "Grad Zagreb, Hrvatska"
-  admin_levels: [9, 8, 7]           # downloaded OSM levels (regions level included)
+  admin_levels: [10, 9, 8, 7]   # added AC level (finer than veg L9 gradske cetvrti 17) [OSM_REF]
   boundary_tag: "administrative"
   keep_outside_bucket: true
   min_samples: 10
@@ -180,6 +180,12 @@ cooling_city_aliases: ["zagreb"]
 #       See configs/rome.yml (CAP code-based) and configs/athens.yml (raster) for the two patterns.
 income:
   source: emulator          # observed | emulator -- EMULATOR: still needs an emulator: block + generated <city>_p_inc.csv (repo-relative path)
+  emulator:
+    csv: "emulated/zagreb_p_inc.csv"          # deploy_new_city.sh output; needs P()-resolve fix + manifest
+    city_aliases: ["Zagreb"]
+    columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}
+    aggregation: mean
+    min_coverage: 0.95
   city_aliases: ["Zagreb"]
   columns:
     city: null
@@ -188,15 +194,15 @@ income:
     income: null
     count: null
     year: null
-  aggregation: "weighted"   # TODO: "weighted" | "mean"
+  aggregation: mean   # emulator index is per-zone mean (NOT weighted)
 
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
   source: "osm"             # TODO: "shapefile" | "osm"
   shapefile: null
   shapefile_zone_col: null
-  osm_admin_level: null     # TODO
-  match_by: "code"          # TODO: "code" | "name" | "spatial_join"
+  osm_admin_level: 10   # AC downscaling: OSM L10 mjesni odbori [OSM_REGIONS_REFERENCE]
+  match_by: "name"   # OSM name-keyed; emulator income tabular (not spatial_join)
   cache_file: null
 
 # Reporting/vegetation region level — Zagreb: 17 gradske četvrti at OSM admin_level=9 (verified 2026-06-29).

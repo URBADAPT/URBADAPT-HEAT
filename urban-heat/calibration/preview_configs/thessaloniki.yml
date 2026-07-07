@@ -180,6 +180,12 @@ cooling_city_aliases: ["thessaloniki", "θεσσαλονίκη", "salonika"]
 #       See configs/rome.yml (CAP code-based) and configs/athens.yml (raster) for the two patterns.
 income:
   source: emulator          # observed | emulator -- EMULATOR: still needs an emulator: block + generated <city>_p_inc.csv (repo-relative path)
+  emulator:
+    csv: "emulated/thessaloniki_p_inc.csv"          # deploy_new_city.sh output; needs P()-resolve fix + manifest
+    city_aliases: ["Thessaloniki"]
+    columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}
+    aggregation: mean
+    min_coverage: 0.95
   city_aliases: ["Thessaloniki"]
   columns:
     city: null
@@ -188,15 +194,15 @@ income:
     income: null
     count: null
     year: null
-  aggregation: "weighted"   # TODO: "weighted" | "mean"
+  aggregation: mean   # emulator index is per-zone mean (NOT weighted)
 
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
   source: "osm"             # TODO: "shapefile" | "osm"
   shapefile: null
   shapefile_zone_col: null
-  osm_admin_level: null     # TODO
-  match_by: "code"          # TODO: "code" | "name" | "spatial_join"
+  osm_admin_level: 9   # AC downscaling: OSM L9 communities 6 (=veg) [OSM_REGIONS_REFERENCE]
+  match_by: "name"   # OSM name-keyed; emulator income tabular (not spatial_join)
   cache_file: null
 
 # Reporting/vegetation region level — Dimos Thessalonikis (L7) contains 2 dimotikes enotites; L9 = 6 koinotites.
