@@ -274,7 +274,7 @@ vulnerability:
             unemployment_2050: 0.80
         thermal_projection:
             retrofit_rate_per_year: 0.0093   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
-            new_build_vulnerability: 0.18
+            new_build_vulnerability: 0.15   # constant EU-wide: EPBD nZEB (all new builds >=2021) + age already differentiated; nZEB overheating = UQ sensitivity [CALIB]
             growth_sensitivity: 0.60
             growth_cap: 0.25
 
@@ -348,8 +348,8 @@ ews:
   # institutional capacity needs development. Pavanello 2024 Figure 4c:
   # Italy's effects not significant in initial years even with existing
   # infrastructure. Athens starts from weaker base => 5-year ramp.
-  ramp_years: 5
-  ramp_initial_efficacy: 0.05
+  ramp_years: 3   # Pavanello & Valenti 2025 Fig 4(c): HHWWS effect emerges after ~yr3 [CALIB_EWS S6]
+  ramp_initial_efficacy: 0.1   # Pavanello Fig 4(c): near-zero yr0-3 then ramps [CALIB_EWS S6]
 
   # Costs 
   # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
@@ -376,8 +376,8 @@ ews:
   # epidemiological model development, IT infrastructure, training.
   # Note: Takacs applies PPP adjustment for India; we use the
   # original US-based figure as closer to Greek cost levels.
-  capex_setup: 150000
-  opex_annual_fixed: 0
+  capex_setup: 150000   # 3-tier EWS taxonomy Tier 3 (traffic-light/weak): 0/75k/150k setup CAPEX; full=$150k Ebi2004 via Takacs [ews_taxonomy_v4]
+  opex_annual_fixed: 190830   # Rao 2025 standing HHWS cost €200k/yr x PLI/PLI_ES [CALIB_EWS S5]
   cost_scale_with_population: true
   cost_ramp_with_efficacy: true
 

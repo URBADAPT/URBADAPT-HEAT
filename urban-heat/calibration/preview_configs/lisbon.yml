@@ -269,7 +269,7 @@ vulnerability:
             unemployment_2050: 0.60
         thermal_projection:
             retrofit_rate_per_year: 0.0139   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
-            new_build_vulnerability: 0.14
+            new_build_vulnerability: 0.15   # constant EU-wide: EPBD nZEB (all new builds >=2021) + age already differentiated; nZEB overheating = UQ sensitivity [CALIB]
             growth_sensitivity: 0.80
             growth_cap: 0.35
 
@@ -349,8 +349,8 @@ ews:
   # Short ramp: ICARO infrastructure already exists since 1999.
   # Enhancement leverages existing alert channels, institutional
   # relationships, and trained health personnel (Goncalves 2009).
-  ramp_years: 2
-  ramp_initial_efficacy: 0.15
+  ramp_years: 3   # Pavanello & Valenti 2025 Fig 4(c): HHWWS effect emerges after ~yr3 [CALIB_EWS S6]
+  ramp_initial_efficacy: 0.1   # Pavanello Fig 4(c): near-zero yr0-3 then ramps [CALIB_EWS S6]
 
   # Costs 
   # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
@@ -372,8 +372,8 @@ ews:
     cost_source: "Chiabai et al. 2018 (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
 
   # No setup costs: ICARO already operational since 1999
-  capex_setup: 0
-  opex_annual_fixed: 0
+  capex_setup: 0   # 3-tier EWS taxonomy Tier 1 (epidemiological/mature): 0/75k/150k setup CAPEX; full=$150k Ebi2004 via Takacs [ews_taxonomy_v4]
+  opex_annual_fixed: 189083   # Rao 2025 standing HHWS cost €200k/yr x PLI/PLI_ES [CALIB_EWS S5]
   cost_scale_with_population: true
   cost_ramp_with_efficacy: true
 

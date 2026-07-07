@@ -263,7 +263,7 @@ vulnerability:
             unemployment_2050: 0.70
         thermal_projection:
             retrofit_rate_per_year: 0.0092   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
-            new_build_vulnerability: 0.15
+            new_build_vulnerability: 0.15   # constant EU-wide: EPBD nZEB (all new builds >=2021) + age already differentiated; nZEB overheating = UQ sensitivity [CALIB]
             growth_sensitivity: 0.70
             growth_cap: 0.30
 
@@ -310,8 +310,8 @@ ews:
     "15-64": {low: 0.03, central: 0.07, high: 0.12}
     "65+":   {low: 0.08, central: 0.15, high: 0.25}
 
-  ramp_years: 3                  # mature system (Pavanello 2024: effects insignificant yrs 0-3)
-  ramp_initial_efficacy: 0.10
+  ramp_years: 3   # Pavanello & Valenti 2025 Fig 4(c): HHWWS effect emerges after ~yr3 [CALIB_EWS S6]
+  ramp_initial_efficacy: 0.1   # Pavanello Fig 4(c): near-zero yr0-3 then ramps [CALIB_EWS S6]
 
   cost_model: pavanello
   pavanello:
@@ -324,8 +324,8 @@ ews:
     opex_per_warning_day_incremental: 7824   # Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]
     cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
 
-  capex_setup: 0                 # system already operational - no setup capex
-  opex_annual_fixed: 0
+  capex_setup: 75000   # 3-tier EWS taxonomy Tier 2 (meteorological/intermediate): 0/75k/150k setup CAPEX; full=$150k Ebi2004 via Takacs [ews_taxonomy_v4]
+  opex_annual_fixed: 252402   # Rao 2025 standing HHWS cost €200k/yr x PLI/PLI_ES [CALIB_EWS S5]
   cost_scale_with_population: true
   cost_ramp_with_efficacy: true
 

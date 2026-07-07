@@ -1263,6 +1263,9 @@ class NB09ImprovedFast:
         gvi_fb = float(sample["VULN_GVI_SCALE_FB"])
         gvi_ue = float(sample["VULN_GVI_SCALE_UE"])
         retrofit_rate = float(sample["VULN_RETROFIT_RATE"])
+        growth_sens = float(sample["VULN_GROWTH_SENS"])
+        growth_cap = float(sample["VULN_GROWTH_CAP"])
+        new_build_vuln = float(sample["VULN_NEW_BUILD"])
 
         dyn_cfg["k"] = {"default": k_val, "foreign_born": k_val, "unemployment": k_val}
         # Keep phi_2030 at config default; only vary phi_2050
@@ -1280,6 +1283,9 @@ class NB09ImprovedFast:
         dyn_cfg["unemployment_projection"]["drmkc_scale"] = drmkc_ue
         dyn_cfg["unemployment_projection"]["gvi_scale"] = gvi_ue
         dyn_cfg["thermal_projection"]["retrofit_rate_per_year"] = retrofit_rate
+        dyn_cfg["thermal_projection"]["growth_sensitivity"] = growth_sens
+        dyn_cfg["thermal_projection"]["growth_cap"] = growth_cap
+        dyn_cfg["thermal_projection"]["new_build_vulnerability"] = new_build_vuln
 
         anchor_year = int(dyn_cfg.get("drmkc", {}).get("anchor_year", 2030))
 
@@ -1466,6 +1472,9 @@ class NB09ImprovedFast:
             ParamSpec("VULN_GVI_SCALE_FB", "uniform", low=0.15, high=0.55),
             ParamSpec("VULN_GVI_SCALE_UE", "uniform", low=0.25, high=0.75),
             ParamSpec("VULN_RETROFIT_RATE", "uniform", low=0.005, high=0.020),
+            ParamSpec("VULN_GROWTH_SENS", "uniform", low=0.50, high=1.00),   # expert (config central ~0.7-0.8)
+            ParamSpec("VULN_GROWTH_CAP", "uniform", low=0.25, high=0.45),    # Eurostat completion rates ~0.7-1%/yr -> ~20-45% cumulative
+            ParamSpec("VULN_NEW_BUILD", "uniform", low=0.10, high=0.25),     # central 0.15 (EPBD nZEB); upper tail = nZEB summer overheating
         ]
         if self.ews_uses_event_mask_warning():
             # Track-B event-mask mode: keep only active warning-trigger dimensions.
@@ -3041,6 +3050,9 @@ class NB09ImprovedFast:
                 "VULN_GVI_SCALE_FB": float(raw_row["VULN_GVI_SCALE_FB"]),
                 "VULN_GVI_SCALE_UE": float(raw_row["VULN_GVI_SCALE_UE"]),
                 "VULN_RETROFIT_RATE": float(raw_row["VULN_RETROFIT_RATE"]),
+                "VULN_GROWTH_SENS": float(raw_row["VULN_GROWTH_SENS"]),
+                "VULN_GROWTH_CAP": float(raw_row["VULN_GROWTH_CAP"]),
+                "VULN_NEW_BUILD": float(raw_row["VULN_NEW_BUILD"]),
                 **{k: v for k, v in out.items() if str(k).startswith("vuln_")},
             })
             print(f"[{self.slug}] sample {idx + 1}/{n}: year={sample_row['year']} aai={out['aai_agg']:.3f}")
@@ -3238,6 +3250,9 @@ class NB09ImprovedFast:
                 "VULN_GVI_SCALE_FB": [0.15, 0.55],
                 "VULN_GVI_SCALE_UE": [0.25, 0.75],
                 "VULN_RETROFIT_RATE": [0.005, 0.020],
+                "VULN_GROWTH_SENS": [0.50, 1.00],
+                "VULN_GROWTH_CAP": [0.25, 0.45],
+                "VULN_NEW_BUILD": [0.10, 0.25],
             },
             "notes": [
                 "Future T2M bands are sampled from across-GCM band tables, while tas uses avg(pct45,pct55) within each model upstream.",

@@ -55,6 +55,12 @@ def edits_for(row, ac_basis, tree_ctx, set_fixed):
     base_note = "€743 2018 EU base (product-only)" if ac_basis=="product" else "€1543 2018 installed (product+€800)"
     tcap = row[f"capex_per_tree_{tree_ctx}"]; tom = row[f"om_per_tree_{tree_ctx}"]
     tnote = "sealed/street shade" if tree_ctx=="street" else "park/low-engineering"
+    # EWS 3-tier taxonomy (ews_taxonomy_assumptions Definitions v4): country -> tier -> setup CAPEX
+    _ews_tier = {"IT":1,"FR":1,"ES":1,"PT":1,                                   # Tier1 epidemiological/mature -> 0
+                 "DE":2,"NL":2,"BE":2,"AT":2,"HU":2,"RO":2,"SE":2,"FI":2,        # Tier2 meteorological/intermediate
+                 "GR":3,"HR":3,"SI":3,"BG":3,"SK":3,"CZ":3,"PL":3,"DK":3,"IE":3,"EE":3,"LV":3,"LT":3}  # Tier3 traffic-light/weak -> full
+    _ews_capex = {1: 0, 2: 75000, 3: 150000}   # 0 / intermediate(~half, expert) / full (~$150k, Ebi 2004 via Takacs)
+    _ews_tname = {1: "epidemiological/mature", 2: "meteorological/intermediate", 3: "traffic-light/weak"}
     E = [
         ("ac","capex_per_user",   cap_user, f"{base_note} x PLI {row['PLI']}/100 [CALIB_AC S5]"),
         ("ac","maint_rate",       0.04,     "prEN 15459:2006 via Lot-10: 4%/yr of purchase+install [CALIB_AC S3]"),
@@ -66,8 +72,14 @@ def edits_for(row, ac_basis, tree_ctx, set_fixed):
         ("ews","opex_per_warning_day_incremental", row["opex_incremental"], f"Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]"),
         ("ews","usd_per_capita_per_day", 0.014, "Pavanello & Valenti 2025 (WP 35.2025) via Ebi 2004 [CALIB_EWS S6]"),
     ]
-    if set_fixed:
-        E.append(("ews","opex_annual_fixed", row["opex_annual_fixed_if_enabled"], "Rao 2025 €200k/yr x PLI/PLI_ES [CALIB_EWS S5]"))
+    # opex_annual_fixed: decision finalised -> always write Rao 2025 standing HHWS cost (€200k/yr, PLI-scaled)
+    if row.get("opex_annual_fixed_if_enabled"):
+        E.append(("ews","opex_annual_fixed", row["opex_annual_fixed_if_enabled"], "Rao 2025 standing HHWS cost €200k/yr x PLI/PLI_ES [CALIB_EWS S5]"))
+    # ramp already 3 / 0.10 in config -> re-write with the Pavanello Fig 4(c) citation
+    E.append(("ews","ramp_years", 3, "Pavanello & Valenti 2025 Fig 4(c): HHWWS effect emerges after ~yr3 [CALIB_EWS S6]"))
+    E.append(("ews","ramp_initial_efficacy", 0.10, "Pavanello Fig 4(c): near-zero yr0-3 then ramps [CALIB_EWS S6]"))
+    # new_build_vulnerability: constant EU-wide (EPBD nZEB convergence + age already differentiated in the model)
+    E.append(("vulnerability","new_build_vulnerability", 0.15, "constant EU-wide: EPBD nZEB (all new builds >=2021) + age already differentiated; nZEB overheating = UQ sensitivity [CALIB]"))
     if row.get("retrofit_rate_per_year"):   # under vulnerability: -> dynamic: -> thermal_projection: (key unique per file)
         E.append(("vulnerability","retrofit_rate_per_year", row["retrofit_rate_per_year"],
                   "EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]"))
@@ -77,6 +89,10 @@ def edits_for(row, ac_basis, tree_ctx, set_fixed):
               "city_summer_tmax.csv is filled [calibration/gen_gvi_reduction.py]") if ph else \
              "Falchetta 2026 Fig5 anchors interpolated @ city JJA-Tmax [calibration/gen_gvi_reduction.py]"
         E.append(("electricity_feedback","pct_reduction_per_gvi_point", row["pct_reduction_per_gvi_point"], cm))
+    _tier = _ews_tier.get(row["country"])
+    if _tier:
+        E.append(("ews","capex_setup", _ews_capex[_tier],
+                  f"3-tier EWS taxonomy Tier {_tier} ({_ews_tname[_tier]}): 0/75k/150k setup CAPEX; full=$150k Ebi2004 via Takacs [ews_taxonomy_v4]"))
     return E
 
 def main():
