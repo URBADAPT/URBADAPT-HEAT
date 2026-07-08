@@ -35,9 +35,16 @@ def main():
     raw = ox.features_from_place(a.place, tags={"boundary": "administrative"})
     raw = raw[raw.geometry.type.isin(["Polygon", "MultiPolygon"])].copy().to_crs(4326)
     city_name = a.place.split(",")[0].strip()
-    city_poly = raw[(raw["admin_level"].astype(str) == a.place_level)
-                    & (raw["name"].astype(str).str.contains(city_name, case=False, na=False))
-                    ].geometry.union_all()
+    # Clip units to the geocoded place polygon (robust across cities). The old heuristic --
+    # admin_level==place_level & name contains city_name -- only works for city-states
+    # (Berlin L4="Berlin"); it returns 0 units when L4 is a region (Warsaw L4="Mazowieckie")
+    # or the OSM name is local ("Warszawa"). geocode_to_gdf resolves the place directly.
+    try:
+        city_poly = ox.geocode_to_gdf(a.place).to_crs(4326).geometry.union_all()
+    except Exception:
+        city_poly = raw[(raw["admin_level"].astype(str) == a.place_level)
+                        & (raw["name"].astype(str).str.contains(city_name, case=False, na=False))
+                        ].geometry.union_all()
     units = raw[raw["admin_level"].astype(str) == a.admin_level][["name", "geometry"]].dropna(subset=["name"]).copy()
     units = units.dissolve(by="name", as_index=False)
     units = units[units.geometry.representative_point().within(city_poly)].copy()

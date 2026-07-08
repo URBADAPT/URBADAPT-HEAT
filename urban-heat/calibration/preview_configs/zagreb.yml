@@ -162,7 +162,7 @@ files:
 
 osm:
   query: "Grad Zagreb, Hrvatska"
-  admin_levels: [10, 9, 8, 7]   # added AC level (finer than veg L9 gradske cetvrti 17) [OSM_REF]
+  admin_levels: [9, 8, 7]           # downloaded OSM levels (regions level included)
   boundary_tag: "administrative"
   keep_outside_bucket: true
   min_samples: 10
@@ -181,7 +181,7 @@ cooling_city_aliases: ["zagreb"]
 income:
   source: emulator          # observed | emulator -- EMULATOR: still needs an emulator: block + generated <city>_p_inc.csv (repo-relative path)
   emulator:
-    csv: "emulated/zagreb_p_inc.csv"          # deploy_new_city.sh output; needs P()-resolve fix + manifest
+    csv: "income/zagreb_p_inc.csv"          # emulator deploy output; needs P()-resolve fix + manifest
     city_aliases: ["Zagreb"]
     columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}
     aggregation: mean
@@ -201,7 +201,7 @@ zones:
   source: "osm"             # TODO: "shapefile" | "osm"
   shapefile: null
   shapefile_zone_col: null
-  osm_admin_level: 10   # AC downscaling: OSM L10 mjesni odbori [OSM_REGIONS_REFERENCE]
+  osm_admin_level: 9   # AC downscaling: OSM L9 gradske cetvrti 17 (=veg) [OSM_REGIONS_REFERENCE]
   match_by: "name"   # OSM name-keyed; emulator income tabular (not spatial_join)
   cache_file: null
 

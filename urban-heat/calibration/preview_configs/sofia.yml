@@ -181,7 +181,7 @@ cooling_city_aliases: ["sofia", "софия"]
 income:
   source: emulator          # observed | emulator -- EMULATOR: still needs an emulator: block + generated <city>_p_inc.csv (repo-relative path)
   emulator:
-    csv: "emulated/sofia_p_inc.csv"          # deploy_new_city.sh output; needs P()-resolve fix + manifest
+    csv: "income/sofia_p_inc.csv"          # emulator deploy output; needs P()-resolve fix + manifest
     city_aliases: ["Sofia"]
     columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}
     aggregation: mean

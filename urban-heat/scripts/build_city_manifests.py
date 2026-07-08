@@ -139,6 +139,16 @@ def parse_boundary_links(path: str) -> dict[str, str]:
         if m and fn: out[fn.group(1)] = m.group(1)
     return out
 
+def parse_emu_income(path: str) -> dict:
+    """-> {slug: drive_id} from lines like '<slug>_p_inc.csv <url>' (emulator per-city income)."""
+    out = {}
+    for raw in open(path, encoding="utf-8", errors="replace"):
+        line = raw.strip()
+        if not line or ("drive.google" not in line and "http" not in line): continue
+        m = ID_RE.search(line); fn = re.search(r"([A-Za-z]+)_p_inc\.csv", line)
+        if m and fn: out[norm_city(fn.group(1)) or fn.group(1)] = m.group(1)
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--links", required=True, help="text file of FUA Drive links")
@@ -146,12 +156,14 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--boundaries", default="", help="text file of per-country boundary gpkg links (observed cities)")
     ap.add_argument("--income", default="", help="Drive link/ID for the shared harmonized income csv (observed cities)")
+    ap.add_argument("--emulator-income", default="", help="text file of per-city <slug>_p_inc.csv links (emulator cities)")
     ap.add_argument("--only", default="", help="comma list of slugs")
     args = ap.parse_args()
 
     glob_entries = load_global_entries(args.pilot)
     fua = parse_links(args.links)
     bnd = parse_boundary_links(args.boundaries) if args.boundaries else {}
+    emu = parse_emu_income(args.emulator_income) if args.emulator_income else {}
     inc_id = None
     if args.income:
         _m = ID_RE.search(args.income); inc_id = _m.group(1) if _m else args.income.strip()
@@ -175,8 +187,10 @@ def main():
         if args.dry_run or slug in pilots or not exts: continue
         inc_entries = ([{"type": "file", "id": inc_id, "dest": "income/income_subcity_harmonized.csv"}]
                        if inc_id and slug in _OBS_BOUNDARY else [])
+        emu_entries = ([{"type": "file", "id": emu[slug], "dest": f"income/{slug}_p_inc.csv"}]
+                       if slug in emu else [])
         entries = [{"type": "file", "id": fid, "dest": f"fua/{slug}_fua_ghs_4326.{ext}"}
-                   for ext, fid in sorted(exts.items())] + bnd_entries + inc_entries + glob_entries
+                   for ext, fid in sorted(exts.items())] + bnd_entries + inc_entries + emu_entries + glob_entries
         out = {"base_subdir": "", "entries": entries}
         with open(os.path.join(MAN, f"{slug}_gdrive.json"), "w") as f:
             json.dump(out, f, indent=2)

@@ -109,7 +109,7 @@ _ZONES_AC = {
     "prague":       (9,  "[9, 8, 7, 6]",   "L9 mestske casti ~57",  "L6 spravni obvody 22"),
     "riga":         (10, "[10, 9, 8, 7]",  "L10 apkaimes ~58",      "L9 apkaimes 7"),
     "sofia":        (9,  "[9, 8, 7, 6]",   "L9 zhk/kvartali ~120",  "L6 rayoni 22"),
-    "zagreb":       (10, "[10, 9, 8, 7]",  "L10 mjesni odbori",     "L9 gradske cetvrti 17"),
+    "zagreb":       (9,  None, "L9 gradske cetvrti 17 (=veg)", "L9 gradske cetvrti 17"),  # L10 mjesni odbori (218) too fine
     "porto":        (8,  None, "L8 freguesias 7 (=veg)",     "L8 freguesias 7"),
     "thessaloniki": (9,  None, "L9 communities 6 (=veg)",    "L9 communities 6"),
     "bratislava":   (9,  None, "L9 mestske casti 17 (=veg)", "L9 mestske casti 17"),
@@ -197,7 +197,7 @@ def wire_emulator_income(text, city):
                 if re.match(r'^\s+source:\s', lines[j]):
                     block = [
                         "  emulator:",
-                        f'    csv: "emulated/{city}_p_inc.csv"          # deploy_new_city.sh output; needs P()-resolve fix + manifest',
+                        f'    csv: "income/{city}_p_inc.csv"          # emulator deploy output; needs P()-resolve fix + manifest',
                         f"    city_aliases: {aliases}",
                         "    columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}",
                         "    aggregation: mean",
