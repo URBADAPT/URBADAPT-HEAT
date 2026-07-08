@@ -37,10 +37,46 @@ AGE_ORDER = ["<15", "15-64", "65+"]
 AGE_TO_ID = {"<15": 1, "15-64": 2, "65+": 3}
 
 CITIES = {
-    "Rome":       "IT001C",
-    "Athens":     "EL001C",
-    "Lisbon":     "PT001C",
+    "Rome": "IT001C",
+    "Athens": "EL001C",
+    "Lisbon": "PT001C",
     "Copenhagen": "DK001C",
+    "Amsterdam": "NL001C",
+    "Barcelona": "ES002C",
+    "Berlin": "DE001C",
+    "Bologna": "IT009C",
+    "Bratislava": "SK001C",
+    "Brussels": "BE001C",
+    "Bucharest": "RO001C",
+    "Budapest": "HU001C",
+    "Cologne": "DE004C",
+    "Dublin": "IE001C",
+    "Hamburg": "DE002C",
+    "Helsinki": "FI001C",
+    "Ljubljana": "SI001C",
+    "Lyon": "FR002C",
+    "Madrid": "ES001C",
+    "Marseille": "FR004C",
+    "Milan": "IT002C",
+    "Munich": "DE003C",
+    "Nantes": "FR007C",
+    "Naples": "IT003C",
+    "Palermo": "IT005C",
+    "Paris": "FR001C",
+    "Porto": "PT002C",
+    "Prague": "CZ001C",
+    "Riga": "LV001C",
+    "Rotterdam": "NL037C",
+    "Sevilla": "ES004C",
+    "Sofia": "BG001C",
+    "Stockholm": "SE001C",
+    "Tallinn": "EE001C",
+    "Thessaloniki": "EL002C",
+    "Varna": "BG003C",
+    "Vienna": "AT001C",
+    "Vilnius": "LT001C",
+    "Warsaw": "PL001C",
+    "Zagreb": "HR001C",
 }
 
 SLUGS = {
@@ -48,6 +84,42 @@ SLUGS = {
     "Athens": "athens",
     "Lisbon": "lisbon",
     "Copenhagen": "copenhagen",
+    "Amsterdam": "amsterdam",
+    "Barcelona": "barcelona",
+    "Berlin": "berlin",
+    "Bologna": "bologna",
+    "Bratislava": "bratislava",
+    "Brussels": "brussels",
+    "Bucharest": "bucharest",
+    "Budapest": "budapest",
+    "Cologne": "cologne",
+    "Dublin": "dublin",
+    "Hamburg": "hamburg",
+    "Helsinki": "helsinki",
+    "Ljubljana": "ljubljana",
+    "Lyon": "lyon",
+    "Madrid": "madrid",
+    "Marseille": "marseille",
+    "Milan": "milan",
+    "Munich": "munich",
+    "Nantes": "nantes",
+    "Naples": "naples",
+    "Palermo": "palermo",
+    "Paris": "paris",
+    "Porto": "porto",
+    "Prague": "prague",
+    "Riga": "riga",
+    "Rotterdam": "rotterdam",
+    "Sevilla": "sevilla",
+    "Sofia": "sofia",
+    "Stockholm": "stockholm",
+    "Tallinn": "tallinn",
+    "Thessaloniki": "thessaloniki",
+    "Varna": "varna",
+    "Vienna": "vienna",
+    "Vilnius": "vilnius",
+    "Warsaw": "warsaw",
+    "Zagreb": "zagreb",
 }
 
 SCALING_CSVS = {
@@ -173,7 +245,7 @@ def get_pop_weights(ca, urau_code, masselot_groups):
 
 def load_baseline_scaling(city_label):
     """Load existing NB04/Wittgenstein relative mortality scaling by URBADAPT age bin."""
-    path = first_existing(SCALING_CSVS[city_label])
+    path = first_existing(SCALING_CSVS.get(city_label, []))
     if path is None or not path.exists():
         rows = [{"year": yr, **{age: 1.0 for age in AGE_ORDER}} for yr in YEARS]
         return pd.DataFrame(rows)
