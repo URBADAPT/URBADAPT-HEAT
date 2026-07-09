@@ -233,7 +233,7 @@ vulnerability:
         years: [2020, 2030, 2040, 2050]
         drmkc:
             file: "vulnerability/drmkc_vulnerability_projection.csv"
-            region_id: "LV006"          # NUTS-3 Rīga (DRMKC anchor; verify present in drmkc CSV)
+            region_id: "LV00A"          # NUTS-3 Riga (NUTS-2021; verified in DRMKC CSV 2026-07-09; was LV006 = NUTS-2016, absent from DRMKC)
             effect_signs:
                 foreign_born: 1.0
                 unemployment: -1.0

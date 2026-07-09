@@ -232,7 +232,7 @@ vulnerability:
         years: [2020, 2030, 2040, 2050]
         drmkc:
             file: "vulnerability/drmkc_vulnerability_projection.csv"
-            region_id: "NL33C"          # NUTS-3 Groot-Rijnmond (DRMKC anchor; verify present in drmkc CSV)
+            region_id: "NL366"          # NUTS-3 Greater Rijnmond / Rotterdam (NUTS-2021; verified in DRMKC CSV 2026-07-09; was NL33C = NUTS-2016, absent from DRMKC)
             effect_signs:
                 foreign_born: 1.0
                 unemployment: -1.0

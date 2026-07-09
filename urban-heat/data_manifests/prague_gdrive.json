@@ -78,6 +78,16 @@
     },
     {
       "type": "file",
+      "id": "1HB_nfg9TKBy1EO2i5zBxaRN4GDZWAIVz",
+      "dest": "vulnerability/drmkc_vulnerability_projection.csv"
+    },
+    {
+      "type": "file",
+      "id": "1R4B23IHYqviADYVzBsZLWJQCpM_NeVnS",
+      "dest": "vulnerability/gvi_projections.csv"
+    },
+    {
+      "type": "file",
       "id": "1PifcYXxGyq_xfiIQGzdzYdalZQK89mOZ",
       "dest": "ACgridded/ac_penetration_NUTSregions.csv"
     },
