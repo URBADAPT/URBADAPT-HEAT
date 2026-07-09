@@ -244,9 +244,26 @@ def get_pop_weights(ca, urau_code, masselot_groups):
 
 
 def load_baseline_scaling(city_label):
-    """Load existing NB04/Wittgenstein relative mortality scaling by URBADAPT age bin."""
-    path = first_existing(SCALING_CSVS.get(city_label, []))
+    """Load existing NB04/Wittgenstein relative mortality scaling by URBADAPT age bin.
+
+    Cities not explicitly listed in SCALING_CSVS (the 36 non-pilot cities) fall back to
+    the canonical location written by 10288665/build_baseline_scaling.py:
+    outputs/<slug>/interim/baseline_heat_scaling_<slug>.csv.
+    """
+    candidates = SCALING_CSVS.get(city_label)
+    if candidates is None:
+        slug = SLUGS[city_label]
+        candidates = [
+            URBAN_HEAT / "outputs" / slug / "interim" / f"baseline_heat_scaling_{slug}.csv"
+        ]
+    path = first_existing(candidates)
     if path is None or not path.exists():
+        print(
+            f"  !! WARNING: no baseline_heat_scaling CSV found for {city_label} "
+            f"(looked in {[str(c) for c in candidates]}). Future-year mdd will be FLAT "
+            f"(scaling=1.0) — run 10288665/build_baseline_scaling.py --city {SLUGS[city_label]} "
+            f"first, or the committed JSON's baseline-mortality trend will be lost."
+        )
         rows = [{"year": yr, **{age: 1.0 for age in AGE_ORDER}} for yr in YEARS]
         return pd.DataFrame(rows)
     scaling = pd.read_csv(path)
