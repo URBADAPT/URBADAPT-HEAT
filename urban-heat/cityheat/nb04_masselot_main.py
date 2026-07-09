@@ -186,18 +186,28 @@ def _annotate_burke_sensitivity(
     data: dict[str, Any],
     *,
     family: str,
-    source_path: Path,
+    source_path: Any,
     variant_name: str,
     main_family: str,
+    built: bool = False,
+    numerical_source: str | None = None,
 ) -> dict[str, Any]:
     out = copy.deepcopy(data)
     notes = str(out.get("notes", "")).strip()
     if notes:
         notes += " "
-    notes += (
-        "Copied from the original March2026 Burke-main workflow and used only as "
-        "a sensitivity in the March2026 Masselot-main variant."
-    )
+    if built:
+        notes += (
+            "Built deterministically from the original March2026 Burke-main "
+            "calibration (city-independent base curves scaled by the baseline "
+            "mortality trend) and used only as a sensitivity in the March2026 "
+            "Masselot-main variant."
+        )
+    else:
+        notes += (
+            "Copied from the original March2026 Burke-main workflow and used only as "
+            "a sensitivity in the March2026 Masselot-main variant."
+        )
     out.update(
         {
             "output_variant": variant_name,
@@ -212,12 +222,281 @@ def _annotate_burke_sensitivity(
             "burke_role": "sensitivity",
             "masselot_main_family": main_family,
             "current_original_workflow_preserved": True,
-            "copied_from_original_march2026_burke_main": True,
-            "numerical_curve_source": "original March2026 Burke-main IF JSON",
+            "copied_from_original_march2026_burke_main": not built,
+            "built_from_burke_calibration": bool(built),
+            "numerical_curve_source": numerical_source
+            or "original March2026 Burke-main IF JSON",
             "notes": notes,
         }
     )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Deterministic Burke sensitivity IF construction
+#
+# Ported verbatim from the original March2026 Burke-main NB04 (cells 13/16/20/54).
+# The Burke base curves are city-INDEPENDENT: a fixed 0-40 degC grid at 0.5 degC
+# steps, a fixed reference temperature (T_ref=20 degC), and fixed Burke et al.
+# (2025, Fig. 2 EU panel) age-specific anchor points. The ONLY per-city term is
+# the baseline-mortality year scaling, which is identical to the Masselot-main
+# scaling NB04 already computes as ``scale_factors`` (see _mdd_scaling_table).
+# Validated 2026-07-09 to reproduce the original pilot Burke IF JSONs to <1e-20
+# for rome/athens/lisbon across all years and both families.
+#
+# Copenhagen is the sole exception: its original Burke IF was built on the extreme
+# (Track-B) hazard with a LOCAL reference temperature and cold-city anchors, so it
+# cannot be reproduced by this standard build. Its verbatim original curves are
+# shipped in ``burke_if_reference/copenhagen/`` and loaded as-is, preserving the
+# current Copenhagen sensitivity exactly.
+# ---------------------------------------------------------------------------
+
+BURKE_T_MIN, BURKE_T_MAX, BURKE_T_STEP = 0.0, 40.0, 0.5
+BURKE_T_REF = 20.0
+BURKE_PER100K = 100_000.0
+BURKE_SCALING_SOURCE = "Wittgenstein ASSR baseline mortality"
+BURKE_POLY_REF_POINTS = {
+    "65+": [(22, 0.1), (25, 0.5), (28, 1.5), (30, 3.5), (33, 7.0), (35, 12.0)],
+    "15-64": [(22, 0.0), (25, 0.02), (28, 0.05), (30, 0.15), (33, 0.40), (35, 0.80)],
+    "<15": [(22, 0.0), (25, 0.005), (28, 0.02), (30, 0.03), (33, 0.04), (35, 0.05)],
+}
+# (d1, T1, d2, T2) per 100k — fixed January-2026 power-law anchors (old NB04 cell 54).
+BURKE_POWERLAW_ANCHORS = {
+    "65+": (3.5, 30.0, 12.0, 35.0),
+    "15-64": (0.15, 30.0, 0.80, 35.0),
+    "<15": (0.03, 30.0, 0.05, 35.0),
+}
+BURKE_POWERLAW_PARAMS_PER100K = {
+    age: {"d1": a[0], "T1": a[1], "d2": a[2], "T2": a[3]}
+    for age, a in BURKE_POWERLAW_ANCHORS.items()
+}
+
+
+def _burke_heat_tail_polynomial(T, T_ref, ref_points, degree=4):
+    """Degree-4 heat-only polynomial through the origin and the anchor points."""
+    T_pts = np.array([p[0] for p in ref_points], dtype=float)
+    d_pts = np.array([p[1] for p in ref_points], dtype=float)
+    h_pts = np.concatenate([[0.0], T_pts - T_ref])
+    d_pts = np.concatenate([[0.0], d_pts])
+    H = np.column_stack([h_pts ** i for i in range(1, degree + 1)])
+    coeffs, *_ = np.linalg.lstsq(H, d_pts, rcond=None)
+    h = np.clip(T - T_ref, 0, None)
+    out = np.zeros_like(T, dtype=float)
+    for i, c in enumerate(coeffs, start=1):
+        out += c * np.power(h, i)
+    return np.clip(out, 0, None)
+
+
+def _burke_heat_tail_power(T, T_ref, d1, T1, d2, T2):
+    """Convex heat-only power law through (T1, d1) and (T2, d2)."""
+    h1 = max(T1 - T_ref, 1e-6)
+    h2 = max(T2 - T_ref, 1e-6)
+    p = np.log(d2 / d1) / np.log(h2 / h1)
+    beta = d1 / (h1 ** p)
+    return beta * np.power(np.clip(T - T_ref, 0, None), p)
+
+
+def _burke_base_curves() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndarray]]:
+    T_grid = np.arange(BURKE_T_MIN, BURKE_T_MAX + 1e-6, BURKE_T_STEP)
+    poly = {
+        age: np.clip(_burke_heat_tail_polynomial(T_grid, BURKE_T_REF, pts) / BURKE_PER100K, 0, 1)
+        for age, pts in BURKE_POLY_REF_POINTS.items()
+    }
+    powerlaw = {
+        age: np.clip(_burke_heat_tail_power(T_grid, BURKE_T_REF, *anc) / BURKE_PER100K, 0, 1)
+        for age, anc in BURKE_POWERLAW_ANCHORS.items()
+    }
+    return T_grid, poly, powerlaw
+
+
+def _build_burke_family_json(
+    T_grid: np.ndarray,
+    base_mdd: dict[str, np.ndarray],
+    scale_factors: pd.DataFrame | None,
+    *,
+    family: str,
+    ref_year: int = 2020,
+) -> dict[str, Any]:
+    """Assemble a year-specific Burke IF JSON matching the original NB04 schema.
+
+    Polynomial year-scaling is applied without re-clipping (old NB04 cell 47);
+    the power-law is re-clipped to [0, 1] (old NB04 cell 54).
+    """
+    is_powerlaw = family == "burke_powerlaw"
+    name_suffix = "_powerlaw" if is_powerlaw else ""
+    if scale_factors is not None and len(scale_factors.index):
+        years = sorted({int(y) for y in scale_factors.index} | {ref_year})
+    else:
+        years = [ref_year]
+    ifs_by_year: dict[str, Any] = {}
+    for year in years:
+        block: dict[str, Any] = {}
+        for age in AGE_ORDER:
+            if scale_factors is not None and year in scale_factors.index:
+                scale = float(scale_factors.loc[year, age])
+            else:
+                scale = 1.0
+            scaled = base_mdd[age] * scale
+            if is_powerlaw:
+                scaled = np.clip(scaled, 0, 1)
+            block[age] = {
+                "id": AGE_TO_IF_ID[age],
+                "name": f"{age}_{year}{name_suffix}",
+                "intensity": np.asarray(T_grid, dtype=float).tolist(),
+                "mdd": np.asarray(scaled, dtype=float).tolist(),
+            }
+        ifs_by_year[str(year)] = block
+    out: dict[str, Any] = {
+        "reference_year": ref_year,
+        "years": years,
+        "scaling_source": BURKE_SCALING_SOURCE,
+    }
+    if is_powerlaw:
+        out["functional_form"] = "powerlaw_january2026_fixed_anchors"
+        out["powerlaw_parameters_per100k"] = BURKE_POWERLAW_PARAMS_PER100K
+    out["ifs_by_year"] = ifs_by_year
+    return out
+
+
+def _burke_reference_paths(root: Path, slug: str) -> tuple[dict[str, Path], dict[str, Path]]:
+    ref_dir = Path(root) / "burke_if_reference" / slug
+    source_paths = {
+        "burke_polynomial": ref_dir / f"if_curves_by_year_{slug}.json",
+        "burke_powerlaw": ref_dir / f"if_curves_by_year_{slug}_powerlaw.json",
+    }
+    annual_paths = {
+        "burke_polynomial": ref_dir / f"annual_heat_deaths_generic_{slug}.csv",
+        "burke_powerlaw": ref_dir / f"annual_heat_deaths_generic_{slug}_powerlaw.csv",
+    }
+    return source_paths, annual_paths
+
+
+def _burke_original_annual_best_effort(root: Path, slug: str, city: str) -> dict[str, Path]:
+    """Locate the original Burke-main annual-death CSVs for the recompute audit.
+
+    Present on a developer machine with the legacy ``outputs/<city>/`` tree; absent
+    on a fresh clone (in which case the audit records ``missing_original``, which is
+    a handled, non-fatal status). Never raises.
+    """
+    for name in [slug, city, city.lower(), city.title(), slug.title()]:
+        d = Path(root) / "outputs" / name / "interim"
+        if (d / f"annual_heat_deaths_generic_{slug}.csv").exists():
+            return {
+                "burke_polynomial": d / f"annual_heat_deaths_generic_{slug}.csv",
+                "burke_powerlaw": d / f"annual_heat_deaths_generic_{slug}_powerlaw.csv",
+            }
+    d = Path(root) / "outputs" / slug / "interim"
+    return {
+        "burke_polynomial": d / f"annual_heat_deaths_generic_{slug}.csv",
+        "burke_powerlaw": d / f"annual_heat_deaths_generic_{slug}_powerlaw.csv",
+    }
+
+
+def _load_true_baseline_scaling(root: Path, slug: str) -> pd.DataFrame | None:
+    """Load the committed per-country baseline-mortality scaling for all three age bins.
+
+    This is REQUIRED for the Burke build (rather than reusing the Masselot-recovered
+    ``_mdd_scaling_table``) because the Masselot ``<15`` mdd is identically zero, so the
+    ``<15`` scaling cannot be recovered from the Masselot IF and would silently default
+    to 1.0 — leaving the Burke ``<15`` curve unscaled. The committed CSVs in
+    ``baseline_scaling/`` carry the true WCDE/Wittgenstein trend for all ages (the same
+    values the Masselot IF JSONs were baked with). Returns a year-indexed DataFrame with
+    AGE_ORDER columns, or None if the committed CSV is absent/malformed.
+    """
+    path = Path(root) / "baseline_scaling" / f"baseline_heat_scaling_{slug}.csv"
+    if not path.exists():
+        return None
+    try:
+        df = pd.read_csv(path)
+    except (OSError, ValueError):
+        return None
+    if "year" not in df.columns or any(a not in df.columns for a in AGE_ORDER):
+        return None
+    df = df.set_index("year")
+    df.index = df.index.astype(int)
+    return df[AGE_ORDER].copy()
+
+
+def _build_burke_sensitivities(
+    *,
+    root: Path,
+    slug: str,
+    city: str,
+    scale_factors: pd.DataFrame,
+    variant_name: str,
+    main_family: str,
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any], dict[str, Path]]:
+    """Produce the Burke sensitivity IF JSONs without any ``outputs/<city>/`` dependency.
+
+    - Standard cities: build the polynomial + power-law Burke curves deterministically
+      (city-independent base curves scaled by ``scale_factors``).
+    - Cities with a committed reference in ``burke_if_reference/<slug>/`` (currently
+      only Copenhagen, the extreme/Track-B city): load the verbatim reference curves so
+      the non-standard sensitivity is preserved exactly.
+
+    Returns ``(burke_jsons, source_paths, annual_paths)`` with the same shape as the
+    former ``_load_original_burke_sensitivities`` so the caller is unchanged.
+    """
+    ref_sources, ref_annual = _burke_reference_paths(root, slug)
+    use_reference = (
+        ref_sources["burke_polynomial"].exists() and ref_sources["burke_powerlaw"].exists()
+    )
+
+    if use_reference:
+        raw = {fam: _load_json(path) for fam, path in ref_sources.items()}
+        source_paths: dict[str, Any] = dict(ref_sources)
+        annual_paths = ref_annual
+        built = False
+        numerical_source = (
+            f"committed reference Burke IF (burke_if_reference/{slug}/); "
+            "verbatim original non-standard (Track-B) curves"
+        )
+    else:
+        # Use the committed true baseline-mortality scaling (all 3 ages). Fall back to
+        # the Masselot-recovered scale_factors only if the committed CSV is missing --
+        # but note that fallback leaves Burke <15 unscaled (Masselot <15 mdd == 0), so
+        # it is a degraded path flagged in the provenance below.
+        true_scaling = _load_true_baseline_scaling(root, slug)
+        burke_scaling = true_scaling if true_scaling is not None else scale_factors
+        scaling_src = (
+            "committed baseline_scaling/ (WCDE/Wittgenstein, all ages)"
+            if true_scaling is not None
+            else "Masselot-recovered _mdd_scaling_table FALLBACK (<15 unscaled!)"
+        )
+        T_grid, poly_base, pw_base = _burke_base_curves()
+        raw = {
+            "burke_polynomial": _build_burke_family_json(
+                T_grid, poly_base, burke_scaling, family="burke_polynomial"
+            ),
+            "burke_powerlaw": _build_burke_family_json(
+                T_grid, pw_base, burke_scaling, family="burke_powerlaw"
+            ),
+        }
+        source_paths = {
+            "burke_polynomial": "<built: cityheat.nb04_masselot_main._build_burke_family_json>",
+            "burke_powerlaw": "<built: cityheat.nb04_masselot_main._build_burke_family_json>",
+        }
+        annual_paths = _burke_original_annual_best_effort(root, slug, city)
+        built = True
+        numerical_source = (
+            "built deterministically from the March2026 Burke-main calibration "
+            "(city-independent base curves x baseline-mortality year scaling); "
+            f"scaling source: {scaling_src}"
+        )
+
+    burke_jsons = {
+        fam: _annotate_burke_sensitivity(
+            data,
+            family=fam,
+            source_path=source_paths[fam],
+            variant_name=variant_name,
+            main_family=main_family,
+            built=built,
+            numerical_source=numerical_source,
+        )
+        for fam, data in raw.items()
+    }
+    return burke_jsons, source_paths, annual_paths
 
 
 def _load_original_burke_sensitivities(
@@ -457,10 +736,16 @@ def run_nb04_masselot_main(
     print(heat_deaths_main)
 
     ref_year = str(main_json.get("reference_year", 2020))
-    burke_jsons, burke_source_paths, burke_annual_sources = _load_original_burke_sensitivities(
+    # Burke sensitivity IFs are BUILT in-pipeline (no dependency on the legacy
+    # outputs/<city>/ Burke-main tree). Standard cities use the deterministic
+    # city-independent Burke calibration scaled by the same baseline-mortality
+    # trend as Masselot-main (scale_factors); the sole extreme/Track-B city
+    # (Copenhagen) loads its verbatim committed reference in burke_if_reference/.
+    burke_jsons, burke_source_paths, burke_annual_sources = _build_burke_sensitivities(
         root=root,
         slug=slug,
         city=city,
+        scale_factors=scale_factors,
         variant_name=output_variant,
         main_family=main_family,
     )
