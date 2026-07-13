@@ -83,6 +83,16 @@
     },
     {
       "type": "file",
+      "id": "1Dcnznbb0AeVZ5ElkbpUlQfPTZ5M2le_w",
+      "dest": "T2MmeanDeltas/climate_change_provide_markups_bands.csv"
+    },
+    {
+      "type": "file",
+      "id": "1zH6Gk_HMye8dr9mipCtnzslyhDANirwZ",
+      "dest": "T2MmeanDeltas/climate_change_provide_markups_gcm.csv"
+    },
+    {
+      "type": "file",
       "id": "1HB_nfg9TKBy1EO2i5zBxaRN4GDZWAIVz",
       "dest": "vulnerability/drmkc_vulnerability_projection.csv"
     },

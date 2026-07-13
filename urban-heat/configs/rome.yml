@@ -40,10 +40,10 @@ ac:
     year: year
     value: value
 
-  tariff_eur_per_kwh: 0.17
-  capex_per_user: 500.0
-  maint_rate: 0.05
-  lifetime_years: 10
+  tariff_eur_per_kwh: 0.17   # ITA ely_prices.xlsx (2021 USD @ 0.846 EUR/USD)
+  capex_per_user: 1498   # €1543 2018 installed (product+€800) x PLI 97.1/100 [CALIB_AC S5]
+  maint_rate: 0.04   # prEN 15459:2006 via Lot-10: 4%/yr of purchase+install [CALIB_AC S3]
+  lifetime_years: 12   # Lot-10 Task4 / 2018 review; UQ range 9-16 [CALIB_AC S3]
 
   # AC waste heat feedback (Salamanca et al. 2014 + Kou et al. 2026)
   waste_heat:
@@ -76,8 +76,8 @@ ac:
 
 trees:
   capex_per_index_pt_eur: 10000000
-  capex_per_tree_eur: 210
-  om_per_tree_per_year_eur: 27
+  capex_per_tree_eur: 680   # park/low-engineering base x PLI 97.1/100 [D5.1/Prague; CALIB_AC S7]
+  om_per_tree_per_year_eur: 63   # park/low-engineering O&M base x PLI/100 [D5.1/Vogt; CALIB_AC S7]
   lifetime_years: 25
   ramp_years: 12
   cap_uplift_0_1: 0.12
@@ -96,9 +96,9 @@ electricity_feedback:
   source: "Falchetta_DeCian_Lunghi_2026"
   # Reduced-form: % reduction in summer AC electricity per GVI point
   # Calibrated from paper Figure 5 at ~30°C: 0.8%/point
-  pct_reduction_per_gvi_point: 0.008
+  pct_reduction_per_gvi_point: 0.008   # PLACEHOLDER = flat 0.008 (Falchetta 2026 Fig5 @~30C); recompute per-city from JJA-Tmax once city_summer_tmax.csv is filled [calibration/gen_gvi_reduction.py]
   summer_months: 3                    # Number of summer months (JJA)
-  co2_intensity_gCO2_per_kwh: 180     
+  co2_intensity_gCO2_per_kwh: 180     # ITA EEA 2024 grid emission intensity (gCO2e/kWh)
 
 cba:
   discount_rate: 0.03
@@ -192,19 +192,7 @@ urbclim:
 cooling_city_aliases: ["rome", "roma"]
 
 income:
-  # Income source for NB05 AC downscaling: observed (default) | emulator.
-  # `emulator` drives AC off the within-city income emulator's prediction instead of
-  # the measured IRPEF table (for cities with no sub-city income, or for testing).
-  # Validated on Rome: with aggregation=mean the recomputed p_inc reproduces the
-  # emulator's emitted p_inc to machine precision (72/72 CAP zones). Keep `observed`
-  # for the paper; flip to `emulator` only for emulator tests.
-  source: observed
-  emulator:
-    csv: "/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/income_emulator/data/emulated/rome_p_inc.csv"
-    city: "Roma"
-    columns: {city: city, zone_id: subcity_code, income: income_index_pred, count: pop_zone}
-    aggregation: mean          # index_pred is already a per-zone mean; do NOT use weighted
-    min_coverage: 0.6          # Rome: 118 AC CAPs vs 72 income-covered (partial; city-mean fills the rest)
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
   city_aliases: ["Roma", "Roma Capitale"]
   columns:
     city: "Denominazione Comune"    # filter column
@@ -285,8 +273,8 @@ vulnerability:
             unemployment_2030: 0.90
             unemployment_2050: 0.70
         thermal_projection:
-            retrofit_rate_per_year: 0.011
-            new_build_vulnerability: 0.15
+            retrofit_rate_per_year: 0.0138   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
+            new_build_vulnerability: 0.15   # constant EU-wide: EPBD nZEB (all new builds >=2021) + age already differentiated; nZEB overheating = UQ sensitivity [CALIB]
             growth_sensitivity: 0.70
             growth_cap: 0.30
 
@@ -343,8 +331,8 @@ ews:
 
   # Ramp-up 
   # Italy (Pavanello Figure 4c): effects not significant years 0-3
-  ramp_years: 3
-  ramp_initial_efficacy: 0.10
+  ramp_years: 3   # Pavanello & Valenti 2025 Fig 4(c): HHWWS effect emerges after ~yr3 [CALIB_EWS S6]
+  ramp_initial_efficacy: 0.1   # Pavanello Fig 4(c): near-zero yr0-3 then ramps [CALIB_EWS S6]
 
   # Costs 
   # Two models: pavanello (population-based, default) and chiabai (per-day fixed)
@@ -352,19 +340,19 @@ ews:
 
   # Pavanello & Valenti 2024 / Ebi 2004: ~$0.014/capita/activation day
   pavanello:
-    usd_per_capita_per_day: 0.014
+    usd_per_capita_per_day: 0.014   # Pavanello & Valenti 2025 (WP 35.2025) via Ebi 2004 [CALIB_EWS S6]
     eur_usd_rate: 0.92          # approximate EUR/USD
     cost_source: "Pavanello & Valenti 2024 via Ebi 2004"
 
   # Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)
   chiabai:
-    opex_per_warning_day_basic: 7800
-    opex_per_warning_day_enhanced: 14000
-    opex_per_warning_day_incremental: 6200
+    opex_per_warning_day_basic: 8268   # Chiabai 2018 €7800 Madrid x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_enhanced: 14841   # Chiabai €14000 x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_incremental: 6572   # Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]
     cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base €2013)"
 
-  capex_setup: 0
-  opex_annual_fixed: 0
+  capex_setup: 0   # 3-tier EWS taxonomy Tier 1 (epidemiological/mature): 0/75k/150k setup CAPEX; full=$150k Ebi2004 via Takacs [ews_taxonomy_v4]
+  opex_annual_fixed: 212009   # Rao 2025 standing HHWS cost €200k/yr x PLI/PLI_ES [CALIB_EWS S5]
   cost_scale_with_population: true
   cost_ramp_with_efficacy: true
 
