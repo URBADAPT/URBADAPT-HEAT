@@ -3,7 +3,7 @@ setlocal
 
 REM === CONFIGURA QUI ===
 set "ENV_NAME=urbanheat"
-set "PROJECT_DIR=G:\Il mio Drive\adaptation_infrastructure_database\URBADAPT\urban-heat"
+set "PROJECT_DIR=C:\Users\giaco\Documents\Github\URBADAPT-HEAT\urban-heat"
 set "ENV_FILE=%PROJECT_DIR%\environment.yml"
 
 REM === INIZIALIZZA CONDA PER I FILE .BAT ===
