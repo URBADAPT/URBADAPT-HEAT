@@ -1,0 +1,3 @@
+city,city_name,iso3,country,pop_k,capital,warmseason_mean_t2m,t2m_p95,hot_days,climate_cluster,cluster_provisional,is_exemplar,city_label
+milan,Milan,ITA,Italy,1370,FALSE,22.733,25.831,48,Hot,TRUE,FALSE,Milan
+rome,Rome,ITA,Italy,NA,FALSE,23.244,26.522,65,Hot,TRUE,TRUE,Rome
