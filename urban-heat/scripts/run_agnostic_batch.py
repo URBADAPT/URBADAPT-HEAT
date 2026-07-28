@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Batch-run the March2026_agnostic Masselot-main notebooks (NB01..08) over many cities.
 
 Each city is driven by the ``CITY`` environment variable (the agnostic template uses
@@ -39,8 +38,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent  # urban-heat
 TEMPLATE = ROOT / "notebooks" / "city_agnostic" / "March2026_agnostic" / "template"
-RUNS = ROOT / "runs" / "agnostic_batch"
-KERNEL = "urbanheat"
+RUNS = Path(os.environ.get("URBAN_HEAT_RUNS_DIR", str(ROOT / "runs" / "agnostic_batch")))
+KERNEL = os.environ.get("URBAN_HEAT_KERNEL", "urbanheat")  # override on HPC (e.g. python3)
 ALL_NB = ["01", "02", "03", "04", "05", "06", "07", "08"]
 
 
@@ -82,6 +81,14 @@ def run_nb(city: str, nn: str, timeout: int) -> tuple[bool, str]:
         str(src),
     ]
     r = subprocess.run(cmd, cwd=str(ROOT), env=env, capture_output=True, text=True)
+    # Plain-text per-notebook log (nbconvert console output) for easy cluster debugging.
+    try:
+        (outdir / f"{nn}.log").write_text(
+            f"$ {' '.join(cmd)}\n[returncode={r.returncode}]\n\n=== STDOUT ===\n{r.stdout or ''}\n"
+            f"=== STDERR ===\n{r.stderr or ''}\n"
+        )
+    except OSError:
+        pass
     if r.returncode == 0:
         return True, ""
     return False, first_error(out) or (r.stderr or "").strip()[-300:]
@@ -157,12 +164,20 @@ def main() -> int:
             done = sum(1 for s in summary if s["failed_nb"] is None)
             print(f"  === {len(summary)}/{len(todo)} cities finished ({done} full 01-08) ===", flush=True)
 
+    def safe_run(city: str) -> dict:
+        # Belt-and-suspenders: even an unexpected crash in one city must not stop the batch.
+        try:
+            return run_one_city(city)
+        except Exception as e:  # noqa: BLE001
+            print(f"  [{city:12}] RUNNER CRASH: {type(e).__name__}: {e}", flush=True)
+            return {"city": city, "last_ok": None, "failed_nb": "runner", "error": f"{type(e).__name__}: {e}"}
+
     if args.workers <= 1:
         for city in todo:
-            record(run_one_city(city))
+            record(safe_run(city))
     else:
         with ThreadPoolExecutor(max_workers=args.workers) as ex:
-            futures = [ex.submit(run_one_city, c) for c in todo]
+            futures = [ex.submit(safe_run, c) for c in todo]
             for fut in as_completed(futures):
                 record(fut.result())
 
