@@ -34,11 +34,23 @@ _DK_TRANSLIT = str.maketrans({"Ø": "O", "ø": "o", "Å": "A", "å": "a", "Æ": 
 
 
 def norm_name(s) -> str:
-    """Normalise a place name to a stable join key (NB05 cell-21 convention)."""
+    """Normalise a place name to a stable join key (NB05 cell-21 convention).
+
+    Latin text is accent-folded to ASCII (unchanged behaviour). For non-Latin
+    scripts (Cyrillic/Greek), ASCII-folding would strip the string to nothing, so
+    when that happens we fall back to a casefolded native form (script preserved).
+    This keeps Latin cities byte-identical while making Cyrillic/Greek emulator
+    zones join to their OSM counterparts.
+    """
     s = "" if pd.isna(s) else str(s)
     s = s.translate(_DK_TRANSLIT)
-    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
-    s = s.lower().strip().replace("/", " ")
+    a = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    a = a.lower().strip().replace("/", " ")
+    a = re.sub(r"[-_]", " ", a)
+    a = re.sub(r"\s+", " ", a)
+    if re.search(r"[a-z]", a):  # Latin letters survived folding -> unchanged behaviour
+        return a
+    s = unicodedata.normalize("NFKC", s).casefold().strip().replace("/", " ")
     s = re.sub(r"[-_]", " ", s)
     s = re.sub(r"\s+", " ", s)
     return s

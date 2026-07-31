@@ -33,6 +33,11 @@
     },
     {
       "type": "file",
+      "id": "1twA6hcspoztnqxo6V5GybVeZQ9oCGlC1",
+      "dest": "boundaries/dublin_city_leas.geojson"
+    },
+    {
+      "type": "file",
       "id": "1Bz6Il007m1CB0FTDfJU4xu4o4jewJjlS",
       "dest": "income/income_subcity_harmonized.csv"
     },

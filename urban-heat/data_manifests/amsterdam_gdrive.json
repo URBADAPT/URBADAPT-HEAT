@@ -33,6 +33,11 @@
     },
     {
       "type": "file",
+      "id": "1mQPwaLLdS_ltTQROq2VtwpGtstgsiacr",
+      "dest": "boundaries/amsterdam_stadsdelen.geojson"
+    },
+    {
+      "type": "file",
       "id": "1Bz6Il007m1CB0FTDfJU4xu4o4jewJjlS",
       "dest": "income/income_subcity_harmonized.csv"
     },
