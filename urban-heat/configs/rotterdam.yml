@@ -273,7 +273,7 @@ vulnerability:
 #      drop in activation-period heat deaths). Mature HHWWS, marginal interpretation.
 #      See configs/EWS_REFERENCE.md.
 ews:
-  archetype: mature_hhwws
+  archetype: meteo_hhwws
   operational_trigger_mode: epi_deaths_file
   warning_season:
     mode: exact_dates
@@ -300,7 +300,7 @@ ews:
   threshold_recalib_interval_options: [3, 5, 7]
   warning_months: [5, 6, 7, 8, 9]
 
-  interpretation: marginal       # mature operational HHWWS -> marginal benefit on top
+  interpretation: intermediate   # tier-2 meteo-based HHWS -> midpoint(marginal, counterfactual) efficacy
 
   efficacy_counterfactual:
     low: 0.2
