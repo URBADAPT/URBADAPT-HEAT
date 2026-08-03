@@ -1,0 +1,9 @@
+{
+  "city": "Berlin",
+  "country": "DE",
+  "excluded_from_training": "Berlin",
+  "sample_weight": "equal_country",
+  "n_target_units": 97,
+  "n_train_cities": 145,
+  "n_train_zones": 5135
+}

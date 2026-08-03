@@ -32,6 +32,10 @@ covariate_sources:
     - {country: IE, file: IE_cities_ED_2022.gpkg,                    layer: IE_cities_ED_2022,                key_col: boundary_code}
     - {country: "NO", file: NO_cities_delomrade_2023.gpkg,           layer: NO_cities_delomrade_2023,         key_col: boundary_code}  # quote: bare NO is YAML boolean false
     - {country: AT, file: AT_Vienna_districts.gpkg,                  layer: AT_Vienna_districts,              key_col: boundary_code}
+    - {country: FR, file: FR_Strasbourg_Bordeaux_IRIS.gpkg,          layer: target_iris,                     key_col: boundary_code}  # added 2026-06-30
+    - {country: DE, file: DE_Munich_stadtbezirke.gpkg,               layer: munich_stadtbezirke,             key_col: boundary_code}  # added 2026-06-30
+    - {country: DE, file: DE_Hamburg_stadtteile.gpkg,                layer: hamburg_stadtteile,              key_col: boundary_code}  # added 2026-06-30
+    - {country: DE, file: DE_Dresden_stadtraeume.gpkg,               layer: dresden_stadtraeume,             key_col: boundary_code}  # added 2026-06-30
   # Common working CRS for boundaries / overlays.
   work_crs: "EPSG:3035"
 

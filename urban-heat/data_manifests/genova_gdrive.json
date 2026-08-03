@@ -29,6 +29,8 @@
     { "type": "file", "id": "1XHhhyIf1_4IYpXLJxl6cqmGU44KiS-Sb", "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff" },
     { "type": "file", "id": "1TJahmBT663A9mrdURecwStnE9BKoiCy6", "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff" },
     { "type": "file", "id": "1PRjxytqhFnP77OjTB772cNp-ivaTMmeu", "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff" },
+    { "type": "file", "id": "1HB_nfg9TKBy1EO2i5zBxaRN4GDZWAIVz", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
+    { "type": "file", "id": "1R4B23IHYqviADYVzBsZLWJQCpM_NeVnS", "dest": "vulnerability/gvi_projections.csv" },
       
     { "type": "file", "id": "1I9lqL4XlV9z-VN60wHUf5RytmwKzYbYt", "dest": "hazard/impact_geo_curpol_genova_urbclim-WBGT-dayover28_0.5_absolute_2030_0.0010541181798942034.tif" },
     { "type": "file", "id": "1M0-R7DChlF7XeaoEg62Cq9tbJUGaVvt_", "dest": "hazard/impact_geo_curpol_genova_urbclim-WBGT-dayover28_0.5_absolute_2050_0.0010541181798942034.tif" },

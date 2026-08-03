@@ -3,3 +3,9 @@ memory/
 
 # Heavy inputs/outputs live in data/ (also ignored at repo root); never commit.
 data/
+
+# Machine-specific config with absolute local paths — use config_local.template.yaml instead.
+config_local.yaml
+
+# osmnx / runtime caches
+cache/

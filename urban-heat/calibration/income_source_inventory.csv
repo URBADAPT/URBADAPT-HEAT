@@ -1,0 +1,41 @@
+city,country,income_source,harmonized_match
+amsterdam,NL,observed,amsterdam
+athens,GR,observed,athens
+barcelona,ES,observed,barcelona
+berlin,DE,emulator,(absent from harmonized)
+bologna,IT,observed,bologna
+bratislava,SK,emulator,(absent from harmonized)
+brussels,BE,observed,brussels-capital region
+bucharest,RO,emulator,(absent from harmonized)
+budapest,HU,emulator,(absent from harmonized)
+cologne,DE,emulator,(absent from harmonized)
+copenhagen,DK,observed,copenhagen
+dublin,IE,observed,dublin
+hamburg,DE,observed,hamburg
+helsinki,FI,observed,helsinki
+lisbon,PT,observed,lisbon
+ljubljana,SI,emulator,(absent from harmonized)
+lyon,FR,observed,lyon
+madrid,ES,observed,madrid
+marseille,FR,observed,marseille
+milan,IT,observed,milano
+munich,DE,observed,munich
+nantes,FR,emulator,(absent from harmonized)
+naples,IT,observed,napoli
+palermo,IT,observed,palermo
+paris,FR,observed,paris
+porto,PT,emulator,(absent from harmonized)
+prague,CZ,emulator,(absent from harmonized)
+riga,LV,emulator,(absent from harmonized)
+rome,IT,observed,roma
+rotterdam,NL,observed,rotterdam
+sevilla,ES,observed,sevilla
+sofia,BG,emulator,(absent from harmonized)
+stockholm,SE,observed,stockholm
+tallinn,EE,emulator,(absent from harmonized)
+thessaloniki,GR,emulator,(absent from harmonized)
+varna,BG,emulator,(absent from harmonized)
+vienna,AT,observed,vienna
+vilnius,LT,emulator,(absent from harmonized)
+warsaw,PL,emulator,(absent from harmonized)
+zagreb,HR,emulator,(absent from harmonized)

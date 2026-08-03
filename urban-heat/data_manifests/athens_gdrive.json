@@ -17,8 +17,8 @@
     { "type": "file", "id": "1_0JAwVfEjxCbrjMygbOEQniKcq1KhQuO", "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff" },
     { "type": "file", "id": "1ufB1PmOPzJj0sV-XiNepi9b231sAlBXO", "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff" },
     { "type": "file", "id": "11ElJfkC1BucZOEsPBqpQw_98DrwCf2QW", "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff" },
-    { "type": "file", "id": "1j-a9wBehS0KwZHS0MuIrMd-R2fjTLqTo", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
-    { "type": "file", "id": "1_j-WkB5JribgiVlKddKyltZb1Io5wVOw", "dest": "vulnerability/gvi_projections.csv" },
+    { "type": "file", "id": "1HB_nfg9TKBy1EO2i5zBxaRN4GDZWAIVz", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
+    { "type": "file", "id": "1R4B23IHYqviADYVzBsZLWJQCpM_NeVnS", "dest": "vulnerability/gvi_projections.csv" },
 
     { "type": "file", "id": "1ot4pbvzSIbZneaxiTQIiKPRKOtOnUlCH", "dest": "CoolingEff/coefs_GVI_lst.csv"},
 
@@ -26,14 +26,25 @@
     { "type": "file", "id": "1SOCjgocdd--lqEYE-yJjp8PPE5IU6Da1", "dest": "T2MmeanDeltas/climate_change_provide_markups_bands.csv" },
     { "type": "file", "id": "168HEaYYmobLq_Ak0QU7PCYhGovVo5QGB", "dest": "T2MmeanDeltas/climate_change_provide_markups_gcm.csv" },
 
-    { "type": "file", "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
+    { "type": "file", "id": "1PifcYXxGyq_xfiIQGzdzYdalZQK89mOZ", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
     { "type": "file", "id": "1AXPeV6Z-lsa6xN8-bzfHGvV8qS5fpn1j", "dest": "income/df_gr_athens_income_raster_2013.csv" }, 
       
-    { "type": "folder", "id": "1yBArUzoHl9jQrOoj3ax7WYhc3S6ZQp6F", "dest": "boundaries/synoikia0" },
-    { "type": "folder", "id": "1IZvn6XCocpdGYkAHDV12p-t2nPpD2b6j", "dest": "boundaries/geitonies0" },
-    { "type": "folder", "id": "1UXi3j0nLNd_CMO6gZEi1Vg6WTFxS0dlv", "dest":
-"boundaries/dimotikes_koinotites1" },
+    { "type": "file", "id": "1QqvA0Dym2Kr4xdml6aUqnbfAfkz8wAzA", "dest": "boundaries/synoikia0/synoikia0.shp" },
+    { "type": "file", "id": "1X2Auyya1ej3eDOwm1fcHn0bOg4S_gljK", "dest": "boundaries/synoikia0/synoikia0.shx" },
+    { "type": "file", "id": "1ywGNZowVDIRVIb_sYknGRPyR9e6TmpAW", "dest": "boundaries/synoikia0/synoikia0.prj" },
+    { "type": "file", "id": "1enpPB4a2CL8rRy6A-JWJ1KraeUAGGKcK", "dest": "boundaries/synoikia0/synoikia0.dbf" },
+    { "type": "file", "id": "1ODW-Cu0K4u8a0fiuVNn18zwazWHpISKw", "dest": "boundaries/synoikia0/synoikia0.cst" },
+    { "type": "file", "id": "1H46_z_A0mCP00raq6zBrTm7SNck4HEDR", "dest": "boundaries/geitonies0/geitonies0.shp" },
+    { "type": "file", "id": "1zl_RnOzgLfkqtJ-sJ4RLl2gXRDq6d2rg", "dest": "boundaries/geitonies0/geitonies0.shx" },
+    { "type": "file", "id": "1zgBjpdDztd-ZyoiaHm61fsb6QBP4bw9P", "dest": "boundaries/geitonies0/geitonies0.prj" },
+    { "type": "file", "id": "11plCj9JDERKyY0L_R41UnRvX7Nh7H57v", "dest": "boundaries/geitonies0/geitonies0.dbf" },
+    { "type": "file", "id": "1KaBm-2vyf6COwPxKNJbrMw7VRBFkZ1cn", "dest": "boundaries/geitonies0/geitonies0.cst" },
+    { "type": "file", "id": "1b0Uw8wAAuVKhWgfDK2NZeMgvykUdzmQw", "dest": "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.shp" },
+    { "type": "file", "id": "16-wRTNMVL2enZu0Kwh7tZMDJN8EMDZZS", "dest": "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.shx" },
+    { "type": "file", "id": "1EsrBeX00vpmlJ5SCapIBfYqAYN9kZV30", "dest": "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.prj" },
+    { "type": "file", "id": "16LjhdXnfb5SziVZdozLe62ZjJnhaTZQ_", "dest": "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.dbf" },
+    { "type": "file", "id": "1Gn1GCIXWaTC5R13nh3CWfsAyigDRbus1", "dest": "boundaries/dimotikes_koinotites1/dimotikes_koinotites1.cst" },
 
     { "type": "file", "id": "1TG1szYP98JAwHLF_j8EyBf95fswQxk7a", "dest": "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json", "base_kind": "outputs" }
 

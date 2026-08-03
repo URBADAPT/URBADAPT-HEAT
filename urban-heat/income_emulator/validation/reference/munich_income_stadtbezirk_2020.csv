@@ -1,0 +1,33 @@
+# Observed income per taxpayer by Munich Stadtbezirk, reporting year 2020.
+# Source: Muenchner Statistik, 4. Quartalsheft 2024, Tabelle 7 -- "Gesamtbetrag der Einkuenfte
+#   der unbeschraenkt Lohn- und Einkommensteuerpflichtigen 2020 nach Stadtbezirken".
+#   Statistisches Amt der Landeshauptstadt Muenchen (Lohn- und Einkommensteuerstatistik 2020).
+#   https://stadt.muenchen.de/dam/jcr:ec82af5d-890e-4ca4-8787-d14f70e5e207/mb240403.pdf
+# mean_income_eur = arithmetic mean per taxpayer; median_income_eur = median (robust; preferred,
+#   since the mean is inflated by income millionaires -- see report). Read with comment='#'.
+stadtbezirk_num,stadtbezirk,mean_income_eur,median_income_eur
+1,Altstadt-Lehel,89516,47269
+2,Ludwigsvorstadt-Isarvorstadt,65059,42176
+3,Maxvorstadt,66558,42469
+4,Schwabing-West,67569,42093
+5,Au-Haidhausen,64531,43543
+6,Sendling,49332,38000
+7,Sendling-Westpark,51209,36500
+8,Schwanthalerhoehe,47466,35207
+9,Neuhausen-Nymphenburg,65729,41140
+10,Moosach,48016,35380
+11,Milbertshofen-Am Hart,40598,29824
+12,Schwabing-Freimann,75942,38395
+13,Bogenhausen,83514,43279
+14,Berg am Laim,46623,34311
+15,Trudering-Riem,66745,41693
+16,Ramersdorf-Perlach,46032,32496
+17,Obergiesing-Fasangarten,45873,35769
+18,Untergiesing-Harlaching,63744,39227
+19,Thalkirchen-Obersendling-Forstenried-Fuerstenried-Solln,60419,38181
+20,Hadern,52820,36295
+21,Pasing-Obermenzing,64867,40600
+22,Aubing-Lochhausen-Langwied,50435,35134
+23,Allach-Untermenzing,61321,39985
+24,Feldmoching-Hasenbergl,46745,32600
+25,Laim,46511,35000

@@ -259,6 +259,25 @@ def centre_distance(bnd, cs: dict) -> pd.DataFrame:
     return out
 
 
+def age_features(bnd, cs: dict) -> pd.DataFrame:
+    """Mean GHSL construction-epoch class per unit (a building-age proxy).
+
+    GHS construction epoch (R2025A; 11 ordinal classes 0..10, nodata 255; EPSG:54009).
+    Lower = older fabric. This is the signal the density/LCZ covariates lack -- it
+    distinguishes historic cores from modern development. Optional: if `ghs_age` is
+    not set the column is NaN (median-imputed downstream).
+    """
+    if not cs.get("ghs_age"):
+        return pd.DataFrame({"city": bnd["city"].values, "subcity_code": bnd["subcity_code"].values,
+                             "built_age_mean": np.nan})
+    from rasterstats import zonal_stats
+    g = bnd.to_crs("ESRI:54009")
+    st = zonal_stats(g.geometry.values, cs["ghs_age"], stats=["mean"], nodata=255, all_touched=False)
+    out = pd.DataFrame({"city": g["city"].values, "subcity_code": g["subcity_code"].values})
+    out["built_age_mean"] = [s["mean"] if s["mean"] is not None else np.nan for s in st]
+    return out
+
+
 # ---------------------------------------------------------------------------
 def build(cfg: dict) -> pd.DataFrame:
     cs = cfg["covariate_sources"]
@@ -274,7 +293,8 @@ def build(cfg: dict) -> pd.DataFrame:
               lcz_features(bnd, cs),
               census_features(bnd, cs),
               facility_features(bnd, cs),
-              centre_distance(bnd, cs)]
+              centre_distance(bnd, cs),
+              age_features(bnd, cs)]
     df = tables[0]
     for t in tables[1:]:
         df = df.merge(t, on=["city", "subcity_code"], how="left")
@@ -290,7 +310,8 @@ def build(cfg: dict) -> pd.DataFrame:
             "pop_density", "built_volume_pc", "mean_building_height",
             "lcz_compact_share", "lcz_open_share", "lcz_industrial_share", "lcz_vegetation_share",
             "share_under15", "share_65plus", "employment_rate", "foreign_born_share",
-            "residential_churn", "health_fac_pc", "education_fac_pc", "dist_to_centre"]
+            "residential_churn", "health_fac_pc", "education_fac_pc", "dist_to_centre",
+            "built_age_mean"]
     return df[[c for c in keep if c in df.columns]]
 
 

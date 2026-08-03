@@ -40,8 +40,8 @@ era5_df$date <- as.Date(era5_df$date)
 
 # target cities 
 our_cities <- data.frame(
-  URAU_CODE = c("IT001C", "EL001C", "PT001C", "DK001C"),
-  label = c("Rome", "Athens", "Lisbon", "Copenhagen"),
+  URAU_CODE = c("IT001C", "EL001C", "PT001C", "DK001C", "NL001C", "ES002C", "DE001C", "IT009C", "SK001C", "BE001C", "RO001C", "HU001C", "DE004C", "IE001C", "DE002C", "FI001C", "SI001C", "FR002C", "ES001C", "FR004C", "IT002C", "DE003C", "FR007C", "IT003C", "IT005C", "FR001C", "PT002C", "CZ001C", "LV001C", "NL037C", "ES004C", "BG001C", "SE001C", "EE001C", "EL002C", "BG003C", "AT001C", "LT001C", "PL001C", "HR001C"),
+  label = c("Rome", "Athens", "Lisbon", "Copenhagen", "Amsterdam", "Barcelona", "Berlin", "Bologna", "Bratislava", "Brussels", "Bucharest", "Budapest", "Cologne", "Dublin", "Hamburg", "Helsinki", "Ljubljana", "Lyon", "Madrid", "Marseille", "Milan", "Munich", "Nantes", "Naples", "Palermo", "Paris", "Porto", "Prague", "Riga", "Rotterdam", "Sevilla", "Sofia", "Stockholm", "Tallinn", "Thessaloniki", "Varna", "Vienna", "Vilnius", "Warsaw", "Zagreb"),
   stringsAsFactors = FALSE
 )
 age_groups <- c("20-44", "45-64", "65-74", "75-84", "85+")

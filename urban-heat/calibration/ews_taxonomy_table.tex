@@ -1,0 +1,98 @@
+% ===========================================================================
+% EWS maturity taxonomy — appendix table for the URBADAPT-HEAT paper.
+% Requires in the preamble:
+%   \usepackage{booktabs,array,longtable,pdflscape,xurl,hyperref}
+% (xurl lets long URLs break; pdflscape rotates the page(s) in the PDF; the
+%  table uses longtable so it can span >1 page if needed.)
+% ===========================================================================
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\begin{landscape}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}L{2.3cm}L{3.3cm}L{7.6cm}L{2.4cm}L{5.0cm}@{}}
+\caption{Early-warning-system (EWS) maturity taxonomy and its treatment in URBADAPT-HEAT. Countries
+are grouped by the maturity of their national heat--health warning arrangements; the third column
+states the corresponding modelling assumptions and limitations.}
+\label{tab:ews_taxonomy}\\
+\toprule
+\textbf{EWS class} & \textbf{Definition} & \textbf{Assumptions and limitations for EWS implementation in URBADAPT-HEAT} & \textbf{Countries} & \textbf{References / official sources} \\
+\midrule
+\endfirsthead
+\multicolumn{5}{@{}l}{\footnotesize\emph{Table~\ref{tab:ews_taxonomy} continued}}\\
+\toprule
+\textbf{EWS class} & \textbf{Definition} & \textbf{Assumptions and limitations for EWS implementation in URBADAPT-HEAT} & \textbf{Countries} & \textbf{References / official sources} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{5}{@{}r@{}}{\footnotesize\emph{continued on next page}}\\
+\endfoot
+\bottomrule
+\endlastfoot
+
+% ---------- Tier 1 ----------
+Mature HHWS, epidemiologically based, with surveillance (real-time mortality data)
+&
+Operational heat--health warning \& action system with an organised health-system response and surveillance, where alert thresholds are derived from local temperature--mortality (epidemiological) relationships.
+&
+URBADAPT-HEAT treats this class as an already-operational mature system (\texttt{mature\_hhwws}, \texttt{marginal} interpretation). The adaptation is the \emph{added} protection on an existing system---a marginal improvement or maintained protection, not deployment from zero---so setup CAPEX is set to zero and costs enter only through per-warning-day and fixed annual operating costs. Efficacy is applied as a marginal reduction in heat-attributable mortality on warning days, age-differentiated and calibrated to on-system estimates (de'Donato et al.\ 2018; Pavanello \& Valenti 2025). \textbf{Limitations:} the model does not explicitly simulate local epidemiological thresholds, surveillance protocols, communication quality, public compliance or health-system capacity; these are treated as homogeneous across cities.
+&
+Italy, France, Spain, Portugal
+&
+\scriptsize Italy: \url{https://www.salute.gov.it/portale/caldo/dettaglioContenutiCaldo.jsp?lingua=italiano&id=408&area=emergenzaCaldo&menu=vuoto}\newline
+France: \url{https://www.santepubliquefrance.fr/climat/fortes-chaleurs-canicule}\newline
+Spain: \url{https://www.sanidad.gob.es/areas/sanidadAmbiental/riesgosAmbientales/calorExtremo/home.htm}\newline
+Portugal: \url{https://www.insa.min-saude.pt/conheca-o-sistema-de-monitorizacao-e-vigilancia-icaro/}
+\\
+\midrule
+
+% ---------- Tier 2 ----------
+HHWS, meteorologically based or with historical epidemiological grounding (no real-time mortality data)
+&
+National operational heat plan with an organised response, but alert thresholds are meteorological (they can be epidemiologically calibrated but are not based on real-time epidemiological data).
+&
+URBADAPT-HEAT treats this class as an intermediate-maturity system: a national heat-warning or heat-action framework exists, but triggers are mainly meteorological, biometeorological or historically calibrated rather than based on real-time mortality surveillance, so the adaptation is an \emph{upgrade} toward a more integrated heat--health system. Setup costs and ramp-up are intended to be intermediate between mature systems and deployment from scratch, with wider efficacy uncertainty. (In the current configuration these countries are still represented with their binary archetype---mature or establish-from-baseline---pending implementation of a distinct intermediate tier.) \textbf{Limitations:} subnational implementation, health-sector coordination, threshold calibration and follow-up actions differ strongly across these countries and are only approximately represented.
+&
+Germany, Netherlands, Belgium, Austria, Hungary, Romania, Sweden, Finland
+&
+\scriptsize Germany: \url{https://www.dwd.de/DE/leistungen/hitzewarnung/hitzewarnung.html}\newline
+Netherlands: \url{https://www.rivm.nl/en/heat/national-heatwave-plan}\newline
+Belgium: \url{https://www.health.belgium.be/fr/themes/sante/aide-medicale-urgente/plans-durgence/plan-fortes-chaleurs-pics-dozone}\newline
+Austria: \url{https://www.sozialministerium.gv.at/Themen/Gesundheit/Hitze/Nationaler-Hitzeschutzplan.html}\newline
+Hungary: \url{https://nnk.gov.hu/index.php/kozegeszsegugyi-hatosagi-ugyek/telepules-egeszsegugyi-klimavaltozas-es-kornyezeti-egeszseghatas-elemzo-osztaly/temaink/hosegriasztas.html}\newline
+Romania: \url{https://www.meteoromania.ro/avertizari/}\newline
+Sweden: \url{https://www.smhi.se/kunskapsbanken/meteorologi/varningar-och-meddelanden/varning-for-hoga-temperaturer}\newline
+Finland: \url{https://www.ilmatieteenlaitos.fi/tietoa-helle-ja-pakkasvaroitukset}
+\\
+\midrule
+
+% ---------- Tier 3 ----------
+Meteorological warnings only (no HHWS)
+&
+National meteorological service issues heat warnings, but there is no comprehensive national heat--health action plan or coordinated health-system response.
+&
+URBADAPT-HEAT treats this class as heat alerts without a comprehensive heat--health action plan or coordinated health-system response, so the intervention is the counterfactual deployment of a full HHWS/HHAP from a low baseline (\texttt{weak\_threshold}, \texttt{counterfactual}). A non-zero setup CAPEX, a longer ramp-up and wider efficacy parameters are applied, with the counterfactual efficacy scaled by region (Urban et al.\ 2025: 25.2\% overall, Northern Europe 33.2\%, Southern Europe 11.9\%). Because that evidence shows no statistically significant efficacy difference by development class ($p=0.19$) or region ($p=0.44$), the graded efficacy across tiers is treated as a modelling assumption expressed through wide uncertainty ranges rather than a measured gradient. \textbf{Limitations (two-directional):} pre-existing traffic-light alerts may already induce some protective behaviour, so ignoring this baseline could overstate incremental benefits; conversely, the absence of an organised health-system response may reduce realised efficacy relative to the mature-system evidence.
+&
+Greece, Croatia, Slovenia, Bulgaria, Slovakia, Czech Republic, Poland, Denmark, Ireland, Estonia, Latvia, Lithuania
+&
+\scriptsize Greece: \url{https://emy.gr/en/warnings}\newline
+Croatia: \url{https://meteo.hr/naslovnica-upozorenja.php?lang=en&tab=upozorenja}\newline
+Slovenia: \url{https://meteo.arso.gov.si/met/en/warning/}\newline
+Bulgaria: \url{https://burgasmedia.com/news/bg-alert-s-izvanredni-preduprezhdeniya-v-burgas-zaradi-opasni-temperaturi?lang=en}\newline
+Slovakia: \url{https://www.shmu.sk/en/?page=987}\newline
+Czech Republic: \url{https://vystrahy-cr.chmi.cz/}\newline
+Poland: \url{https://meteo.imgw.pl}\newline
+Denmark: \url{https://www.dmi.dk/varsler/warnings/}\newline
+Ireland: \url{https://www.met.ie/weather-warnings}\newline
+Estonia: \url{https://www.ilmateenistus.ee/ilm/prognoosid/hoiatused/?lang=en}\newline
+Latvia: \url{https://bridinajumi.meteo.lv/}\newline
+Lithuania: \url{https://www.meteo.lt/prognozes/pavojingi-reiskiniai/}
+\\
+\end{longtable}
+
+\noindent{\scriptsize Efficacy figures from Urban et al.\ (2025); cost, ramp-up and setup-CAPEX
+parameters from de'Donato et al.\ (2018), Pavanello \& Valenti (2025), Ebi et al.\ (2004) and WHO
+(2021); country classification cross-checked against Casanueva et al.\ (2019). Official-source URLs
+last accessed July 2026.}
+\end{landscape}

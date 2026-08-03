@@ -1,0 +1,14 @@
+{
+  "city": "Leipzig",
+  "country": "DE",
+  "excluded_from_training": "Leipzig",
+  "sample_weight": "equal_country",
+  "n_target_units": 63,
+  "n_train_cities": 145,
+  "n_train_zones": 5135,
+  "boundary": "data/DE_leipzig_ortsteile.gpkg",
+  "boundary_layer": "leipzig_units",
+  "boundary_sha256_1mb": "37dc717fb7cdf0fb",
+  "config": "config_local.yaml",
+  "generated_utc": "2026-06-30T08:26:03+00:00"
+}

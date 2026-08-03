@@ -1,0 +1,343 @@
+# ============================================================================
+# PLACEHOLDER CONFIG for Rotterdam (Netherlands)
+# Generated scaffold for model deployment (eu_urbclim_cities_urbadapt: include_final=Y).
+# Identity fields and city-agnostic defaults are filled in.
+# Every value tagged `# TODO` requires city-specific research / data before use.
+# Template structure mirrors configs/rome.yml.
+# ============================================================================
+
+slug: rotterdam # city name
+city_name: Rotterdam
+gvi_city_aliases: ["Rotterdam [The Hague]"]   # gvi_356_cities.csv uses this name (NB01 filter)
+wp_iso3: NLD
+wp_country: Netherlands
+pop_k: 660                       # approx population (thousands), from eu_urbclim_cities_urbadapt
+capital: false                  # national capital flag
+base_dir: data/rotterdam
+drive_manifest: data_manifests/rotterdam_gdrive.json # TODO: create Drive manifest for Rotterdam
+
+# demo / exposure scenario from Wittgenstein population runs scenarios
+# available: SSP1, SSP2, SSP3, SSP4, SSP5, SSP2DM, SSP2ZM
+exp_scenario: SSP2
+
+layers:
+  fua: fua
+  cap: cap
+  cap_wgs84: cap_wgs84
+  regions: regions
+  muni: muni
+
+ac:
+  ssp: 2 # AC data scenarios could be 1,3,5
+  years: [2020, 2030, 2040, 2050]
+  year: 2050
+
+  # AC electricity consumption at NUTS level
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_format: nuts_csv
+  kwh_nuts_ids: ["NL33C"]   # NUTS-3 Groot-Rijnmond (metro alt: NUTS-2 NL33 Zuid-Holland)
+  kwh_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  # AC penetration
+  penetration_file: ACgridded/ac_penetration_NUTSregions.csv
+  penetration_format: nuts_csv
+  penetration_nuts_ids: ["NL33C"]   # NUTS-3 Groot-Rijnmond (metro alt: NUTS-2 NL33 Zuid-Holland)
+  nuts_id: "NL33C"                # legacy single-id; matches *_nuts_ids
+  nuts_columns:
+    id: NUTS_ID
+    scenario: Scenario
+    year: year
+    value: value
+
+  tariff_eur_per_kwh: 0.24   # NLD ely_prices.xlsx (2021 USD @ 0.846 EUR/USD)
+  capex_per_user: 1784   # €1543 2018 installed (product+€800) x PLI 115.6/100 [CALIB_AC S5]
+  maint_rate: 0.04   # prEN 15459:2006 via Lot-10: 4%/yr of purchase+install [CALIB_AC S3]
+  lifetime_years: 12   # Lot-10 Task4 / 2018 review; UQ range 9-16 [CALIB_AC S3]
+
+  # AC waste heat feedback (Salamanca et al. 2014 + Kou et al. 2026)
+  waste_heat:
+    enabled: true
+    lut_case_default: central          # low / central / high
+    lut_case_options: [low, central, high]
+    dailymean_from_night_default: 0.50
+    dailymean_from_night_range: [0.33, 0.67]  # for UQ sampling
+    activation:
+      method: kou_cdd_share
+      temperature_metric: citymean_dailymean
+      t_on_c: 18.0
+      t_full_c: 25.0
+
+    # Salamanca 2014 LUT: penetration -> nighttime delta-T (degC)
+    lut:
+      0.00: {low: 0.00, central: 0.00, high: 0.00}
+      0.35: {low: 0.25, central: 0.375, high: 0.50}
+      0.65: {low: 0.50, central: 0.750, high: 1.00}
+      1.00: {low: 1.00, central: 1.250, high: 1.50}
+
+    # COP degradation feedback (Kou et al. 2026)
+    cop_degradation:
+      enabled: true
+      sensitivity_per_C: {low: 0.04, central: 0.065, high: 0.09}
+      cop_ref: 3.0
+
+trees:
+  capex_per_index_pt_eur: 10000000
+  capex_per_tree_eur: 809   # park/low-engineering base x PLI 115.6/100 [D5.1/Prague; CALIB_AC S7]
+  om_per_tree_per_year_eur: 75   # park/low-engineering O&M base x PLI/100 [D5.1/Vogt; CALIB_AC S7]
+  lifetime_years: 25
+  ramp_years: 12
+  cap_uplift_0_1: 0.12
+  focus_year: 2050
+
+  # vegetation policy regions (NB07)
+  veg_regions: regions          # Rotterdam: 21 gebieden (TIR)
+  veg_region_label: Gebied   # label for plots/tables
+  veg_emulator_bundle: "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json"
+
+electricity_feedback:
+  enabled: true
+  source: "Falchetta_DeCian_Lunghi_2026"
+  pct_reduction_per_gvi_point: 0.008   # PLACEHOLDER = flat 0.008 (Falchetta 2026 Fig5 @~30C); recompute per-city from JJA-Tmax once city_summer_tmax.csv is filled [calibration/gen_gvi_reduction.py]
+  summer_months: 3
+  co2_intensity_gCO2_per_kwh: 235     # NLD EEA 2024 grid emission intensity (gCO2e/kWh)
+
+cba:
+  discount_rate: 0.03
+  horizon_years: 25
+
+climate:
+  t2m_clim_scen_default: CurPol
+  t2m_clim_scen_options: [CurPol, GS, SP, ssp585]
+  t2m_baseline_mode_default: climatology_mean
+  t2m_baseline_mode_options: [climatology_mean, pixelwise_doy_max, domain_peak_day, warmest_summer]
+  t2m_delta_pct_band_default: central
+  t2m_delta_pct_band_options: [low, central, high]
+  t2m_var: tas
+  years: [2020, 2030, 2040, 2050]
+
+  urbclim_api: # for the API of historical UrbClim data 2008-2017
+    enabled: true
+    t2m_url: "https://provide.marvin.vito.be/ftp/compressed_daily/Rotterdam/"  # verified against compressed_daily/folders.json
+    local_dir: "UrbClim/UrbClimT2Mmean"
+    years: [2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017]
+
+efficacy_scenarios:
+  sera_spain:
+    "<15": 0.10
+    "15-64": 0.14
+    "65+": 0.20
+  moderate:
+    "<15": 0.20
+    "15-64": 0.30
+    "65+": 0.40
+  optimistic:
+    "<15": 0.30
+    "15-64": 0.40
+    "65+": 0.55
+  flat_30:
+    "<15": 0.30
+    "15-64": 0.30
+    "65+": 0.30
+
+efficacy:
+  "<15": 0.20
+  "15-64": 0.30
+  "65+": 0.40
+  default: 0.30
+
+files:
+  gvi_csv: gvi/gvi_356_cities.csv
+  lcz_candidates:
+    - "LCZ/lcz_filter_v3.tif"
+    - "LCZ/lcz_v3.tif"
+  cooling_coeffs_csv: "CoolingEff/coefs_GVI_lst.csv"
+  income_csv: "income/income_subcity_harmonized.csv"   # shared harmonized sub-city income; NB05 filters by income.city_aliases
+  t2m_mean_daily_nc:
+    dir: "UrbClimT2Mmean"
+    pattern: "T2M_year_daily_mean_*.nc"
+  t2m_deltas_table: "T2MmeanDeltas/climate_change_provide_markups_avg.csv"
+
+osm:
+  query: "Rotterdam, Nederland"
+  admin_levels: [8, 7]              # downloaded OSM levels (regions level included)
+  boundary_tag: "administrative"
+  keep_outside_bucket: true
+  min_samples: 10
+
+urbclim:
+  folder: "UrbClim/UrbClimWBGTmax"
+  variable_candidates: ["wbgt_max","WBGT_max","wbgt","WBGT"]
+  thresh_wbgt: 28.0
+  hot_months: [6, 7, 8, 9]
+  f_bounds: [0.4, 1.0]
+
+cooling_city_aliases: ["rotterdam"]
+
+# TODO: income source schema is city-specific (CSV columns / raster / shapefile).
+#       See configs/rome.yml (CAP code-based) and configs/athens.yml (raster) for the two patterns.
+income:
+  source: observed          # observed | emulator (NB05 income source; see cityheat.income_source)
+  city_aliases: ["Rotterdam"]
+  columns:
+    city: city
+    zone_id: subcity_code
+    zone_name: subcity_code       # harmonized code; matches boundary_code under norm_name
+    income: inc_pct_within_city   # within-city income percentile 0-1 (AC ranks this)
+    count: null
+    year: null                    # (city,subcity_code) unique -> one row/zone, no year filter
+  aggregation: mean   # one row per (city,subcity_code); no pop-count col -> mean
+
+# TODO: spatial zoning source (shapefile vs OSM admin level).
+zones:
+  source: "shapefile"   # AC = observed-income boundary (buurten ~64 (alnum)); NB05 clips to FUA [emulator boundaries]
+  shapefile: "boundaries/NL_target_cities_buurten_2023.gpkg"   # shared per-country emulator gpkg; place in data/<city>/ via manifest
+  shapefile_zone_col: "boundary_code"   # emulator key col = harmonized subcity_code
+  osm_admin_level: null     # TODO
+  match_by: "name"   # code=5-digit postal (to_cap5); name=exact norm (no truncation)
+  cache_file: null
+
+# Reporting/vegetation region level: 21 gebieden (TIR) — not in OSM; official open data.
+# TODO: add rotterdam_gebieden.geojson to <base_dir>/boundaries/ in Drive (see OSM_REGIONS_REFERENCE.md §D).
+regions:
+  enabled: true
+  source: "shapefile"
+  shapefile: "boundaries/rotterdam_gebieden.geojson"
+  shapefile_name_col: "GEBDNAAM"
+  shapefile_id_col: "GEBIED"
+  osm_admin_level: null
+  cache_file: "gebieden_rotterdam.gpkg"
+  raster_cache_file: "gebieden_on_ref_rotterdam.npz"
+
+vulnerability:
+    enabled: true
+    weights:
+        thermal: 0.333
+        foreign_born: 0.333
+        unemployment: 0.333
+    svi_min_valid_components: 2
+    files:
+        ghs_age: "vulnerability/GHS_AGE_1975052020_GLOBE_R2025A_54009_100_V1_0.tif"
+        census_pop: "vulnerability/ESTAT_OBS-VALUE-T_2021_V2.tiff"
+        census_oth: "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff"
+        census_emp: "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff"
+        census_working_age: "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff"
+    census_nodata: -9999
+    dynamic:
+        enabled: true
+        baseline_year: 2021
+        population_baseline_year: 2020
+        years: [2020, 2030, 2040, 2050]
+        drmkc:
+            file: "vulnerability/drmkc_vulnerability_projection.csv"
+            region_id: "NL366"          # NUTS-3 Greater Rijnmond / Rotterdam (NUTS-2021; verified in DRMKC CSV 2026-07-09; was NL33C = NUTS-2016, absent from DRMKC)
+            effect_signs:
+                foreign_born: 1.0
+                unemployment: -1.0
+        gvi:
+            file: "vulnerability/gvi_projections.csv"
+            country_code: "NLD"
+        foreign_born_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.04
+            gvi_scale: 0.35
+        unemployment_projection:
+            q_low: 0.05
+            q_high: 0.95
+            drmkc_scale: 0.08
+            gvi_scale: 0.50
+        # TODO: persistence params below are generic defaults; calibrate per city.
+        k:
+            default: 0.85
+            foreign_born: 0.85
+            unemployment: 0.85
+        phi:
+            default_2030: 0.92
+            default_2050: 0.75
+            foreign_born_2030: 0.92
+            foreign_born_2050: 0.75
+            unemployment_2030: 0.90
+            unemployment_2050: 0.70
+        thermal_projection:
+            retrofit_rate_per_year: 0.0092   # EC 2019 weighted renovation rate (Table2 rate x Table4 savings; winter-PE proxy) [calibration/retrofit_source_ec2019.csv]
+            new_build_vulnerability: 0.15   # constant EU-wide: EPBD nZEB (all new builds >=2021) + age already differentiated; nZEB overheating = UQ sensitivity [CALIB]
+            growth_sensitivity: 0.70
+            growth_cap: 0.30
+
+# EWS: Netherlands runs the Nationaal Hitteplan (RIVM + KNMI) since 2007 - KNMI yellow/orange/
+#      red with organised health/social response; formal 2024-25 evaluation (~43% associational
+#      drop in activation-period heat deaths). Mature HHWWS, marginal interpretation.
+#      See configs/EWS_REFERENCE.md.
+ews:
+  archetype: mature_hhwws
+  operational_trigger_mode: epi_deaths_file
+  warning_season:
+    mode: exact_dates
+    start_md: "05-01"
+    end_md: "09-30"
+  alert_tiers:
+    levels: ["advisory", "watch", "warning"]
+    source: "Nationaal Hitteplan (RIVM + KNMI, since 2007); KNMI yellow/orange/red"
+  targeting:
+    primary_groups: ["65+", "chronic conditions", "socially isolated"]
+    channels: ["health services", "municipal outreach", "media alerts"]
+  cost_components:
+    model_default: pavanello
+    source_note: "See pavanello/chiabai subsections below"
+
+  threshold_method: epi_deaths_file
+  threshold_file: null
+  threshold_key: threshold_deaths_per_day
+  threshold_unit: heat_deaths_per_day
+  target_activation_days: 23
+  target_activation_days_options: [15, 23, 30]
+  threshold_ref_year: 2020
+  threshold_recalib_interval: 5
+  threshold_recalib_interval_options: [3, 5, 7]
+  warning_months: [5, 6, 7, 8, 9]
+
+  interpretation: marginal       # mature operational HHWWS -> marginal benefit on top
+
+  efficacy_counterfactual:
+    low: 0.2
+    central: 0.35
+    high: 0.5
+  efficacy_marginal:
+    "<15":   {low: 0.02, central: 0.05, high: 0.08}
+    "15-64": {low: 0.03, central: 0.07, high: 0.12}
+    "65+":   {low: 0.08, central: 0.15, high: 0.25}
+
+  ramp_years: 3   # Pavanello & Valenti 2025 Fig 4(c): HHWWS effect emerges after ~yr3 [CALIB_EWS S6]
+  ramp_initial_efficacy: 0.1   # Pavanello Fig 4(c): near-zero yr0-3 then ramps [CALIB_EWS S6]
+
+  cost_model: pavanello
+  pavanello:
+    usd_per_capita_per_day: 0.014   # Pavanello & Valenti 2025 (WP 35.2025) via Ebi 2004 [CALIB_EWS S6]
+    eur_usd_rate: 0.92
+    cost_source: "Pavanello & Valenti 2024 via Ebi 2004"
+  chiabai:
+    opex_per_warning_day_basic: 9844   # Chiabai 2018 €7800 Madrid x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_enhanced: 17668   # Chiabai €14000 x PLI/PLI_ES [CALIB_EWS S3]
+    opex_per_warning_day_incremental: 7824   # Chiabai increment €6200 x PLI/PLI_ES [CALIB_EWS S3]
+    cost_source: "Chiabai et al. (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
+
+  capex_setup: 75000   # 3-tier EWS taxonomy Tier 2 (meteorological/intermediate): 0/75k/150k setup CAPEX; full=$150k Ebi2004 via Takacs [ews_taxonomy_v4]
+  opex_annual_fixed: 252402   # Rao 2025 standing HHWS cost €200k/yr x PLI/PLI_ES [CALIB_EWS S5]
+  cost_scale_with_population: true
+  cost_ramp_with_efficacy: true
+
+  ac_overlap_factor: {low: 0.15, central: 0.30, high: 0.50}   # Netherlands: low AC penetration
+
+  displacement:
+    "<15":   {low: 0.05, central: 0.10, high: 0.20}
+    "15-64": {low: 0.05, central: 0.10, high: 0.20}
+    "65+":   {low: 0.10, central: 0.25, high: 0.40}
+
+  residual_life_years:           # Netherlands life table (Eurostat demo_mlexpec 2023, ~age 77)
+    "<15": 60
+    "15-64": 25
+    "65+": 11

@@ -17,8 +17,8 @@
     { "type": "file", "id": "1_0JAwVfEjxCbrjMygbOEQniKcq1KhQuO", "dest": "vulnerability/ESTAT_OBS-VALUE-OTH_2021_V2.tiff" },
     { "type": "file", "id": "1ufB1PmOPzJj0sV-XiNepi9b231sAlBXO", "dest": "vulnerability/ESTAT_OBS-VALUE-EMP_2021_V2.tiff" },
     { "type": "file", "id": "11ElJfkC1BucZOEsPBqpQw_98DrwCf2QW", "dest": "vulnerability/ESTAT_OBS-VALUE-Y_1564_2021_V2.tiff" },
-    { "type": "file", "id": "1gdZocCPPC-k3XXhy_I1FLbb9gdktlWeV", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
-    { "type": "file", "id": "1ogi4NOdve73u7SUXtlcukwNQT_wDx3US", "dest": "vulnerability/gvi_projections.csv" },
+    { "type": "file", "id": "1HB_nfg9TKBy1EO2i5zBxaRN4GDZWAIVz", "dest": "vulnerability/drmkc_vulnerability_projection.csv" },
+    { "type": "file", "id": "1R4B23IHYqviADYVzBsZLWJQCpM_NeVnS", "dest": "vulnerability/gvi_projections.csv" },
 
     { "type": "file", "id": "1ot4pbvzSIbZneaxiTQIiKPRKOtOnUlCH", "dest": "CoolingEff/coefs_GVI_lst.csv"},
 
@@ -26,7 +26,7 @@
     { "type": "file", "id": "1X8fCmUUw1KlGY7PTtqhRnlfoMb1LNFoN", "dest": "T2MmeanDeltas/climate_change_provide_markups_bands.csv" },
     { "type": "file", "id": "1QHEFnae2IO4gsXJrvyBVEyBhnDkI0b25", "dest": "T2MmeanDeltas/climate_change_provide_markups_gcm.csv" },
 
-    { "type": "file", "id": "18F8JQ4FH41LAh18rvH8ZpIsgkjeb41RR", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
+    { "type": "file", "id": "1PifcYXxGyq_xfiIQGzdzYdalZQK89mOZ", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
     { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcomunale_CSV_2023.csv" },
 
