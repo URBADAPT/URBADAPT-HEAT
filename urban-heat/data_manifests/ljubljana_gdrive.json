@@ -111,6 +111,16 @@
       "id": "1TG1szYP98JAwHLF_j8EyBf95fswQxk7a",
       "dest": "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json",
       "base_kind": "outputs"
+    },
+    {
+      "type": "file",
+      "id": "12pDPYywUbnALFH-3huX5-r6UORcR9uqI",
+      "dest": "boundaries/ljubljana_cetrtne.geojson"
+    },
+    {
+      "type": "file",
+      "id": "19SvZ7Ehwh6b4oxpAFD3Cwl2Jhf7LWcjM",
+      "dest": "income/ljubljana_p_inc.csv"
     }
   ]
 }

@@ -28,7 +28,7 @@
 
     { "type": "file", "id": "1PifcYXxGyq_xfiIQGzdzYdalZQK89mOZ", "dest": "ACgridded/ac_penetration_NUTSregions.csv" },
     { "type": "file", "id": "1O8uJSeMu6GNJ0uUkvkRE3ENSyxf6NmEr", "dest": "ACgridded/ac_kwh_NUTSregions.csv" },
-    { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcomunale_CSV_2023.csv" },
+    { "type": "file", "id": "1m4xYUVFE2UjsuI2Uk_bpeFIXKrIoK0QR", "dest": "income/Redditi_e_principali_variabili_IRPEF_su_base_subcom.csv" },
 
     { "type": "file", "id": "1a9xFLMi_y8_KscTdUJX9qz6fBWx3_kMZ", "dest": "CAPZONE/CAPZONE.shp" },
     { "type": "file", "id": "1NDD_ACPlLyOoDMcQU-tN0b6bI5Uzt8qc", "dest": "CAPZONE/CAPZONE.dbf" },
