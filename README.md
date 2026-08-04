@@ -5,6 +5,7 @@
   <p><strong>A scalable geospatial framework for city-level urban heat risk assessment<br>and public–private adaptation cost-benefit analysis</strong></p>
 
   <p>
+    <a href="https://urbadapt.github.io"><img src="https://img.shields.io/badge/website-urbadapt.github.io-1f6feb.svg" alt="Website"></a>
     <a href="https://github.com/URBADAPT/URBADAPT-HEAT/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-CC0%201.0-blue.svg" alt="License: CC0 1.0"></a>
     <img src="https://img.shields.io/badge/python-3.10-blue.svg" alt="Python 3.10">
     <img src="https://img.shields.io/badge/CLIMADA-6.1.0-green.svg" alt="CLIMADA 6.1.0">
@@ -12,6 +13,7 @@
   </p>
 
   <p>
+    <a href="https://urbadapt.github.io">🌐 Website</a> ·
     <a href="https://github.com/URBADAPT/URBADAPT-HEAT/wiki">📖 Wiki</a> ·
     <a href="#installation">⚙️ Installation</a> ·
     <a href="#quick-start">🚀 Quick start</a> ·
@@ -212,7 +214,10 @@ All city-specific parameters (NUTS3 identifiers, AC penetration rates, vulnerabi
 
 ## Documentation
 
-Full documentation is available on the [project wiki](https://github.com/URBADAPT/URBADAPT-HEAT/wiki):
+Full documentation is available on the **[URBADAPT website](https://urbadapt.github.io/urbadapt-heat/)** —
+a browsable, searchable rendering of the
+[project wiki](https://github.com/URBADAPT/URBADAPT-HEAT/wiki), which remains the
+source these pages are written in and where edits should be made:
 
 | Page | Description |
 |---|---|
