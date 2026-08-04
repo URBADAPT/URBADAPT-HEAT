@@ -190,6 +190,21 @@ income:
     year: null                    # (city,subcity_code) unique -> one row/zone, no year filter
   aggregation: mean   # one row per (city,subcity_code); no pop-count col -> mean
 
+# Burke-sensitivity cold-city (Track-B) IF
+# Hamburg is climatically cold for the fixed-20C Burke IF
+# Build the Burke IF at the
+# local warm-season onset T_ref (p90) + cold-city anchors instead. Burke SENSITIVITY ONLY:
+# extreme_hazard.enabled / run_extreme_track left unset -> Masselot untouched.
+extreme_hazard:
+  event_track:
+    cold_city_if_variant: true
+    t_ref_mode_default: local_p90
+    t_ref_percentile_default: 90
+    t_ref_baseline_mode_default: climatology_mean
+    season:
+      start_md: "05-15"
+      end_md: "09-30"
+
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
   source: "shapefile"   # AC = observed-income boundary (stadtteile ~99 (names)); NB05 clips to FUA [emulator boundaries]
