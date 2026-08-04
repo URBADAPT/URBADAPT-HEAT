@@ -33,6 +33,11 @@
     },
     {
       "type": "file",
+      "id": "1ic4io5euG_t6cAY5kERd482nZE7uMw_I",
+      "dest": "boundaries/rotterdam_gebieden.geojson"
+    },
+    {
+      "type": "file",
       "id": "1Bz6Il007m1CB0FTDfJU4xu4o4jewJjlS",
       "dest": "income/income_subcity_harmonized.csv"
     },

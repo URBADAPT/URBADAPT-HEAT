@@ -211,8 +211,8 @@ regions:
   enabled: true
   source: "shapefile"
   shapefile: "boundaries/ljubljana_cetrtne.geojson"
-  shapefile_name_col: null   # TODO: set after inspecting the file
-  shapefile_id_col: null    # TODO: set after inspecting the file
+  shapefile_name_col: name      # cetrtne district name (same layer as zones)
+  shapefile_id_col: cs_code     # SIFRA code (int 301-317; rasterizable region id)
   osm_admin_level: null
   cache_file: "cetrtne_ljubljana.gpkg"
   raster_cache_file: "cetrtne_on_ref_ljubljana.npz"

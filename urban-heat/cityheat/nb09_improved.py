@@ -1069,7 +1069,7 @@ class NB09Improved:
         # Electricity feedback (Falchetta, De Cian and Lunghi 2026)
         self.elec_fb_cfg = self.cfg.get("electricity_feedback", {})
         self.elec_fb_enabled = bool(self.elec_fb_cfg.get("enabled", False))
-        self.elec_fb_pct_per_point = float(self.elec_fb_cfg.get("pct_reduction_per_gvi_point", 0.008))
+        from cityheat.electricity_feedback import resolve_pct_gvi_reduction as _rpgr; self.elec_fb_pct_per_point = _rpgr(self.cfg, self.base_dir, self.int_dir)[0]  # runtime per-city GVI-elec calibration from JJA daily-max T2M (Falchetta Fig-5)
         self.elec_fb_summer_months = int(self.elec_fb_cfg.get("summer_months", 3))
         self.elec_fb_co2_per_kwh = float(self.elec_fb_cfg.get("co2_intensity_gCO2_per_kwh", 372))
         self.elec_fb_ac_summary = None
@@ -1393,8 +1393,8 @@ class NB09Improved:
             ParamSpec("AC_CAPEX_PER_USER_IDX", "choice", options=[350.0, 500.0, 650.0]),
             ParamSpec("AC_TARIFF_EUR_PER_KWH_IDX", "choice", options=self.ac_tariff_options),
             ParamSpec("AC_LIFETIME_YEARS_IDX", "choice", options=[8, 10, 12]),
-            ParamSpec("TREE_CAPEX_PER_TREE_IDX", "choice", options=[168.0, 210.0, 252.0]),
-            ParamSpec("TREE_OM_PER_TREE_YR_IDX", "choice", options=[27.0, 135.0]),
+            ParamSpec("TREE_CAPEX_MULT_IDX", "choice", options=[0.8, 1.0, 1.2]),
+            ParamSpec("TREE_OM_MULT_IDX", "choice", options=[1.0, 5.0]),
             # Electricity feedback (Falchetta et al. 2026)
             ParamSpec("ELEC_FEEDBACK_ENABLED_IDX", "choice", options=[0, 1]),
             ParamSpec("ELEC_COEFF_SCALE", "uniform", low=0.50, high=1.50),
@@ -2218,8 +2218,8 @@ class NB09Improved:
             "ac_capex_per_user": [350.0, 500.0, 650.0][int(row["AC_CAPEX_PER_USER_IDX"])],
             "ac_tariff_eur_per_kwh": self.ac_tariff_options[int(row["AC_TARIFF_EUR_PER_KWH_IDX"])],
             "ac_lifetime_years": [8, 10, 12][int(row["AC_LIFETIME_YEARS_IDX"])],
-            "tree_capex_per_tree": [168.0, 210.0, 252.0][int(row["TREE_CAPEX_PER_TREE_IDX"])],
-            "tree_om_per_tree_yr": [27.0, 135.0][int(row["TREE_OM_PER_TREE_YR_IDX"])],
+            "tree_capex_mult": [0.8, 1.0, 1.2][int(row["TREE_CAPEX_MULT_IDX"])],
+            "tree_om_mult": [1.0, 5.0][int(row["TREE_OM_MULT_IDX"])],
             "elec_feedback_enabled": bool(int(row["ELEC_FEEDBACK_ENABLED_IDX"])),
             "elec_coeff_scale": float(row["ELEC_COEFF_SCALE"]),
         }
@@ -2411,7 +2411,7 @@ class NB09Improved:
         r = float(sample["discount_rate"])
 
         base_capex_per_tree = float(
-            self.tree_cost_params.get("capex_per_tree", trees_cfg.get("capex_per_tree_eur", sample["tree_capex_per_tree"]))
+            self.tree_cost_params.get("capex_per_tree", trees_cfg.get("capex_per_tree_eur", 0.0))
         )
         base_capex_per_index = float(
             self.tree_cost_params.get(
@@ -2419,19 +2419,23 @@ class NB09Improved:
                 trees_cfg.get("capex_per_index_pt_eur", 0.0),
             )
         )
-        capex_scale = float(sample["tree_capex_per_tree"]) / max(base_capex_per_tree, 1e-6)
-        capex_per_index = base_capex_per_index * capex_scale if base_capex_per_index > 0 else float(sample["tree_capex_per_tree"])
+        # UQ scales the CALIBRATED per-GVI-point CAPEX by a dimensionless multiplier (0.8/1.0/1.2).
+        capex_scale = float(sample["tree_capex_mult"])
+        capex_per_index = base_capex_per_index * capex_scale
 
         base_om_per_tree = float(
-            self.tree_cost_params.get("om_per_tree_yr", trees_cfg.get("om_per_tree_per_year_eur", sample["tree_om_per_tree_yr"]))
+            self.tree_cost_params.get("om_per_tree_yr", trees_cfg.get("om_per_tree_per_year_eur", 0.0))
         )
+        # O&M per GVI-point: calibrated om_per_index_pt_yr if given, else the calibrated per-tree
+        # O&M/CAPEX ratio applied to the per-GVI-point CAPEX (0.0 if per-tree costs are absent).
         base_om_per_index = float(
             self.tree_cost_params.get(
                 "om_per_index_pt_yr",
-                (base_om_per_tree / max(base_capex_per_tree, 1e-6)) * base_capex_per_index if base_capex_per_index > 0 else 0.0,
+                (base_om_per_tree / base_capex_per_tree) * base_capex_per_index if (base_capex_per_tree > 0 and base_capex_per_index > 0) else 0.0,
             )
         )
-        om_scale = float(sample["tree_om_per_tree_yr"]) / max(base_om_per_tree, 1e-6)
+        # UQ scales the CALIBRATED per-GVI-point O&M by a dimensionless multiplier (1.0/5.0).
+        om_scale = float(sample["tree_om_mult"])
         om_per_index = base_om_per_index * om_scale
 
         delta_index_total = float(
@@ -3025,8 +3029,8 @@ class NB09Improved:
                 "ac_capex_per_user": [350.0, 500.0, 650.0],
                 "ac_tariff_eur_per_kwh": self.ac_tariff_options,
                 "ac_lifetime_years": [8, 10, 12],
-                "tree_capex_per_tree": [168.0, 210.0, 252.0],
-                "tree_om_per_tree_yr": [27.0, 135.0],
+                "tree_capex_mult": [0.8, 1.0, 1.2],
+                "tree_om_mult": [1.0, 5.0],
             },
             "vuln_param_ranges": {
                 "VULN_K": [0.55, 0.95],
