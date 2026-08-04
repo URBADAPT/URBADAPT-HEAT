@@ -198,11 +198,11 @@ income:
 
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
-  source: "osm"             # TODO: "shapefile" | "osm"
-  shapefile: null
-  shapefile_zone_col: null
-  osm_admin_level: 10   # AC downscaling: OSM L10 Stadtteile ~86 [OSM_REGIONS_REFERENCE]
-  match_by: "name"   # OSM name-keyed; emulator income tabular (not spatial_join)
+  source: "shapefile"       # switched from OSM: ship the emulator's own 86-Stadtteil boundary so zones are deterministic (live OSM L10 returned a non-matching set on Juno -> emulator matched 0/87)
+  shapefile: "boundaries/cologne_stadtteile.geojson"   # built from income_emulator/data/DE_cologne.gpkg (the boundary the emulator was deployed on); names == cologne_p_inc.csv subcity_code (86/86)
+  shapefile_zone_col: "name"
+  osm_admin_level: null   # (was 10; unused now that zones come from the shipped shapefile)
+  match_by: "name"   # name-keyed; matches emulator income subcity_code (Stadtteil names)
   cache_file: null
 
 # Reporting/vegetation region level — Cologne: 9 Stadtbezirke at OSM admin_level=9 (verified 2026-06-29).

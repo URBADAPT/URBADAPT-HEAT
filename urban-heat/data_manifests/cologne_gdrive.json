@@ -116,6 +116,11 @@
       "id": "1TG1szYP98JAwHLF_j8EyBf95fswQxk7a",
       "dest": "emulator/bundles/emulator_bundle_pooled_all_quadratic_holdout_safe.json",
       "base_kind": "outputs"
+    },
+    {
+      "type": "file",
+      "id": "1guD0PbybXJMUd2e5vPtlrdlT6ekWrgkn",
+      "dest": "boundaries/cologne_stadtteile.geojson"
     }
   ]
 }
