@@ -213,6 +213,15 @@
         .tag-pub { background: #aed6f1; color: #1a5276; }
         .tag-priv { background: #f5b7b1; color: #922b21; }
 
+        .emu {
+            background: #d1f2eb;
+            color: #0e6655;
+            padding: calc(1px * var(--scale)) calc(5px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
         .mechanism-box {
             display: flex;
             align-items: center;
@@ -447,7 +456,7 @@
                         </div>
                         <div class="nb-desc">
                             AC coverage scenarios (SSP2)<br>
-                            Within-city income emulator<br>
+                            Within-city <span class="emu">🤖 income emulator</span><br>
                             Efficacy-adjusted mortality reduction<br>
                             CAPEX + O&amp;M + electricity
                         </div>
@@ -491,15 +500,15 @@
                             <span class="tag tag-pub">Public</span>
                         </div>
                         <div class="nb-desc">
-                            GVI cooling coefficients<br>
-                            Tree-maturity ramp<br>
-                            Regional / equity allocation<br>
+                            GVI cooling coefficients (ΔGVI→ΔLST, by LCZ)<br>
+                            <span class="emu">🤖 LST→T2M emulator</span> bridge (142 cities)<br>
+                            Tree-maturity ramp · regional / equity allocation<br>
                             CAPEX + O&amp;M costs
                         </div>
                         <div class="mechanism-box mech-hazard">
                             <span class="mech-arrow">→</span>
                             <strong>Hazard ↓</strong>
-                            <span style="margin-left:auto;">reduces temperature (ΔT)</span>
+                            <span style="margin-left:auto;">ΔGVI→ΔLST→emulator→ΔT2M</span>
                         </div>
                         <div class="co-benefit">
                             <strong>🌱 Co-benefit:</strong> Greening → AC electricity ↓<br>
@@ -582,6 +591,7 @@
             <div class="leg-item"><div class="leg-box" style="background: linear-gradient(90deg, #fdebd0, #f9e79f); border: 1px solid #f7dc6f;"></div> Hazard modifier</div>
             <div class="leg-item"><div class="leg-box" style="background: linear-gradient(90deg, #eaeded, #d5dbdb); border: 1px solid #aeb6bf;"></div> Vulnerability modifier</div>
             <div class="leg-item"><div class="leg-box" style="background: #eafaf1; border: 1px dashed #27ae60;"></div> Co-benefit</div>
+            <div class="leg-item"><div class="leg-box" style="background: #d1f2eb;"></div> 🤖 Learned emulator</div>
         </div>
     </div>
 </body>
