@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URBADAPT-HEAT — Urban Heat Adaptation Framework</title>
+    <style>
+        :root {
+            --scale: 1.18;
+            --title-size: calc(22px * var(--scale));
+            --subtitle-size: calc(12px * var(--scale));
+            --section-title-size: calc(12px * var(--scale));
+            --nb-title-size: calc(13px * var(--scale));
+            --nb-desc-size: calc(11px * var(--scale));
+            --nb-output-size: calc(10px * var(--scale));
+            --tag-size: calc(9px * var(--scale));
+            --mechanism-size: calc(10px * var(--scale));
+            --side-effect-size: calc(10px * var(--scale));
+            --output-card-title-size: calc(11px * var(--scale));
+            --output-card-list-size: calc(10px * var(--scale));
+            --legend-size: calc(10px * var(--scale));
+            --flow-label-size: calc(10px * var(--scale));
+            --badge-size: calc(10px * var(--scale));
+            --nb-num-size: calc(11px * var(--scale));
+            --mech-arrow-size: calc(14px * var(--scale));
+            --padding-base: calc(14px * var(--scale));
+            --gap-base: calc(10px * var(--scale));
+            --nb-num-width: calc(20px * var(--scale));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Calibri', 'Segoe UI', sans-serif;
+            background: white;
+            padding: calc(25px * var(--scale));
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: var(--title-size);
+            font-weight: 500;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: var(--subtitle-size);
+            margin-bottom: calc(15px * var(--scale));
+        }
+
+        .scalable {
+            text-align: right;
+            font-size: var(--badge-size);
+            margin-bottom: calc(8px * var(--scale));
+        }
+
+        .scalable span {
+            background: #f1c40f;
+            color: #2c3e50;
+            padding: calc(3px * var(--scale)) calc(10px * var(--scale));
+            border-radius: calc(12px * var(--scale));
+            font-weight: 500;
+        }
+
+        /* Foundation Strip */
+        .foundation-strip {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-base);
+            margin-bottom: calc(12px * var(--scale));
+            padding: calc(10px * var(--scale)) calc(14px * var(--scale));
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: calc(8px * var(--scale));
+            color: white;
+        }
+
+        .foundation-item {
+            display: flex;
+            align-items: center;
+            gap: calc(10px * var(--scale));
+        }
+
+        .foundation-icon {
+            font-size: calc(20px * var(--scale));
+        }
+
+        .foundation-content {
+            flex: 1;
+        }
+
+        .foundation-title {
+            font-weight: 600;
+            font-size: calc(11px * var(--scale));
+            margin-bottom: calc(2px * var(--scale));
+        }
+
+        .foundation-title code {
+            font-family: 'Consolas', monospace;
+            background: rgba(255,255,255,0.2);
+            padding: calc(1px * var(--scale)) calc(5px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+        }
+
+        .foundation-desc {
+            font-size: calc(9px * var(--scale));
+            opacity: 0.85;
+        }
+
+        .foundation-arrow {
+            color: #f1c40f;
+            font-size: calc(10px * var(--scale));
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: var(--gap-base);
+        }
+
+        .section {
+            border-radius: calc(8px * var(--scale));
+            padding: var(--padding-base) calc(16px * var(--scale));
+            position: relative;
+        }
+
+        .section-title {
+            font-size: var(--section-title-size);
+            font-weight: 600;
+            margin-bottom: var(--gap-base);
+            padding-bottom: calc(6px * var(--scale));
+            border-bottom: 1px solid rgba(0,0,0,0.15);
+        }
+
+        .data { background: #d6eaf8; }
+        .data .section-title { color: #1a5276; }
+        .risk { background: #fadbd8; }
+        .risk .section-title { color: #922b21; }
+        .adapt { background: #d5f5e3; }
+        .adapt .section-title { color: #145a32; }
+        .cba { background: #e8daef; }
+        .cba .section-title { color: #4a235a; }
+
+        .nb {
+            background: white;
+            border-radius: calc(5px * var(--scale));
+            padding: var(--gap-base) calc(12px * var(--scale));
+            margin-bottom: calc(8px * var(--scale));
+            font-size: var(--nb-desc-size);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .nb:last-child { margin-bottom: 0; }
+
+        .nb-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: calc(5px * var(--scale));
+            flex-wrap: wrap;
+            gap: calc(4px * var(--scale));
+        }
+
+        .nb-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: var(--nb-num-width);
+            height: var(--nb-num-width);
+            background: #2c3e50;
+            color: white;
+            border-radius: 50%;
+            font-size: var(--nb-num-size);
+            font-weight: 600;
+            margin-right: calc(8px * var(--scale));
+            flex-shrink: 0;
+        }
+
+        .nb-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: var(--nb-title-size);
+        }
+
+        .nb-desc {
+            color: #555;
+            font-size: var(--nb-desc-size);
+            line-height: 1.5;
+            margin-left: calc(28px * var(--scale));
+        }
+
+        .nb-output {
+            margin-top: calc(8px * var(--scale));
+            margin-left: calc(28px * var(--scale));
+            font-size: var(--nb-output-size);
+            color: #16a085;
+            font-weight: 500;
+            padding-top: calc(6px * var(--scale));
+            border-top: 1px dashed #bdc3c7;
+        }
+
+        .tag {
+            font-size: var(--tag-size);
+            padding: calc(2px * var(--scale)) calc(6px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .tag-pub { background: #aed6f1; color: #1a5276; }
+        .tag-priv { background: #f5b7b1; color: #922b21; }
+
+        .mechanism-box {
+            display: flex;
+            align-items: center;
+            gap: calc(6px * var(--scale));
+            margin-top: calc(8px * var(--scale));
+            margin-left: calc(28px * var(--scale));
+            padding: calc(6px * var(--scale)) var(--gap-base);
+            border-radius: calc(4px * var(--scale));
+            font-size: var(--mechanism-size);
+            font-weight: 500;
+        }
+
+        .mech-hazard {
+            background: linear-gradient(90deg, #fdebd0 0%, #f9e79f 100%);
+            color: #9a7d0a;
+            border: 1px solid #f7dc6f;
+        }
+
+        .mech-vuln {
+            background: linear-gradient(90deg, #eaeded 0%, #d5dbdb 100%);
+            color: #1c2833;
+            border: 1px solid #aeb6bf;
+        }
+
+        .mech-arrow { font-size: var(--mech-arrow-size); }
+
+        .side-effect {
+            background: #fef9e7;
+            border: 1px dashed #f39c12;
+            border-left: 3px solid #f39c12;
+            padding: calc(8px * var(--scale)) var(--gap-base);
+            margin: calc(8px * var(--scale)) 0 0 calc(28px * var(--scale));
+            font-size: var(--side-effect-size);
+            color: #7d6608;
+            border-radius: 0 calc(5px * var(--scale)) calc(5px * var(--scale)) 0;
+        }
+
+        .side-effect strong { color: #d68910; }
+
+        .co-benefit {
+            background: #eafaf1;
+            border: 1px dashed #27ae60;
+            border-left: 3px solid #27ae60;
+            padding: calc(8px * var(--scale)) var(--gap-base);
+            margin: calc(8px * var(--scale)) 0 0 calc(28px * var(--scale));
+            font-size: var(--side-effect-size);
+            color: #196f3d;
+            border-radius: 0 calc(5px * var(--scale)) calc(5px * var(--scale)) 0;
+        }
+
+        .co-benefit strong { color: #229954; }
+
+        .span-full { grid-column: 1 / 3; }
+
+        .adapt-cols {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--gap-base);
+        }
+
+        .adapt-cols .nb { margin-bottom: 0; }
+
+        .flow-arrow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: calc(5px * var(--scale)) 0;
+            grid-column: 1 / 3;
+        }
+
+        .arrow-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .arrow-line {
+            width: 2px;
+            height: calc(12px * var(--scale));
+            background: #95a5a6;
+        }
+
+        .arrow-head {
+            width: 0;
+            height: 0;
+            border-left: calc(8px * var(--scale)) solid transparent;
+            border-right: calc(8px * var(--scale)) solid transparent;
+            border-top: calc(10px * var(--scale)) solid #95a5a6;
+        }
+
+        .flow-label {
+            font-size: var(--flow-label-size);
+            color: #7f8c8d;
+            margin-top: calc(3px * var(--scale));
+            font-style: italic;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: calc(20px * var(--scale));
+            margin-top: calc(20px * var(--scale));
+            padding-top: calc(15px * var(--scale));
+            border-top: 1px solid #ddd;
+            flex-wrap: wrap;
+        }
+
+        .leg-item {
+            display: flex;
+            align-items: center;
+            font-size: var(--legend-size);
+            color: #5d6d7e;
+        }
+
+        .leg-box {
+            width: calc(16px * var(--scale));
+            height: calc(16px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+            margin-right: calc(6px * var(--scale));
+        }
+
+        .risk-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: calc(8px * var(--scale));
+        }
+
+        .risk-cols .nb { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="scalable"><span>🌍 Config-driven · city-agnostic · 4 pilot cities → scaled to 40 European cities</span></div>
+        <h1>URBADAPT-HEAT — Urban Heat Adaptation Framework</h1>
+        <p class="subtitle">Probabilistic, city-level cost–benefit analysis of heat-mortality adaptation · Rome · Athens · Lisbon · Copenhagen — one pipeline, deployed across 40 European cities</p>
+
+        <!-- Foundation Strip -->
+        <div class="foundation-strip">
+            <div class="foundation-item">
+                <span class="foundation-icon">⚙️</span>
+                <div class="foundation-content">
+                    <div class="foundation-title"><code>configs/{city}.yml</code> · city-agnostic <code>template/</code></div>
+                    <div class="foundation-desc">Per-city parameters &amp; policy — hazard track, income source, EWS mode, costs. One template driven by the <code>CITY</code> variable <span class="foundation-arrow">→ drives all 10 notebooks identically</span></div>
+                </div>
+            </div>
+            <div class="foundation-item">
+                <span class="foundation-icon">🧩</span>
+                <div class="foundation-content">
+                    <div class="foundation-title"><code>cityheat/</code> engine · <code>scripts/</code></div>
+                    <div class="foundation-desc">Shared scientific code (<code>nb04_masselot_main</code>, <code>dynamic_vulnerability</code>, <code>electricity_feedback</code>, <code>nb09…</code>) + reproducible generator &amp; Drive data manifests <span class="foundation-arrow">→ 40-city reproducibility</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- ROW 1: Data Harmonisation -->
+            <div class="section data">
+                <div class="section-title">Data Harmonisation</div>
+                <div class="nb">
+                    <div class="nb-header">
+                        <span class="nb-num">1</span>
+                        <span class="nb-title">Setup &amp; Loading</span>
+                    </div>
+                    <div class="nb-desc">
+                        City configuration (YAML)<br>
+                        LCZ, GVI, UrbClim T2M (daily mean + max)<br>
+                        Population &amp; demographics · Drive manifests
+                    </div>
+                </div>
+                <div class="nb">
+                    <div class="nb-header">
+                        <span class="nb-num">2</span>
+                        <span class="nb-title">Harmonised Grids</span>
+                    </div>
+                    <div class="nb-desc">
+                        Harmonise to 100 m grid (EPSG:3035)<br>
+                        FUA &amp; administrative masks<br>
+                        Dynamic vulnerability layers
+                    </div>
+                </div>
+            </div>
+
+            <!-- ROW 1: Climate Risk Model -->
+            <div class="section risk">
+                <div class="section-title">Climate Risk Model</div>
+                <div class="risk-cols">
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">3</span>
+                            <span class="nb-title">Hazard &amp;<br>Exposure</span>
+                        </div>
+                        <div class="nb-desc">
+                            CLIMADA hazard &amp; exposure objects<br>
+                            Daily T2M (2020–2050)<br>
+                            Dynamic, time-varying exposure
+                        </div>
+                        <div class="nb-output">→ Temperature hazard</div>
+                    </div>
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">4</span>
+                            <span class="nb-title">Impact<br>Functions</span>
+                        </div>
+                        <div class="nb-desc">
+                            Masselot age-specific mortality ERFs<br>
+                            (log-linear tail extrapolation)<br>
+                            Burke sensitivity + cold-city Track-A/B
+                        </div>
+                        <div class="nb-output">→ Impact functions</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow arrow -->
+            <div class="flow-arrow">
+                <div class="arrow-container">
+                    <div class="arrow-line"></div>
+                    <div class="arrow-head"></div>
+                    <div class="flow-label">Generic, age-resolved mortality risk</div>
+                </div>
+            </div>
+
+            <!-- ROW 2: Adaptation Strategies -->
+            <div class="section adapt span-full">
+                <div class="section-title">Adaptation Strategies — Each computes its own costs &amp; benefits</div>
+                <div class="adapt-cols">
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">5</span>
+                            <span class="nb-title">AC Policy</span>
+                            <span class="tag tag-priv">Private</span>
+                        </div>
+                        <div class="nb-desc">
+                            AC coverage scenarios (SSP2)<br>
+                            Within-city income emulator<br>
+                            Efficacy-adjusted mortality reduction<br>
+                            CAPEX + O&amp;M + electricity
+                        </div>
+                        <div class="mechanism-box mech-vuln">
+                            <span class="mech-arrow">→</span>
+                            <strong>Vulnerability ↓</strong>
+                            <span style="margin-left:auto;">reduces mortality given T</span>
+                        </div>
+                        <div class="side-effect">
+                            <strong>⚡ Side effect:</strong> Waste heat → Hazard ↑ (+ΔT)<br>
+                            Exports <em>marginal deaths per °C</em> for penalty calc
+                        </div>
+                        <div class="nb-output">→ GROSS benefits + Costs + Marginal</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">6</span>
+                            <span class="nb-title">Early Warning</span>
+                            <span class="tag tag-pub">Public</span>
+                        </div>
+                        <div class="nb-desc">
+                            Heat–health warning system<br>
+                            Three efficacy cases:<br>
+                            &nbsp;&nbsp;marginal / counterfactual / intermediate<br>
+                            Infrastructure + operational costs<br>
+                            25-year benefit interpolation
+                        </div>
+                        <div class="mechanism-box mech-vuln">
+                            <span class="mech-arrow">→</span>
+                            <strong>Vulnerability ↓</strong>
+                            <span style="margin-left:auto;">behavioural response</span>
+                        </div>
+                        <div class="nb-output">→ Benefits + Costs (25y PV)</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">7</span>
+                            <span class="nb-title">Urban Trees</span>
+                            <span class="tag tag-pub">Public</span>
+                        </div>
+                        <div class="nb-desc">
+                            GVI cooling coefficients<br>
+                            Tree-maturity ramp<br>
+                            Regional / equity allocation<br>
+                            CAPEX + O&amp;M costs
+                        </div>
+                        <div class="mechanism-box mech-hazard">
+                            <span class="mech-arrow">→</span>
+                            <strong>Hazard ↓</strong>
+                            <span style="margin-left:auto;">reduces temperature (ΔT)</span>
+                        </div>
+                        <div class="co-benefit">
+                            <strong>🌱 Co-benefit:</strong> Greening → AC electricity ↓<br>
+                            Runtime-calibrated from JJA daily-max T2M
+                        </div>
+                        <div class="nb-output">→ Benefits + Costs + Equity metrics</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow arrow -->
+            <div class="flow-arrow">
+                <div class="arrow-container">
+                    <div class="arrow-line"></div>
+                    <div class="arrow-head"></div>
+                    <div class="flow-label">Policy-specific costs, benefits &amp; feedback parameters</div>
+                </div>
+            </div>
+
+            <!-- ROW 3: Economics, Uncertainty & Synthesis -->
+            <div class="section cba span-full">
+                <div class="section-title">Economics, Uncertainty &amp; Synthesis — Integration &amp; comparison</div>
+                <div class="adapt-cols">
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">8</span>
+                            <span class="nb-title">CBA &amp; Optimisation</span>
+                        </div>
+                        <div class="nb-desc">
+                            <strong>Integrate</strong> NB5 + NB6 + NB7<br><br>
+                            <strong>Waste-heat penalty:</strong> uses marginal<br>
+                            &nbsp;&nbsp;deaths/°C → NET AC = GROSS − penalty<br>
+                            <strong>Vegetation–AC electricity co-benefit</strong><br><br>
+                            25-year NPV (3% central discount)<br>
+                            Budget-constrained optimisation<br>
+                            Public vs private cost split
+                        </div>
+                        <div class="nb-output">→ Net benefits, NPV &amp; cost-effectiveness</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">9</span>
+                            <span class="nb-title">Uncertainty</span>
+                        </div>
+                        <div class="nb-desc">
+                            <strong>Monte-Carlo</strong> sampling over:<br>
+                            &nbsp;&nbsp;climate scenario &amp; GCM<br>
+                            &nbsp;&nbsp;impact-function family &amp; T-ref<br>
+                            &nbsp;&nbsp;adaptation efficacy<br>
+                            &nbsp;&nbsp;costs &amp; discount rate<br>
+                            Propagated through the full pipeline
+                        </div>
+                        <div class="nb-output">→ Probabilistic deaths avoided &amp; CE</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">10</span>
+                            <span class="nb-title">Framework Summary</span>
+                        </div>
+                        <div class="nb-desc">
+                            Cross-pathway &amp; cross-city synthesis<br>
+                            Comparative figures &amp; tables<br>
+                            Ranking of adaptation options<br>
+                            by cost-effectiveness &amp; equity<br>
+                            Reproducible per-city report
+                        </div>
+                        <div class="nb-output">→ Decision-ready comparison</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="leg-item"><div class="leg-box" style="background: #d6eaf8;"></div> Data Prep</div>
+            <div class="leg-item"><div class="leg-box" style="background: #fadbd8;"></div> Risk Model</div>
+            <div class="leg-item"><div class="leg-box" style="background: #d5f5e3;"></div> Adaptation</div>
+            <div class="leg-item"><div class="leg-box" style="background: #e8daef;"></div> Economics &amp; Uncertainty</div>
+            <div class="leg-item"><div class="leg-box" style="background: linear-gradient(90deg, #fdebd0, #f9e79f); border: 1px solid #f7dc6f;"></div> Hazard modifier</div>
+            <div class="leg-item"><div class="leg-box" style="background: linear-gradient(90deg, #eaeded, #d5dbdb); border: 1px solid #aeb6bf;"></div> Vulnerability modifier</div>
+            <div class="leg-item"><div class="leg-box" style="background: #eafaf1; border: 1px dashed #27ae60;"></div> Co-benefit</div>
+        </div>
+    </div>
+</body>
+</html>
