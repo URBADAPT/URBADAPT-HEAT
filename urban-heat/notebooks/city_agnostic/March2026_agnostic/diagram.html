@@ -169,11 +169,12 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: var(--nb-num-width);
+            min-width: var(--nb-num-width);
             height: var(--nb-num-width);
+            padding: 0 calc(7px * var(--scale));
             background: #2c3e50;
             color: white;
-            border-radius: 50%;
+            border-radius: calc(10px * var(--scale));
             font-size: var(--nb-num-size);
             font-weight: 600;
             margin-right: calc(8px * var(--scale));
@@ -354,9 +355,8 @@
 </head>
 <body>
     <div class="container">
-        <div class="scalable"><span>🌍 Config-driven · city-agnostic · 4 pilot cities → scaled to 40 European cities</span></div>
         <h1>URBADAPT-HEAT — Urban Heat Adaptation Framework</h1>
-        <p class="subtitle">Probabilistic, city-level cost–benefit analysis of heat-mortality adaptation · Rome · Athens · Lisbon · Copenhagen — one pipeline, deployed across 40 European cities</p>
+        <p class="subtitle">Probabilistic, city-level cost–benefit analysis of heat-mortality adaptation</p>
 
         <!-- Foundation Strip -->
         <div class="foundation-strip">
@@ -371,7 +371,7 @@
                 <span class="foundation-icon">🧩</span>
                 <div class="foundation-content">
                     <div class="foundation-title"><code>cityheat/</code> engine · <code>scripts/</code></div>
-                    <div class="foundation-desc">Shared scientific code (<code>nb04_masselot_main</code>, <code>dynamic_vulnerability</code>, <code>electricity_feedback</code>, <code>nb09…</code>) + reproducible generator &amp; Drive data manifests <span class="foundation-arrow">→ 40-city reproducibility</span></div>
+                    <div class="foundation-desc">Shared scientific code + reproducible generator &amp; Drive data manifests</div>
                 </div>
             </div>
         </div>
@@ -379,10 +379,10 @@
         <div class="main-grid">
             <!-- ROW 1: Data Harmonisation -->
             <div class="section data">
-                <div class="section-title">Data Harmonisation</div>
+                <div class="section-title">Data retrieval and processing modules</div>
                 <div class="nb">
                     <div class="nb-header">
-                        <span class="nb-num">1</span>
+                        <span class="nb-num">NB1</span>
                         <span class="nb-title">Setup &amp; Loading</span>
                     </div>
                     <div class="nb-desc">
@@ -393,7 +393,7 @@
                 </div>
                 <div class="nb">
                     <div class="nb-header">
-                        <span class="nb-num">2</span>
+                        <span class="nb-num">NB2</span>
                         <span class="nb-title">Harmonised Grids</span>
                     </div>
                     <div class="nb-desc">
@@ -410,19 +410,20 @@
                 <div class="risk-cols">
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">3</span>
+                            <span class="nb-num">NB3</span>
                             <span class="nb-title">Hazard &amp;<br>Exposure</span>
                         </div>
                         <div class="nb-desc">
                             CLIMADA hazard &amp; exposure objects<br>
                             Daily T2M (2020–2050)<br>
-                            Dynamic, time-varying exposure
+                            Dynamic, time-varying exposure<br>
+                            (age-stratified population, by scenario &amp; year)
                         </div>
                         <div class="nb-output">→ Temperature hazard</div>
                     </div>
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">4</span>
+                            <span class="nb-num">NB4</span>
                             <span class="nb-title">Impact<br>Functions</span>
                         </div>
                         <div class="nb-desc">
@@ -440,7 +441,7 @@
                 <div class="arrow-container">
                     <div class="arrow-line"></div>
                     <div class="arrow-head"></div>
-                    <div class="flow-label">Generic, age-resolved mortality risk</div>
+                    <div class="flow-label">Age-resolved mortality risk (pre-adaptation)</div>
                 </div>
             </div>
 
@@ -450,7 +451,7 @@
                 <div class="adapt-cols">
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">5</span>
+                            <span class="nb-num">NB5</span>
                             <span class="nb-title">AC Policy</span>
                             <span class="tag tag-priv">Private</span>
                         </div>
@@ -474,7 +475,7 @@
 
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">6</span>
+                            <span class="nb-num">NB6</span>
                             <span class="nb-title">Early Warning</span>
                             <span class="tag tag-pub">Public</span>
                         </div>
@@ -495,7 +496,7 @@
 
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">7</span>
+                            <span class="nb-num">NB7</span>
                             <span class="nb-title">Urban Trees</span>
                             <span class="tag tag-pub">Public</span>
                         </div>
@@ -534,24 +535,25 @@
                 <div class="adapt-cols">
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">8</span>
+                            <span class="nb-num">NB8</span>
                             <span class="nb-title">CBA &amp; Optimisation</span>
                         </div>
                         <div class="nb-desc">
-                            <strong>Integrate</strong> NB5 + NB6 + NB7<br><br>
-                            <strong>Waste-heat penalty:</strong> uses marginal<br>
-                            &nbsp;&nbsp;deaths/°C → NET AC = GROSS − penalty<br>
-                            <strong>Vegetation–AC electricity co-benefit</strong><br><br>
+                            <strong>Integrate</strong> NB5 + NB6 + NB7<br>
                             25-year NPV (3% central discount)<br>
                             Budget-constrained optimisation<br>
-                            Public vs private cost split
+                            Public vs private cost split<br><br>
+                            <strong>Feedback adjustments:</strong><br>
+                            Waste-heat penalty (marginal deaths/°C):<br>
+                            &nbsp;&nbsp;NET AC = GROSS − penalty<br>
+                            Vegetation–AC electricity co-benefit
                         </div>
                         <div class="nb-output">→ Net benefits, NPV &amp; cost-effectiveness</div>
                     </div>
 
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">9</span>
+                            <span class="nb-num">NB9</span>
                             <span class="nb-title">Uncertainty</span>
                         </div>
                         <div class="nb-desc">
@@ -567,7 +569,7 @@
 
                     <div class="nb">
                         <div class="nb-header">
-                            <span class="nb-num">10</span>
+                            <span class="nb-num">NB10</span>
                             <span class="nb-title">Framework Summary</span>
                         </div>
                         <div class="nb-desc">
