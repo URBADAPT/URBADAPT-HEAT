@@ -41,8 +41,8 @@ REPO_ROOT   <- find_repo_root()
 VARIANT     <- Sys.getenv("NATCITIES_VARIANT", "masselot_main_agnostic")
 OUTPUTS_BASE <- file.path(REPO_ROOT, "urban-heat", "outputs_variants", VARIANT)
 VIS_ROOT    <- file.path(REPO_ROOT, "natcities_visual_items")
-# Output dirs are env-overridable so a synthetic/planning run can write to a
-# separate location without clobbering the real figures/tables (defaults unchanged).
+# Output dirs are env-overridable so an alternative run (e.g. a sensitivity
+# variant) can write elsewhere without clobbering the main figures/tables.
 FIG_DIR     <- Sys.getenv("NATCITIES_FIG_DIR", file.path(VIS_ROOT, "figures"))
 TAB_DIR     <- Sys.getenv("NATCITIES_TAB_DIR", file.path(VIS_ROOT, "tables"))
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
