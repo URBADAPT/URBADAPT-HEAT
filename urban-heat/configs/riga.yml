@@ -196,6 +196,21 @@ income:
     year: null
   aggregation: mean   # emulator index is per-zone mean (NOT weighted)
 
+# Burke-sensitivity cold-city (Track-B) IF -- AUTO-CLASSIFIED (deaths-based, classify_burke_track.py):
+# standard Burke deaths 0.17/yr = 0.3% of Masselot 57.6/yr (< 5% threshold) -> cold city.
+# Build the Burke IF at the local warm-season onset T_ref (p90) + cold-city anchors (heuristic
+# profile -> GMD Discussion caveat). Burke SENSITIVITY ONLY: enabled / run_extreme_track are left
+# unset, so the Masselot-main hazard track is unchanged.
+extreme_hazard:
+  event_track:
+    cold_city_if_variant: true
+    t_ref_mode_default: local_p90
+    t_ref_percentile_default: 90
+    t_ref_baseline_mode_default: climatology_mean
+    season:
+      start_md: "05-15"
+      end_md: "09-30"
+
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
   source: "osm"             # TODO: "shapefile" | "osm"
