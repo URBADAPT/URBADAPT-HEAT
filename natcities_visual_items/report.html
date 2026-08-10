@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Urban heat adaptation — figures and tables</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1a1a18;--muted:#6b6b66;--line:#e0dfda;--card:#fff;
+      --accent:#1565C0;--code:#f2f1ec}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#16171a;--fg:#e8e8e4;--muted:#9a9a94;--line:#2c2e33;--card:#1e1f23;
+  --accent:#7aa9e8;--code:#24262b}}
+:root[data-theme="dark"]{--bg:#16171a;--fg:#e8e8e4;--muted:#9a9a94;--line:#2c2e33;
+  --card:#1e1f23;--accent:#7aa9e8;--code:#24262b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:2.5rem 1.25rem 5rem}
+h1{font-size:1.7rem;margin:0 0 .3rem;letter-spacing:-.01em}
+h2{font-size:1.1rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);
+  margin:3.5rem 0 1.25rem;padding-bottom:.5rem;border-bottom:1px solid var(--line)}
+h3{font-size:1.05rem;margin:0 0 .3rem}
+.sub{color:var(--muted);margin:0 0 1.5rem}
+.meta{background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:.9rem 1.1rem;font-size:.85rem;color:var(--muted)}
+.meta code{background:var(--code);padding:.1em .4em;border-radius:4px;
+  font-size:.92em;word-break:break-all}
+nav{margin:1.5rem 0 0;font-size:.88rem}
+nav a{display:inline-block;margin:0 .9rem .5rem 0;color:var(--accent);text-decoration:none}
+nav a:hover{text-decoration:underline}
+figure{margin:0 0 3rem;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:1.25rem}
+figcaption p{color:var(--muted);font-size:.88rem;margin:.35rem 0 1rem;max-width:80ch}
+.slot{display:inline-block;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--accent);border:1px solid var(--accent);border-radius:4px;
+  padding:.1em .45em;margin-bottom:.5rem}
+img{width:100%;height:auto;display:block;border-radius:6px;background:#fff}
+.files{font-size:.78rem;color:var(--muted);margin:.7rem 0 0;font-family:ui-monospace,
+  SFMono-Regular,Menlo,monospace}
+.files a{color:var(--accent)}
+section{margin:0 0 3rem;background:var(--card);border:1px solid var(--line);
+  border-radius:10px;padding:1.25rem}
+.cap{color:var(--muted);font-size:.88rem;margin:.35rem 0 0;max-width:80ch}
+.tw{overflow:auto;max-height:26rem;margin-top:1rem;border:1px solid var(--line);
+  border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:.82rem;
+  font-variant-numeric:tabular-nums}
+th,td{padding:.4rem .65rem;text-align:left;white-space:nowrap;
+  border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--card);font-weight:600;z-index:1;
+  box-shadow:inset 0 -1px 0 var(--line)}
+td.n,th.n{text-align:right}
+tbody tr:hover{background:var(--code)}
+.na{color:var(--muted)}
+footer{margin-top:4rem;padding-top:1.25rem;border-top:1px solid var(--line);
+  color:var(--muted);font-size:.82rem}
+</style></head><body><div class="wrap">
+<h1>Synergies and trade-offs of public and private urban heat adaptation</h1>
+<p class="sub">Figures and tables for the Nature Cities results manuscript.</p>
+<div class="meta">
+<strong>40 cities</strong> &middot; built 2026-08-10<br>
+Inputs: <code>G:\Il mio Drive\adaptation_infrastructure_database\juno_pull\outputs_variants\masselot_main_agnostic</code><br>
+Regenerate: <code>Rscript build_all.R</code> then <code>Rscript make_report.R</code>
+</div>
+<nav><a href="#fig1_risk_effectiveness">Risk and effectiveness across the climate gradient</a><a href="#fig2_distribution">Who pays, and who benefits</a><a href="#fig3_costeffectiveness">Cost-effectiveness and budget choice</a><a href="#fig4_synergies">Synergies and trade-offs between the levers</a><a href="#si1_sensitivity">Sensitivity of the cost-effectiveness ranking</a><a href="#si2_if_comparison">Exposure-response function sensitivity</a><a href="#si3_ews">The early-warning pathway in detail</a><a href="#tab_cba_by_city">Cost-benefit by city and pathway</a><a href="#tab_risk_by_city">Hazard, exposure and baseline risk by city</a><a href="#tab_ews_by_city">The early-warning pathway by city</a><a href="#tab_synergies_by_city">Lever interactions by city</a></nav>
+<h2>Main figures</h2>
+<figure id="fig1_risk_effectiveness">
+<figcaption><span class="slot">fig:result1</span><h3>Risk and effectiveness across the climate gradient</h3><p>Baseline heat mortality against warm-season temperature (log-log), then the mortality reduction and avoided deaths delivered by each pathway. One point per city; AC is net of its waste-heat feedback.</p></figcaption>
+<a href="figures/fig1_risk_effectiveness.png"><img src="figures/fig1_risk_effectiveness.png" alt="Risk and effectiveness across the climate gradient"></a>
+<p class="files">figures/fig1_risk_effectiveness.png &middot; <a href="figures/fig1_risk_effectiveness.pdf">PDF</a></p>
+</figure>
+<figure id="fig2_distribution">
+<figcaption><span class="slot">fig:result2</span><h3>Who pays, and who benefits</h3><p>Public versus private cost per capita by lever; the equity-efficiency trade-off of targeting cooling support by income; and whether an explicit equity rule makes greening more progressive than a uniform one.</p></figcaption>
+<a href="figures/fig2_distribution.png"><img src="figures/fig2_distribution.png" alt="Who pays, and who benefits"></a>
+<p class="files">figures/fig2_distribution.png &middot; <a href="figures/fig2_distribution.pdf">PDF</a></p>
+</figure>
+<figure id="fig3_costeffectiveness">
+<figcaption><span class="slot">fig:result3</span><h3>Cost-effectiveness and budget choice</h3><p>Euros per death avoided by pathway; the budget frontier normalised per capita so 40 cities share one pair of axes; and the order in which a benefit-maximising city buys the three levers.</p></figcaption>
+<a href="figures/fig3_costeffectiveness.png"><img src="figures/fig3_costeffectiveness.png" alt="Cost-effectiveness and budget choice"></a>
+<p class="files">figures/fig3_costeffectiveness.png &middot; <a href="figures/fig3_costeffectiveness.pdf">PDF</a></p>
+</figure>
+<figure id="fig4_synergies">
+<figcaption><span class="slot">fig:result4</span><h3>Synergies and trade-offs between the levers</h3><p>How much of air conditioning's benefit its own waste heat takes back, how little of that greening offsets, and how far the two levers overlap.</p></figcaption>
+<a href="figures/fig4_synergies.png"><img src="figures/fig4_synergies.png" alt="Synergies and trade-offs between the levers"></a>
+<p class="files">figures/fig4_synergies.png &middot; <a href="figures/fig4_synergies.pdf">PDF</a></p>
+</figure>
+<h2>Supplementary figures</h2>
+<figure id="si1_sensitivity">
+<figcaption><span class="slot">SI</span><h3>Sensitivity of the cost-effectiveness ranking</h3><p>Discount rate, greening cost assumptions and greening ambition. None of them reorders the three levers.</p></figcaption>
+<a href="figures/si1_sensitivity.png"><img src="figures/si1_sensitivity.png" alt="Sensitivity of the cost-effectiveness ranking"></a>
+<p class="files">figures/si1_sensitivity.png &middot; <a href="figures/si1_sensitivity.pdf">PDF</a></p>
+</figure>
+<figure id="si2_if_comparison">
+<figcaption><span class="slot">SI</span><h3>Exposure-response function sensitivity</h3><p>The four temperature-mortality curves the runs ship, and what choosing between them does to baseline heat mortality.</p></figcaption>
+<a href="figures/si2_if_comparison.png"><img src="figures/si2_if_comparison.png" alt="Exposure-response function sensitivity"></a>
+<p class="files">figures/si2_if_comparison.png &middot; <a href="figures/si2_if_comparison.pdf">PDF</a></p>
+</figure>
+<figure id="si3_ews">
+<figcaption><span class="slot">SI</span><h3>The early-warning pathway in detail</h3><p>Warning days to 2050, the share of heat deaths falling on warned days, and the behavioural take-up ramp behind the benefits.</p></figcaption>
+<a href="figures/si3_ews.png"><img src="figures/si3_ews.png" alt="The early-warning pathway in detail"></a>
+<p class="files">figures/si3_ews.png &middot; <a href="figures/si3_ews.pdf">PDF</a></p>
+</figure>
+<h2>Exemplar cities</h2>
+<figure id="exemplar_amsterdam">
+<figcaption><span class="slot">Exemplar</span><h3>Amsterdam — Cool cluster medoid</h3><p>Single-city dashboard: baseline mortality trajectory, avoided deaths by pathway, district greening against vulnerability, and the cost-benefit frontier with constrained portfolios.</p></figcaption>
+<a href="figures/exemplar_amsterdam.png"><img src="figures/exemplar_amsterdam.png" alt="Amsterdam — Cool cluster medoid"></a>
+<p class="files">figures/exemplar_amsterdam.png &middot; <a href="figures/exemplar_amsterdam.pdf">PDF</a></p>
+</figure>
+<figure id="exemplar_budapest">
+<figcaption><span class="slot">Exemplar</span><h3>Budapest — Temperate cluster medoid</h3><p>Single-city dashboard: baseline mortality trajectory, avoided deaths by pathway, district greening against vulnerability, and the cost-benefit frontier with constrained portfolios.</p></figcaption>
+<a href="figures/exemplar_budapest.png"><img src="figures/exemplar_budapest.png" alt="Budapest — Temperate cluster medoid"></a>
+<p class="files">figures/exemplar_budapest.png &middot; <a href="figures/exemplar_budapest.pdf">PDF</a></p>
+</figure>
+<figure id="exemplar_palermo">
+<figcaption><span class="slot">Exemplar</span><h3>Palermo — Hot cluster medoid</h3><p>Single-city dashboard: baseline mortality trajectory, avoided deaths by pathway, district greening against vulnerability, and the cost-benefit frontier with constrained portfolios.</p></figcaption>
+<a href="figures/exemplar_palermo.png"><img src="figures/exemplar_palermo.png" alt="Palermo — Hot cluster medoid"></a>
+<p class="files">figures/exemplar_palermo.png &middot; <a href="figures/exemplar_palermo.pdf">PDF</a></p>
+</figure>
+<h2>Tables</h2>
+<section id="tab_cba_by_city">
+<h3>Cost-benefit by city and pathway</h3><p class="cap">Three rows per city. A blank cost per death marks a pathway avoiding fewer than 0.5 deaths over 25 years.</p>
+<p class="files">120 rows &middot; <a href="tables/tab_cba_by_city.csv">CSV</a> &middot; <a href="tables/tab_cba_by_city.tex">LaTeX</a></p>
+<div class="tw"><table><thead><tr><th>City</th><th>Cluster</th><th>Pathway</th><th class="n">PV cost (M€)</th><th class="n">PV cost per capita (€)</th><th class="n">Avoided deaths (25y)</th><th class="n">Cost per death (k€)</th><th class="n">Public share (%)</th></tr></thead><tbody><tr><td>Athens</td><td>Hot</td><td>Trees</td><td class="n">122.3</td><td class="n">184</td><td class="n">83</td><td class="n">1478</td><td class="n">100</td></tr>
+<tr><td>Athens</td><td>Hot</td><td>AC</td><td class="n">328.6</td><td class="n">494</td><td class="n">167</td><td class="n">1965</td><td class="n">10</td></tr>
+<tr><td>Athens</td><td>Hot</td><td>EWS</td><td class="n">31.8</td><td class="n">48</td><td class="n">2421</td><td class="n">13</td><td class="n">100</td></tr>
+<tr><td>Barcelona</td><td>Hot</td><td>Trees</td><td class="n">382.9</td><td class="n">201</td><td class="n">18</td><td class="n">21369</td><td class="n">100</td></tr>
+<tr><td>Barcelona</td><td>Hot</td><td>AC</td><td class="n">1080.1</td><td class="n">567</td><td class="n">405</td><td class="n">2666</td><td class="n">13</td></tr>
+<tr><td>Barcelona</td><td>Hot</td><td>EWS</td><td class="n">33.4</td><td class="n">18</td><td class="n">1059</td><td class="n">32</td><td class="n">100</td></tr>
+<tr><td>Bologna</td><td>Hot</td><td>Trees</td><td class="n">74.2</td><td class="n">194</td><td class="n">25</td><td class="n">3007</td><td class="n">100</td></tr>
+<tr><td>Bologna</td><td>Hot</td><td>AC</td><td class="n">235</td><td class="n">615</td><td class="n">142</td><td class="n">1660</td><td class="n">13</td></tr>
+<tr><td>Bologna</td><td>Hot</td><td>EWS</td><td class="n">7.6</td><td class="n">20</td><td class="n">175</td><td class="n">43</td><td class="n">100</td></tr>
+<tr><td>Madrid</td><td>Hot</td><td>Trees</td><td class="n">458.4</td><td class="n">138</td><td class="n">0</td><td class="n"><span class="na">&mdash;</span></td><td class="n">100</td></tr>
+<tr><td>Madrid</td><td>Hot</td><td>AC</td><td class="n">1816.5</td><td class="n">548</td><td class="n">509</td><td class="n">3566</td><td class="n">12</td></tr>
+<tr><td>Madrid</td><td>Hot</td><td>EWS</td><td class="n">37.4</td><td class="n">11</td><td class="n">886</td><td class="n">42</td><td class="n">100</td></tr>
+<tr><td>Milan</td><td>Hot</td><td>Trees</td><td class="n">205.6</td><td class="n">149</td><td class="n">213</td><td class="n">968</td><td class="n">100</td></tr>
+<tr><td>Milan</td><td>Hot</td><td>AC</td><td class="n">1210.9</td><td class="n">880</td><td class="n">694</td><td class="n">1746</td><td class="n">13</td></tr>
+<tr><td>Milan</td><td>Hot</td><td>EWS</td><td class="n">20.3</td><td class="n">15</td><td class="n">766</td><td class="n">27</td><td class="n">100</td></tr>
+<tr><td>Naples</td><td>Hot</td><td>Trees</td><td class="n">554.2</td><td class="n">593</td><td class="n">849</td><td class="n">653</td><td class="n">100</td></tr>
+<tr><td>Naples</td><td>Hot</td><td>AC</td><td class="n">578</td><td class="n">618</td><td class="n">488</td><td class="n">1186</td><td class="n">11</td></tr>
+<tr><td>Naples</td><td>Hot</td><td>EWS</td><td class="n">19.9</td><td class="n">21</td><td class="n">757</td><td class="n">26</td><td class="n">100</td></tr>
+<tr><td>Palermo</td><td>Hot</td><td>Trees</td><td class="n">311.5</td><td class="n">487</td><td class="n">56</td><td class="n">5529</td><td class="n">100</td></tr>
+<tr><td>Palermo</td><td>Hot</td><td>AC</td><td class="n">536.9</td><td class="n">839</td><td class="n">333</td><td class="n">1612</td><td class="n">10</td></tr>
+<tr><td>Palermo</td><td>Hot</td><td>EWS</td><td class="n">8.8</td><td class="n">14</td><td class="n">291</td><td class="n">30</td><td class="n">100</td></tr>
+<tr><td>Rome</td><td>Hot</td><td>Trees</td><td class="n">294.8</td><td class="n">122</td><td class="n">181</td><td class="n">1626</td><td class="n">100</td></tr>
+<tr><td>Rome</td><td>Hot</td><td>AC</td><td class="n">1297.7</td><td class="n">539</td><td class="n">698</td><td class="n">1859</td><td class="n">11</td></tr>
+<tr><td>Rome</td><td>Hot</td><td>EWS</td><td class="n">25.2</td><td class="n">10</td><td class="n">974</td><td class="n">26</td><td class="n">100</td></tr>
+<tr><td>Sevilla</td><td>Hot</td><td>Trees</td><td class="n">144.3</td><td class="n">212</td><td class="n">0</td><td class="n"><span class="na">&mdash;</span></td><td class="n">100</td></tr>
+<tr><td>Sevilla</td><td>Hot</td><td>AC</td><td class="n">961.7</td><td class="n">1410</td><td class="n">296</td><td class="n">3252</td><td class="n">9</td></tr>
+<tr><td>Sevilla</td><td>Hot</td><td>EWS</td><td class="n">12.2</td><td class="n">18</td><td class="n">276</td><td class="n">44</td><td class="n">100</td></tr>
+<tr><td>Thessaloniki</td><td>Hot</td><td>Trees</td><td class="n">522.7</td><td class="n">1395</td><td class="n">15</td><td class="n">34392</td><td class="n">100</td></tr>
+<tr><td>Thessaloniki</td><td>Hot</td><td>AC</td><td class="n">82.8</td><td class="n">221</td><td class="n">59</td><td class="n">1414</td><td class="n">12</td></tr>
+<tr><td>Thessaloniki</td><td>Hot</td><td>EWS</td><td class="n">11.5</td><td class="n">31</td><td class="n">471</td><td class="n">24</td><td class="n">100</td></tr>
+<tr><td>Bratislava</td><td>Temperate</td><td>Trees</td><td class="n">554.9</td><td class="n">1276</td><td class="n">26</td><td class="n">21218</td><td class="n">100</td></tr>
+<tr><td>Bratislava</td><td>Temperate</td><td>AC</td><td class="n">324.6</td><td class="n">746</td><td class="n">28</td><td class="n">11398</td><td class="n">15</td></tr>
+<tr><td>Bratislava</td><td>Temperate</td><td>EWS</td><td class="n">6.6</td><td class="n">15</td><td class="n">69</td><td class="n">95</td><td class="n">100</td></tr>
+<tr><td>Bucharest</td><td>Temperate</td><td>Trees</td><td class="n">38.2</td><td class="n">22</td><td class="n">32</td><td class="n">1209</td><td class="n">100</td></tr>
+<tr><td>Bucharest</td><td>Temperate</td><td>AC</td><td class="n">928</td><td class="n">535</td><td class="n">350</td><td class="n">2652</td><td class="n">11</td></tr>
+<tr><td>Bucharest</td><td>Temperate</td><td>EWS</td><td class="n">16</td><td class="n">9</td><td class="n">489</td><td class="n">33</td><td class="n">100</td></tr>
+<tr><td>Budapest</td><td>Temperate</td><td>Trees</td><td class="n">1151.1</td><td class="n">693</td><td class="n">103</td><td class="n">11193</td><td class="n">100</td></tr>
+<tr><td>Budapest</td><td>Temperate</td><td>AC</td><td class="n">1105.5</td><td class="n">666</td><td class="n">248</td><td class="n">4454</td><td class="n">12</td></tr>
+<tr><td>Budapest</td><td>Temperate</td><td>EWS</td><td class="n">17.5</td><td class="n">11</td><td class="n">470</td><td class="n">37</td><td class="n">100</td></tr>
+<tr><td>Lisbon</td><td>Temperate</td><td>Trees</td><td class="n">1196.6</td><td class="n">2202</td><td class="n">119</td><td class="n">10084</td><td class="n">100</td></tr>
+<tr><td>Lisbon</td><td>Temperate</td><td>AC</td><td class="n">659.5</td><td class="n">1213</td><td class="n">59</td><td class="n">11157</td><td class="n">9</td></tr>
+<tr><td>Lisbon</td><td>Temperate</td><td>EWS</td><td class="n">18.8</td><td class="n">35</td><td class="n">193</td><td class="n">98</td><td class="n">100</td></tr>
+<tr><td>Ljubljana</td><td>Temperate</td><td>Trees</td><td class="n">607.6</td><td class="n">2230</td><td class="n">36</td><td class="n">16814</td><td class="n">100</td></tr>
+<tr><td>Ljubljana</td><td>Temperate</td><td>AC</td><td class="n">292.2</td><td class="n">1072</td><td class="n">204</td><td class="n">1433</td><td class="n">13</td></tr>
+<tr><td>Ljubljana</td><td>Temperate</td><td>EWS</td><td class="n">5.8</td><td class="n">21</td><td class="n">102</td><td class="n">58</td><td class="n">100</td></tr>
+<tr><td>Lyon</td><td>Temperate</td><td>Trees</td><td class="n">459.2</td><td class="n">805</td><td class="n">19</td><td class="n">24563</td><td class="n">100</td></tr>
+<tr><td>Lyon</td><td>Temperate</td><td>AC</td><td class="n">586.7</td><td class="n">1029</td><td class="n">90</td><td class="n">6539</td><td class="n">14</td></tr>
+<tr><td>Lyon</td><td>Temperate</td><td>EWS</td><td class="n">15</td><td class="n">26</td><td class="n">149</td><td class="n">101</td><td class="n">100</td></tr>
+<tr><td>Marseille</td><td>Temperate</td><td>Trees</td><td class="n">634.5</td><td class="n">721</td><td class="n">98</td><td class="n">6466</td><td class="n">100</td></tr>
+<tr><td>Marseille</td><td>Temperate</td><td>AC</td><td class="n">665.6</td><td class="n">756</td><td class="n">136</td><td class="n">4877</td><td class="n">15</td></tr>
+<tr><td>Marseille</td><td>Temperate</td><td>EWS</td><td class="n">11.5</td><td class="n">13</td><td class="n">168</td><td class="n">69</td><td class="n">100</td></tr>
+<tr><td>Paris</td><td>Temperate</td><td>Trees</td><td class="n">989</td><td class="n">427</td><td class="n">97</td><td class="n">10241</td><td class="n">100</td></tr>
+<tr><td>Paris</td><td>Temperate</td><td>AC</td><td class="n">3251</td><td class="n">1403</td><td class="n">206</td><td class="n">15789</td><td class="n">11</td></tr>
+<tr><td>Paris</td><td>Temperate</td><td>EWS</td><td class="n">63.7</td><td class="n">27</td><td class="n">415</td><td class="n">154</td><td class="n">100</td></tr>
+<tr><td>Porto</td><td>Temperate</td><td>Trees</td><td class="n">399.1</td><td class="n">743</td><td class="n">10</td><td class="n">41179</td><td class="n">100</td></tr>
+<tr><td>Porto</td><td>Temperate</td><td>AC</td><td class="n">260.6</td><td class="n">485</td><td class="n">23</td><td class="n">11465</td><td class="n">11</td></tr>
+<tr><td>Porto</td><td>Temperate</td><td>EWS</td><td class="n">10</td><td class="n">19</td><td class="n">136</td><td class="n">73</td><td class="n">100</td></tr>
+<tr><td>Sofia</td><td>Temperate</td><td>Trees</td><td class="n">914.9</td><td class="n">757</td><td class="n">63</td><td class="n">14438</td><td class="n">100</td></tr>
+<tr><td>Sofia</td><td>Temperate</td><td>AC</td><td class="n">707.8</td><td class="n">586</td><td class="n">606</td><td class="n">1169</td><td class="n">11</td></tr>
+<tr><td>Sofia</td><td>Temperate</td><td>EWS</td><td class="n">8.5</td><td class="n">7</td><td class="n">321</td><td class="n">26</td><td class="n">100</td></tr>
+<tr><td>Varna</td><td>Temperate</td><td>Trees</td><td class="n">135.7</td><td class="n">437</td><td class="n">63</td><td class="n">2167</td><td class="n">100</td></tr>
+<tr><td>Varna</td><td>Temperate</td><td>AC</td><td class="n">191.5</td><td class="n">616</td><td class="n">90</td><td class="n">2118</td><td class="n">12</td></tr>
+<tr><td>Varna</td><td>Temperate</td><td>EWS</td><td class="n">3.8</td><td class="n">12</td><td class="n">61</td><td class="n">63</td><td class="n">100</td></tr>
+<tr><td>Vienna</td><td>Temperate</td><td>Trees</td><td class="n">1479.2</td><td class="n">788</td><td class="n">382</td><td class="n">3876</td><td class="n">100</td></tr>
+<tr><td>Vienna</td><td>Temperate</td><td>AC</td><td class="n">2183.4</td><td class="n">1163</td><td class="n">257</td><td class="n">8493</td><td class="n">13</td></tr>
+<tr><td>Vienna</td><td>Temperate</td><td>EWS</td><td class="n">20.9</td><td class="n">11</td><td class="n">471</td><td class="n">44</td><td class="n">100</td></tr>
+<tr><td>Zagreb</td><td>Temperate</td><td>Trees</td><td class="n">805</td><td class="n">1168</td><td class="n">44</td><td class="n">18449</td><td class="n">100</td></tr>
+<tr><td>Zagreb</td><td>Temperate</td><td>AC</td><td class="n">397.9</td><td class="n">577</td><td class="n">293</td><td class="n">1360</td><td class="n">15</td></tr>
+<tr><td>Zagreb</td><td>Temperate</td><td>EWS</td><td class="n">7</td><td class="n">10</td><td class="n">135</td><td class="n">52</td><td class="n">100</td></tr>
+<tr><td>Amsterdam</td><td>Cool</td><td>Trees</td><td class="n">316.9</td><td class="n">376</td><td class="n">32</td><td class="n">9806</td><td class="n">100</td></tr>
+<tr><td>Amsterdam</td><td>Cool</td><td>AC</td><td class="n">562.4</td><td class="n">667</td><td class="n">34</td><td class="n">16545</td><td class="n">12</td></tr>
+<tr><td>Amsterdam</td><td>Cool</td><td>EWS</td><td class="n">14</td><td class="n">17</td><td class="n">85</td><td class="n">165</td><td class="n">100</td></tr>
+<tr><td>Berlin</td><td>Cool</td><td>Trees</td><td class="n">1250.4</td><td class="n">340</td><td class="n">67</td><td class="n">18537</td><td class="n">100</td></tr>
+<tr><td>Berlin</td><td>Cool</td><td>AC</td><td class="n">5821.1</td><td class="n">1581</td><td class="n">211</td><td class="n">27541</td><td class="n">12</td></tr>
+<tr><td>Berlin</td><td>Cool</td><td>EWS</td><td class="n">29</td><td class="n">8</td><td class="n">303</td><td class="n">96</td><td class="n">100</td></tr>
+<tr><td>Brussels</td><td>Cool</td><td>Trees</td><td class="n">1871.4</td><td class="n">1200</td><td class="n">98</td><td class="n">19060</td><td class="n">100</td></tr>
+<tr><td>Brussels</td><td>Cool</td><td>AC</td><td class="n">1579.5</td><td class="n">1013</td><td class="n">49</td><td class="n">32196</td><td class="n">12</td></tr>
+<tr><td>Brussels</td><td>Cool</td><td>EWS</td><td class="n">15.1</td><td class="n">10</td><td class="n">81</td><td class="n">187</td><td class="n">100</td></tr>
+<tr><td>Cologne</td><td>Cool</td><td>Trees</td><td class="n">493.7</td><td class="n">416</td><td class="n">20</td><td class="n">24478</td><td class="n">100</td></tr>
+<tr><td>Cologne</td><td>Cool</td><td>AC</td><td class="n">1755.5</td><td class="n">1479</td><td class="n">87</td><td class="n">20217</td><td class="n">12</td></tr>
+<tr><td>Cologne</td><td>Cool</td><td>EWS</td><td class="n">13.7</td><td class="n">12</td><td class="n">96</td><td class="n">142</td><td class="n">100</td></tr>
+<tr><td>Copenhagen</td><td>Cool</td><td>Trees</td><td class="n">254.5</td><td class="n">405</td><td class="n">1</td><td class="n">393163</td><td class="n">100</td></tr>
+<tr><td>Copenhagen</td><td>Cool</td><td>AC</td><td class="n">1275.1</td><td class="n">2029</td><td class="n">21</td><td class="n">61719</td><td class="n">11</td></tr>
+<tr><td>Copenhagen</td><td>Cool</td><td>EWS</td><td class="n">9.7</td><td class="n">15</td><td class="n">26</td><td class="n">375</td><td class="n">100</td></tr>
+<tr><td>Dublin</td><td>Cool</td><td>Trees</td><td class="n">279</td><td class="n">225</td><td class="n">1</td><td class="n">230887</td><td class="n">100</td></tr>
+<tr><td>Dublin</td><td>Cool</td><td>AC</td><td class="n">2316.1</td><td class="n">1868</td><td class="n">2</td><td class="n">1024469</td><td class="n">11</td></tr>
+<tr><td>Dublin</td><td>Cool</td><td>EWS</td><td class="n">17.8</td><td class="n">14</td><td class="n">5</td><td class="n">3613</td><td class="n">100</td></tr>
+<tr><td>Hamburg</td><td>Cool</td><td>Trees</td><td class="n">239.3</td><td class="n">140</td><td class="n">20</td><td class="n">12092</td><td class="n">100</td></tr>
+<tr><td>Hamburg</td><td>Cool</td><td>AC</td><td class="n">2791.9</td><td class="n">1632</td><td class="n">33</td><td class="n">83639</td><td class="n">13</td></tr>
+<tr><td>Hamburg</td><td>Cool</td><td>EWS</td><td class="n">12.8</td><td class="n">8</td><td class="n">30</td><td class="n">422</td><td class="n">100</td></tr>
+<tr><td>Helsinki</td><td>Cool</td><td>Trees</td><td class="n">265.3</td><td class="n">291</td><td class="n">8</td><td class="n">34917</td><td class="n">100</td></tr>
+<tr><td>Helsinki</td><td>Cool</td><td>AC</td><td class="n">816.1</td><td class="n">894</td><td class="n">23</td><td class="n">34787</td><td class="n">15</td></tr>
+<tr><td>Helsinki</td><td>Cool</td><td>EWS</td><td class="n">10.9</td><td class="n">12</td><td class="n">45</td><td class="n">240</td><td class="n">100</td></tr>
+<tr><td>Munich</td><td>Cool</td><td>Trees</td><td class="n">865.5</td><td class="n">598</td><td class="n">55</td><td class="n">15632</td><td class="n">100</td></tr>
+<tr><td>Munich</td><td>Cool</td><td>AC</td><td class="n">2310.4</td><td class="n">1596</td><td class="n">125</td><td class="n">18465</td><td class="n">13</td></tr>
+<tr><td>Munich</td><td>Cool</td><td>EWS</td><td class="n">18</td><td class="n">12</td><td class="n">204</td><td class="n">88</td><td class="n">100</td></tr>
+<tr><td>Nantes</td><td>Cool</td><td>Trees</td><td class="n">432.7</td><td class="n">1345</td><td class="n">1</td><td class="n">451065</td><td class="n">100</td></tr>
+<tr><td>Nantes</td><td>Cool</td><td>AC</td><td class="n">427.2</td><td class="n">1328</td><td class="n">2</td><td class="n">186433</td><td class="n">14</td></tr>
+<tr><td>Nantes</td><td>Cool</td><td>EWS</td><td class="n">5.4</td><td class="n">17</td><td class="n">1</td><td class="n">5322</td><td class="n">100</td></tr>
+<tr><td>Prague</td><td>Cool</td><td>Trees</td><td class="n">547.4</td><td class="n">422</td><td class="n">13</td><td class="n">41889</td><td class="n">100</td></tr>
+<tr><td>Prague</td><td>Cool</td><td>AC</td><td class="n">1326.1</td><td class="n">1022</td><td class="n">52</td><td class="n">25351</td><td class="n">14</td></tr>
+<tr><td>Prague</td><td>Cool</td><td>EWS</td><td class="n">13.6</td><td class="n">11</td><td class="n">108</td><td class="n">127</td><td class="n">100</td></tr>
+<tr><td>Riga</td><td>Cool</td><td>Trees</td><td class="n">633.3</td><td class="n">1058</td><td class="n">22</td><td class="n">29035</td><td class="n">100</td></tr>
+<tr><td>Riga</td><td>Cool</td><td>AC</td><td class="n">697.2</td><td class="n">1164</td><td class="n">119</td><td class="n">5863</td><td class="n">11</td></tr>
+<tr><td>Riga</td><td>Cool</td><td>EWS</td><td class="n">7.3</td><td class="n">12</td><td class="n">209</td><td class="n">35</td><td class="n">100</td></tr>
+<tr><td>Rotterdam</td><td>Cool</td><td>Trees</td><td class="n">900.4</td><td class="n">1797</td><td class="n">6</td><td class="n">138874</td><td class="n">100</td></tr>
+<tr><td>Rotterdam</td><td>Cool</td><td>AC</td><td class="n">645.5</td><td class="n">1288</td><td class="n">22</td><td class="n">29037</td><td class="n">12</td></tr>
+<tr><td>Rotterdam</td><td>Cool</td><td>EWS</td><td class="n">13.3</td><td class="n">27</td><td class="n">53</td><td class="n">250</td><td class="n">100</td></tr>
+<tr><td>Stockholm</td><td>Cool</td><td>Trees</td><td class="n">683.6</td><td class="n">705</td><td class="n">2</td><td class="n">285076</td><td class="n">100</td></tr>
+<tr><td>Stockholm</td><td>Cool</td><td>AC</td><td class="n">1075.2</td><td class="n">1109</td><td class="n">17</td><td class="n">62865</td><td class="n">15</td></tr>
+<tr><td>Stockholm</td><td>Cool</td><td>EWS</td><td class="n">15.3</td><td class="n">16</td><td class="n">47</td><td class="n">327</td><td class="n">100</td></tr>
+<tr><td>Tallinn</td><td>Cool</td><td>Trees</td><td class="n">1539.1</td><td class="n">3667</td><td class="n">25</td><td class="n">60966</td><td class="n">100</td></tr>
+<tr><td>Tallinn</td><td>Cool</td><td>AC</td><td class="n">589.5</td><td class="n">1404</td><td class="n">28</td><td class="n">21289</td><td class="n">14</td></tr>
+<tr><td>Tallinn</td><td>Cool</td><td>EWS</td><td class="n">6.7</td><td class="n">16</td><td class="n">43</td><td class="n">156</td><td class="n">100</td></tr>
+<tr><td>Vilnius</td><td>Cool</td><td>Trees</td><td class="n">613</td><td class="n">1242</td><td class="n">22</td><td class="n">27971</td><td class="n">100</td></tr>
+<tr><td>Vilnius</td><td>Cool</td><td>AC</td><td class="n">583.3</td><td class="n">1182</td><td class="n">135</td><td class="n">4309</td><td class="n">13</td></tr>
+<tr><td>Vilnius</td><td>Cool</td><td>EWS</td><td class="n">6</td><td class="n">12</td><td class="n">166</td><td class="n">36</td><td class="n">100</td></tr>
+<tr><td>Warsaw</td><td>Cool</td><td>Trees</td><td class="n">598.4</td><td class="n">329</td><td class="n">101</td><td class="n">5923</td><td class="n">100</td></tr>
+<tr><td>Warsaw</td><td>Cool</td><td>AC</td><td class="n">1271</td><td class="n">698</td><td class="n">205</td><td class="n">6214</td><td class="n">13</td></tr>
+<tr><td>Warsaw</td><td>Cool</td><td>EWS</td><td class="n">17.3</td><td class="n">10</td><td class="n">363</td><td class="n">48</td><td class="n">100</td></tr></tbody></table></div>
+</section>
+<section id="tab_risk_by_city">
+<h3>Hazard, exposure and baseline risk by city</h3><p class="cap">Climate metrics from the 2020 baseline hazard, with the model's own exposure population as denominator.</p>
+<p class="files">40 rows &middot; <a href="tables/tab_risk_by_city.csv">CSV</a> &middot; <a href="tables/tab_risk_by_city.tex">LaTeX</a></p>
+<div class="tw"><table><thead><tr><th>City</th><th>Country</th><th>Cluster</th><th class="n">Pop (k)</th><th class="n">Warm-season T2M (°C)</th><th class="n">Hot days</th><th class="n">Heat deaths/yr (2020)</th><th class="n">Heat deaths / 100k</th></tr></thead><tbody><tr><td>Sevilla</td><td>Spain</td><td>Hot</td><td class="n">682</td><td class="n">26.3</td><td class="n">99</td><td class="n">161</td><td class="n">23.5</td></tr>
+<tr><td>Athens</td><td>Greece</td><td>Hot</td><td class="n">665</td><td class="n">25.5</td><td class="n">98</td><td class="n">1118</td><td class="n">168.2</td></tr>
+<tr><td>Thessaloniki</td><td>Greece</td><td>Hot</td><td class="n">375</td><td class="n">24.3</td><td class="n">79</td><td class="n">187</td><td class="n">49.9</td></tr>
+<tr><td>Palermo</td><td>Italy</td><td>Hot</td><td class="n">640</td><td class="n">23.9</td><td class="n">71</td><td class="n">239</td><td class="n">37.3</td></tr>
+<tr><td>Madrid</td><td>Spain</td><td>Hot</td><td class="n">3314</td><td class="n">23.9</td><td class="n">73</td><td class="n">401</td><td class="n">12.1</td></tr>
+<tr><td>Naples</td><td>Italy</td><td>Hot</td><td class="n">935</td><td class="n">23.5</td><td class="n">63</td><td class="n">462</td><td class="n">49.4</td></tr>
+<tr><td>Rome</td><td>Italy</td><td>Hot</td><td class="n">2408</td><td class="n">23.3</td><td class="n">65</td><td class="n">663</td><td class="n">27.5</td></tr>
+<tr><td>Bologna</td><td>Italy</td><td>Hot</td><td class="n">382</td><td class="n">22.8</td><td class="n">57</td><td class="n">126</td><td class="n">33.1</td></tr>
+<tr><td>Milan</td><td>Italy</td><td>Hot</td><td class="n">1376</td><td class="n">22.7</td><td class="n">49</td><td class="n">451</td><td class="n">32.8</td></tr>
+<tr><td>Barcelona</td><td>Spain</td><td>Hot</td><td class="n">1906</td><td class="n">22.7</td><td class="n">44</td><td class="n">481</td><td class="n">25.2</td></tr>
+<tr><td>Bucharest</td><td>Romania</td><td>Temperate</td><td class="n">1734</td><td class="n">22.1</td><td class="n">33</td><td class="n">276</td><td class="n">15.9</td></tr>
+<tr><td>Varna</td><td>Bulgaria</td><td>Temperate</td><td class="n">311</td><td class="n">21.9</td><td class="n">25</td><td class="n">72</td><td class="n">23.2</td></tr>
+<tr><td>Marseille</td><td>France</td><td>Temperate</td><td class="n">880</td><td class="n">21.5</td><td class="n">3</td><td class="n">81</td><td class="n">9.2</td></tr>
+<tr><td>Budapest</td><td>Hungary</td><td>Temperate</td><td class="n">1660</td><td class="n">20.8</td><td class="n">4</td><td class="n">103</td><td class="n">6.2</td></tr>
+<tr><td>Lisbon</td><td>Portugal</td><td>Temperate</td><td class="n">544</td><td class="n">20.8</td><td class="n">0</td><td class="n">143</td><td class="n">26.2</td></tr>
+<tr><td>Porto</td><td>Portugal</td><td>Temperate</td><td class="n">537</td><td class="n">20.6</td><td class="n">0</td><td class="n">53</td><td class="n">9.8</td></tr>
+<tr><td>Sofia</td><td>Bulgaria</td><td>Temperate</td><td class="n">1209</td><td class="n">20.3</td><td class="n">1</td><td class="n">348</td><td class="n">28.8</td></tr>
+<tr><td>Zagreb</td><td>Croatia</td><td>Temperate</td><td class="n">689</td><td class="n">20.1</td><td class="n">2</td><td class="n">125</td><td class="n">18.2</td></tr>
+<tr><td>Bratislava</td><td>Slovakia</td><td>Temperate</td><td class="n">435</td><td class="n">19.8</td><td class="n">0</td><td class="n">7</td><td class="n">1.7</td></tr>
+<tr><td>Ljubljana</td><td>Slovenia</td><td>Temperate</td><td class="n">272</td><td class="n">19.7</td><td class="n">0</td><td class="n">69</td><td class="n">25.2</td></tr>
+<tr><td>Lyon</td><td>France</td><td>Temperate</td><td class="n">570</td><td class="n">19.6</td><td class="n">0</td><td class="n">75</td><td class="n">13.2</td></tr>
+<tr><td>Vienna</td><td>Austria</td><td>Temperate</td><td class="n">1878</td><td class="n">19.4</td><td class="n">0</td><td class="n">74</td><td class="n">3.9</td></tr>
+<tr><td>Paris</td><td>France</td><td>Temperate</td><td class="n">2318</td><td class="n">18.7</td><td class="n">0</td><td class="n">139</td><td class="n">6</td></tr>
+<tr><td>Warsaw</td><td>Poland</td><td>Cool</td><td class="n">1821</td><td class="n">18.2</td><td class="n">0</td><td class="n">62</td><td class="n">3.4</td></tr>
+<tr><td>Berlin</td><td>Germany</td><td>Cool</td><td class="n">3683</td><td class="n">18</td><td class="n">0</td><td class="n">61</td><td class="n">1.7</td></tr>
+<tr><td>Prague</td><td>Czechia</td><td>Cool</td><td class="n">1298</td><td class="n">17.7</td><td class="n">0</td><td class="n">17</td><td class="n">1.3</td></tr>
+<tr><td>Nantes</td><td>France</td><td>Cool</td><td class="n">322</td><td class="n">17.7</td><td class="n">0</td><td class="n">2</td><td class="n">0.5</td></tr>
+<tr><td>Cologne</td><td>Germany</td><td>Cool</td><td class="n">1187</td><td class="n">17.6</td><td class="n">0</td><td class="n">37</td><td class="n">3.1</td></tr>
+<tr><td>Munich</td><td>Germany</td><td>Cool</td><td class="n">1448</td><td class="n">17.4</td><td class="n">0</td><td class="n">29</td><td class="n">2</td></tr>
+<tr><td>Rotterdam</td><td>Netherlands</td><td>Cool</td><td class="n">501</td><td class="n">17</td><td class="n">0</td><td class="n">10</td><td class="n">1.9</td></tr>
+<tr><td>Brussels</td><td>Belgium</td><td>Cool</td><td class="n">1560</td><td class="n">16.9</td><td class="n">0</td><td class="n">20</td><td class="n">1.3</td></tr>
+<tr><td>Hamburg</td><td>Germany</td><td>Cool</td><td class="n">1711</td><td class="n">16.6</td><td class="n">0</td><td class="n">11</td><td class="n">0.6</td></tr>
+<tr><td>Amsterdam</td><td>Netherlands</td><td>Cool</td><td class="n">843</td><td class="n">16.5</td><td class="n">0</td><td class="n">34</td><td class="n">4.1</td></tr>
+<tr><td>Vilnius</td><td>Lithuania</td><td>Cool</td><td class="n">493</td><td class="n">16.3</td><td class="n">0</td><td class="n">48</td><td class="n">9.7</td></tr>
+<tr><td>Riga</td><td>Latvia</td><td>Cool</td><td class="n">599</td><td class="n">16.1</td><td class="n">0</td><td class="n">42</td><td class="n">7</td></tr>
+<tr><td>Copenhagen</td><td>Denmark</td><td>Cool</td><td class="n">628</td><td class="n">15.9</td><td class="n">0</td><td class="n">6</td><td class="n">0.9</td></tr>
+<tr><td>Helsinki</td><td>Finland</td><td>Cool</td><td class="n">913</td><td class="n">15.1</td><td class="n">0</td><td class="n">8</td><td class="n">0.9</td></tr>
+<tr><td>Stockholm</td><td>Sweden</td><td>Cool</td><td class="n">970</td><td class="n">15</td><td class="n">0</td><td class="n">4</td><td class="n">0.4</td></tr>
+<tr><td>Tallinn</td><td>Estonia</td><td>Cool</td><td class="n">420</td><td class="n">14.8</td><td class="n">0</td><td class="n">5</td><td class="n">1.2</td></tr>
+<tr><td>Dublin</td><td>Ireland</td><td>Cool</td><td class="n">1240</td><td class="n">14</td><td class="n">0</td><td class="n">0</td><td class="n">0</td></tr></tbody></table></div>
+</section>
+<section id="tab_ews_by_city">
+<h3>The early-warning pathway by city</h3><p class="cap">`Attribution' records which wording that city's run produced for the EWS row; all three carry the same central estimate.</p>
+<p class="files">40 rows &middot; <a href="tables/tab_ews_by_city.csv">CSV</a> &middot; <a href="tables/tab_ews_by_city.tex">LaTeX</a></p>
+<div class="tw"><table><thead><tr><th>City</th><th>Cluster</th><th class="n">Warning days 2020</th><th class="n">Warning days 2050</th><th class="n">Deaths on warning days (%)</th><th class="n">Avoided deaths (25y)</th><th class="n">Avoided / 100k</th><th class="n">PV cost (k€)</th><th class="n">Cost per death (k€)</th><th>Attribution</th></tr></thead><tbody><tr><td>Athens</td><td>Hot</td><td class="n">37</td><td class="n">52</td><td class="n">62</td><td class="n">2421</td><td class="n">364</td><td class="n">31758</td><td class="n">13</td><td>counterfactual</td></tr>
+<tr><td>Thessaloniki</td><td>Hot</td><td class="n">37</td><td class="n">58</td><td class="n">61</td><td class="n">471</td><td class="n">125.6</td><td class="n">11500</td><td class="n">24</td><td>counterfactual</td></tr>
+<tr><td>Naples</td><td>Hot</td><td class="n">30</td><td class="n">61</td><td class="n">55</td><td class="n">757</td><td class="n">80.9</td><td class="n">19945</td><td class="n">26</td><td>marginal</td></tr>
+<tr><td>Milan</td><td>Hot</td><td class="n">25</td><td class="n">59</td><td class="n">46</td><td class="n">766</td><td class="n">55.7</td><td class="n">20323</td><td class="n">27</td><td>marginal</td></tr>
+<tr><td>Barcelona</td><td>Hot</td><td class="n">25</td><td class="n">66</td><td class="n">49</td><td class="n">1059</td><td class="n">55.6</td><td class="n">33409</td><td class="n">32</td><td>marginal</td></tr>
+<tr><td>Bologna</td><td>Hot</td><td class="n">25</td><td class="n">57</td><td class="n">46</td><td class="n">175</td><td class="n">45.9</td><td class="n">7574</td><td class="n">43</td><td>marginal</td></tr>
+<tr><td>Palermo</td><td>Hot</td><td class="n">23</td><td class="n">58</td><td class="n">37</td><td class="n">291</td><td class="n">45.5</td><td class="n">8793</td><td class="n">30</td><td>marginal</td></tr>
+<tr><td>Rome</td><td>Hot</td><td class="n">22</td><td class="n">59</td><td class="n">44</td><td class="n">974</td><td class="n">40.4</td><td class="n">25219</td><td class="n">26</td><td>marginal</td></tr>
+<tr><td>Sevilla</td><td>Hot</td><td class="n">23</td><td class="n">56</td><td class="n">43</td><td class="n">276</td><td class="n">40.4</td><td class="n">12183</td><td class="n">44</td><td>marginal</td></tr>
+<tr><td>Madrid</td><td>Hot</td><td class="n">23</td><td class="n">54</td><td class="n">60</td><td class="n">886</td><td class="n">26.7</td><td class="n">37377</td><td class="n">42</td><td>marginal</td></tr>
+<tr><td>Ljubljana</td><td>Temperate</td><td class="n">23</td><td class="n">59</td><td class="n">41</td><td class="n">102</td><td class="n">37.3</td><td class="n">5843</td><td class="n">58</td><td>counterfactual</td></tr>
+<tr><td>Lisbon</td><td>Temperate</td><td class="n">28</td><td class="n">58</td><td class="n">55</td><td class="n">193</td><td class="n">35.5</td><td class="n">18842</td><td class="n">98</td><td>marginal</td></tr>
+<tr><td>Budapest</td><td>Temperate</td><td class="n">23</td><td class="n">60</td><td class="n">62</td><td class="n">470</td><td class="n">28.3</td><td class="n">17523</td><td class="n">37</td><td>intermediate</td></tr>
+<tr><td>Bucharest</td><td>Temperate</td><td class="n">23</td><td class="n">51</td><td class="n">60</td><td class="n">489</td><td class="n">28.2</td><td class="n">15971</td><td class="n">33</td><td>intermediate</td></tr>
+<tr><td>Sofia</td><td>Temperate</td><td class="n">23</td><td class="n">35</td><td class="n">45</td><td class="n">321</td><td class="n">26.6</td><td class="n">8453</td><td class="n">26</td><td>counterfactual</td></tr>
+<tr><td>Lyon</td><td>Temperate</td><td class="n">24</td><td class="n">56</td><td class="n">52</td><td class="n">149</td><td class="n">26</td><td class="n">14970</td><td class="n">101</td><td>marginal</td></tr>
+<tr><td>Porto</td><td>Temperate</td><td class="n">24</td><td class="n">46</td><td class="n">68</td><td class="n">136</td><td class="n">25.3</td><td class="n">9971</td><td class="n">73</td><td>marginal</td></tr>
+<tr><td>Vienna</td><td>Temperate</td><td class="n">23</td><td class="n">45</td><td class="n">69</td><td class="n">471</td><td class="n">25.1</td><td class="n">20893</td><td class="n">44</td><td>intermediate</td></tr>
+<tr><td>Varna</td><td>Temperate</td><td class="n">23</td><td class="n">31</td><td class="n">46</td><td class="n">61</td><td class="n">19.8</td><td class="n">3844</td><td class="n">63</td><td>counterfactual</td></tr>
+<tr><td>Zagreb</td><td>Temperate</td><td class="n">23</td><td class="n">40</td><td class="n">46</td><td class="n">135</td><td class="n">19.5</td><td class="n">6999</td><td class="n">52</td><td>counterfactual</td></tr>
+<tr><td>Marseille</td><td>Temperate</td><td class="n">23</td><td class="n">63</td><td class="n">55</td><td class="n">168</td><td class="n">19</td><td class="n">11545</td><td class="n">69</td><td>marginal</td></tr>
+<tr><td>Paris</td><td>Temperate</td><td class="n">25</td><td class="n">53</td><td class="n">75</td><td class="n">415</td><td class="n">17.9</td><td class="n">63704</td><td class="n">154</td><td>marginal</td></tr>
+<tr><td>Bratislava</td><td>Temperate</td><td class="n">23</td><td class="n">55</td><td class="n">80</td><td class="n">69</td><td class="n">16</td><td class="n">6633</td><td class="n">95</td><td>counterfactual</td></tr>
+<tr><td>Riga</td><td>Cool</td><td class="n">23</td><td class="n">46</td><td class="n">63</td><td class="n">209</td><td class="n">34.9</td><td class="n">7346</td><td class="n">35</td><td>counterfactual</td></tr>
+<tr><td>Vilnius</td><td>Cool</td><td class="n">23</td><td class="n">39</td><td class="n">56</td><td class="n">166</td><td class="n">33.7</td><td class="n">6016</td><td class="n">36</td><td>counterfactual</td></tr>
+<tr><td>Warsaw</td><td>Cool</td><td class="n">23</td><td class="n">50</td><td class="n">83</td><td class="n">363</td><td class="n">19.9</td><td class="n">17348</td><td class="n">48</td><td>counterfactual</td></tr>
+<tr><td>Munich</td><td>Cool</td><td class="n">23</td><td class="n">48</td><td class="n">74</td><td class="n">204</td><td class="n">14.1</td><td class="n">18046</td><td class="n">88</td><td>intermediate</td></tr>
+<tr><td>Rotterdam</td><td>Cool</td><td class="n">24</td><td class="n">46</td><td class="n">56</td><td class="n">53</td><td class="n">10.6</td><td class="n">13303</td><td class="n">250</td><td>intermediate</td></tr>
+<tr><td>Tallinn</td><td>Cool</td><td class="n">23</td><td class="n">45</td><td class="n">87</td><td class="n">43</td><td class="n">10.3</td><td class="n">6734</td><td class="n">156</td><td>counterfactual</td></tr>
+<tr><td>Amsterdam</td><td>Cool</td><td class="n">25</td><td class="n">41</td><td class="n">32</td><td class="n">85</td><td class="n">10.1</td><td class="n">14020</td><td class="n">165</td><td>intermediate</td></tr>
+<tr><td>Prague</td><td>Cool</td><td class="n">23</td><td class="n">53</td><td class="n">82</td><td class="n">108</td><td class="n">8.3</td><td class="n">13647</td><td class="n">127</td><td>counterfactual</td></tr>
+<tr><td>Berlin</td><td>Cool</td><td class="n">23</td><td class="n">47</td><td class="n">75</td><td class="n">303</td><td class="n">8.2</td><td class="n">28964</td><td class="n">96</td><td>intermediate</td></tr>
+<tr><td>Cologne</td><td>Cool</td><td class="n">23</td><td class="n">37</td><td class="n">34</td><td class="n">96</td><td class="n">8.1</td><td class="n">13677</td><td class="n">142</td><td>intermediate</td></tr>
+<tr><td>Brussels</td><td>Cool</td><td class="n">23</td><td class="n">46</td><td class="n">59</td><td class="n">81</td><td class="n">5.2</td><td class="n">15131</td><td class="n">187</td><td>intermediate</td></tr>
+<tr><td>Helsinki</td><td>Cool</td><td class="n">23</td><td class="n">45</td><td class="n">97</td><td class="n">45</td><td class="n">5</td><td class="n">10872</td><td class="n">240</td><td>intermediate</td></tr>
+<tr><td>Stockholm</td><td>Cool</td><td class="n">23</td><td class="n">48</td><td class="n">98</td><td class="n">47</td><td class="n">4.8</td><td class="n">15340</td><td class="n">327</td><td>intermediate</td></tr>
+<tr><td>Copenhagen</td><td>Cool</td><td class="n">15</td><td class="n">31</td><td class="n">85</td><td class="n">26</td><td class="n">4.1</td><td class="n">9741</td><td class="n">375</td><td>counterfactual</td></tr>
+<tr><td>Hamburg</td><td>Cool</td><td class="n">23</td><td class="n">37</td><td class="n">46</td><td class="n">30</td><td class="n">1.8</td><td class="n">12847</td><td class="n">422</td><td>intermediate</td></tr>
+<tr><td>Dublin</td><td>Cool</td><td class="n">23</td><td class="n">54</td><td class="n">100</td><td class="n">5</td><td class="n">0.4</td><td class="n">17799</td><td class="n">3613</td><td>counterfactual</td></tr>
+<tr><td>Nantes</td><td>Cool</td><td class="n">27</td><td class="n">30</td><td class="n">24</td><td class="n">1</td><td class="n">0.3</td><td class="n">5437</td><td class="n">5322</td><td>marginal</td></tr></tbody></table></div>
+</section>
+<section id="tab_synergies_by_city">
+<h3>Lever interactions by city</h3><p class="cap">The quantities behind Fig 4, city by city.</p>
+<p class="files">40 rows &middot; <a href="tables/tab_synergies_by_city.csv">CSV</a> &middot; <a href="tables/tab_synergies_by_city.tex">LaTeX</a></p>
+<div class="tw"><table><thead><tr><th>City</th><th>Cluster</th><th class="n">ΔGVI (points)</th><th class="n">AC gross (25y)</th><th class="n">AC net (25y)</th><th class="n">Waste-heat penalty (deaths)</th><th class="n">Penalty (% of gross)</th><th class="n">Penalty removed by trees (%)</th><th class="n">Greening benefit surviving AC (%)</th></tr></thead><tbody><tr><td>Athens</td><td>Hot</td><td class="n">9.6</td><td class="n">536</td><td class="n">167</td><td class="n">368.9</td><td class="n">68.8</td><td class="n">0.4</td><td class="n">92.2</td></tr>
+<tr><td>Barcelona</td><td>Hot</td><td class="n">29.9</td><td class="n">720</td><td class="n">405</td><td class="n">315.3</td><td class="n">43.8</td><td class="n">0.3</td><td class="n">95.1</td></tr>
+<tr><td>Thessaloniki</td><td>Hot</td><td class="n">40.9</td><td class="n">101</td><td class="n">59</td><td class="n">42.5</td><td class="n">42</td><td class="n">0.5</td><td class="n">97.2</td></tr>
+<tr><td>Madrid</td><td>Hot</td><td class="n">35.8</td><td class="n">717</td><td class="n">509</td><td class="n">207.6</td><td class="n">28.9</td><td class="n">0</td><td class="n"><span class="na">&mdash;</span></td></tr>
+<tr><td>Sevilla</td><td>Hot</td><td class="n">11.3</td><td class="n">402</td><td class="n">296</td><td class="n">106.5</td><td class="n">26.5</td><td class="n">0</td><td class="n"><span class="na">&mdash;</span></td></tr>
+<tr><td>Naples</td><td>Hot</td><td class="n">43.4</td><td class="n">615</td><td class="n">488</td><td class="n">127.5</td><td class="n">20.7</td><td class="n">3.7</td><td class="n">94.5</td></tr>
+<tr><td>Milan</td><td>Hot</td><td class="n">16.1</td><td class="n">853</td><td class="n">694</td><td class="n">158.9</td><td class="n">18.6</td><td class="n">0.9</td><td class="n">96</td></tr>
+<tr><td>Bologna</td><td>Hot</td><td class="n">5.8</td><td class="n">166</td><td class="n">142</td><td class="n">24.8</td><td class="n">14.9</td><td class="n">0.6</td><td class="n">93.8</td></tr>
+<tr><td>Rome</td><td>Hot</td><td class="n">23.1</td><td class="n">818</td><td class="n">698</td><td class="n">120.1</td><td class="n">14.7</td><td class="n">0.4</td><td class="n">94</td></tr>
+<tr><td>Palermo</td><td>Hot</td><td class="n">24.4</td><td class="n">390</td><td class="n">333</td><td class="n">56.8</td><td class="n">14.6</td><td class="n">0.3</td><td class="n">95.7</td></tr>
+<tr><td>Porto</td><td>Temperate</td><td class="n">31.3</td><td class="n">70</td><td class="n">23</td><td class="n">47.3</td><td class="n">67.5</td><td class="n">0.7</td><td class="n">96.4</td></tr>
+<tr><td>Lisbon</td><td>Temperate</td><td class="n">93.9</td><td class="n">168</td><td class="n">59</td><td class="n">109.3</td><td class="n">64.9</td><td class="n">7.6</td><td class="n">94.2</td></tr>
+<tr><td>Paris</td><td>Temperate</td><td class="n">77.3</td><td class="n">319</td><td class="n">206</td><td class="n">112.9</td><td class="n">35.4</td><td class="n">2.5</td><td class="n">93.8</td></tr>
+<tr><td>Marseille</td><td>Temperate</td><td class="n">49.6</td><td class="n">186</td><td class="n">136</td><td class="n">49.4</td><td class="n">26.6</td><td class="n">1.8</td><td class="n">92.2</td></tr>
+<tr><td>Lyon</td><td>Temperate</td><td class="n">35.9</td><td class="n">121</td><td class="n">90</td><td class="n">30.9</td><td class="n">25.6</td><td class="n">2.1</td><td class="n">92</td></tr>
+<tr><td>Bratislava</td><td>Temperate</td><td class="n">43.6</td><td class="n">37</td><td class="n">28</td><td class="n">8.8</td><td class="n">23.6</td><td class="n">3</td><td class="n">91</td></tr>
+<tr><td>Bucharest</td><td>Temperate</td><td class="n">3</td><td class="n">447</td><td class="n">350</td><td class="n">96.6</td><td class="n">21.6</td><td class="n">0.1</td><td class="n">92.9</td></tr>
+<tr><td>Varna</td><td>Temperate</td><td class="n">10.6</td><td class="n">109</td><td class="n">90</td><td class="n">18.6</td><td class="n">17.1</td><td class="n">3.2</td><td class="n">98.2</td></tr>
+<tr><td>Budapest</td><td>Temperate</td><td class="n">90.4</td><td class="n">297</td><td class="n">248</td><td class="n">49.2</td><td class="n">16.5</td><td class="n">1.4</td><td class="n">89.4</td></tr>
+<tr><td>Vienna</td><td>Temperate</td><td class="n">116.1</td><td class="n">301</td><td class="n">257</td><td class="n">44.3</td><td class="n">14.7</td><td class="n">4.3</td><td class="n">92</td></tr>
+<tr><td>Sofia</td><td>Temperate</td><td class="n">71.4</td><td class="n">678</td><td class="n">606</td><td class="n">72</td><td class="n">10.6</td><td class="n">0.6</td><td class="n">94.7</td></tr>
+<tr><td>Ljubljana</td><td>Temperate</td><td class="n">47.6</td><td class="n">219</td><td class="n">204</td><td class="n">15</td><td class="n">6.9</td><td class="n">2.6</td><td class="n">85.8</td></tr>
+<tr><td>Zagreb</td><td>Temperate</td><td class="n">63</td><td class="n">310</td><td class="n">293</td><td class="n">17.9</td><td class="n">5.8</td><td class="n">2.1</td><td class="n">93.7</td></tr>
+<tr><td>Nantes</td><td>Cool</td><td class="n">33.8</td><td class="n">3</td><td class="n">2</td><td class="n">0.6</td><td class="n">20.3</td><td class="n">6.9</td><td class="n">92.5</td></tr>
+<tr><td>Prague</td><td>Cool</td><td class="n">42.9</td><td class="n">62</td><td class="n">52</td><td class="n">9.3</td><td class="n">15</td><td class="n">1</td><td class="n">92.1</td></tr>
+<tr><td>Rotterdam</td><td>Cool</td><td class="n">70.6</td><td class="n">26</td><td class="n">22</td><td class="n">3.6</td><td class="n">14.1</td><td class="n">8.5</td><td class="n">94.1</td></tr>
+<tr><td>Berlin</td><td>Cool</td><td class="n">98.1</td><td class="n">245</td><td class="n">211</td><td class="n">33.3</td><td class="n">13.6</td><td class="n">3</td><td class="n">86.3</td></tr>
+<tr><td>Munich</td><td>Cool</td><td class="n">67.9</td><td class="n">143</td><td class="n">125</td><td class="n">18.4</td><td class="n">12.8</td><td class="n">3.3</td><td class="n">92.3</td></tr>
+<tr><td>Warsaw</td><td>Cool</td><td class="n">46.7</td><td class="n">230</td><td class="n">205</td><td class="n">25.4</td><td class="n">11.1</td><td class="n">2.7</td><td class="n">89.2</td></tr>
+<tr><td>Cologne</td><td>Cool</td><td class="n">38.8</td><td class="n">96</td><td class="n">87</td><td class="n">9</td><td class="n">9.4</td><td class="n">4.1</td><td class="n">91</td></tr>
+<tr><td>Amsterdam</td><td>Cool</td><td class="n">24.8</td><td class="n">37</td><td class="n">34</td><td class="n">3.3</td><td class="n">8.9</td><td class="n">14.4</td><td class="n">95.7</td></tr>
+<tr><td>Stockholm</td><td>Cool</td><td class="n">53.4</td><td class="n">18</td><td class="n">17</td><td class="n">1.3</td><td class="n">6.9</td><td class="n">2.9</td><td class="n">94.7</td></tr>
+<tr><td>Brussels</td><td>Cool</td><td class="n">146.1</td><td class="n">53</td><td class="n">49</td><td class="n">3.5</td><td class="n">6.7</td><td class="n">9.8</td><td class="n">90.6</td></tr>
+<tr><td>Hamburg</td><td>Cool</td><td class="n">18.8</td><td class="n">35</td><td class="n">33</td><td class="n">1.9</td><td class="n">5.3</td><td class="n">12.6</td><td class="n">82.5</td></tr>
+<tr><td>Copenhagen</td><td>Cool</td><td class="n">19.9</td><td class="n">22</td><td class="n">21</td><td class="n">1.1</td><td class="n">4.9</td><td class="n">2.5</td><td class="n">95</td></tr>
+<tr><td>Helsinki</td><td>Cool</td><td class="n">20.7</td><td class="n">24</td><td class="n">23</td><td class="n">1</td><td class="n">4</td><td class="n">4.5</td><td class="n">90.7</td></tr>
+<tr><td>Riga</td><td>Cool</td><td class="n">49.6</td><td class="n">122</td><td class="n">119</td><td class="n">3</td><td class="n">2.5</td><td class="n">5.1</td><td class="n">85.6</td></tr>
+<tr><td>Vilnius</td><td>Cool</td><td class="n">47.9</td><td class="n">138</td><td class="n">135</td><td class="n">2.9</td><td class="n">2.1</td><td class="n">3.1</td><td class="n">88.7</td></tr>
+<tr><td>Tallinn</td><td>Cool</td><td class="n">120.3</td><td class="n">28</td><td class="n">28</td><td class="n">0.5</td><td class="n">1.6</td><td class="n">24.9</td><td class="n">86.1</td></tr>
+<tr><td>Dublin</td><td>Cool</td><td class="n">21.8</td><td class="n">2</td><td class="n">2</td><td class="n">0</td><td class="n">0</td><td class="n"><span class="na">&mdash;</span></td><td class="n">90.6</td></tr></tbody></table></div>
+</section>
+<footer>Generated by <code>natcities_visual_items/R/make_report.R</code>.
+Images link to the PDF version used for typesetting.</footer>
+</div></body></html>

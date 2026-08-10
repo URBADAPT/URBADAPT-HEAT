@@ -32,16 +32,17 @@ render_exemplar <- function(city, meta) {
   } else patchwork::plot_spacer()
 
   # (b) avoided deaths by pathway
-  keep <- c("Trees (uniform)", "AC (NET)", "EWS (marginal)")
-  eff <- read_city_csv(city, sprintf("%s_policy_effectiveness.csv", city))
-  pb <- if (!is.null(eff)) {
-    e <- eff[eff$policy %in% keep, ]
-    e$pathway <- factor(pathway_key(e$policy), levels = c("Trees", "AC", "EWS"))
+  e <- canonical_effectiveness(city)
+  pb <- if (!is.null(e)) {
+    e$pathway <- factor(e$pathway, levels = PATHWAY_LEVELS)
     ggplot(e, aes(pathway, avoided_deaths_25y, fill = pathway)) +
       geom_col(width = 0.65) +
+      geom_text(aes(label = round(avoided_deaths_25y)), vjust = -0.4,
+                size = 3, color = "grey25") +
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.12))) +
       labs(tag = "b", title = "Avoided deaths (25y) by pathway",
-           x = NULL, y = "Avoided deaths") +
+           subtitle = "AC net of waste heat", x = NULL, y = "Avoided deaths") +
       theme_natcities()
   } else patchwork::plot_spacer()
 
