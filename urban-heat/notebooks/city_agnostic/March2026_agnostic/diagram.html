@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>URBADAPT-HEAT — Urban Heat Adaptation Framework</title>
+    <title>URBADAPT-HEAT v1.0 — Urban Heat Adaptation Framework</title>
     <style>
         :root {
-            --scale: 1.18;
+            /* Single knob for the whole figure: every size below derives from it. */
+            --scale: 1.34;
             --title-size: calc(22px * var(--scale));
             --subtitle-size: calc(12px * var(--scale));
             --section-title-size: calc(12px * var(--scale));
@@ -16,12 +17,11 @@
             --tag-size: calc(9px * var(--scale));
             --mechanism-size: calc(10px * var(--scale));
             --side-effect-size: calc(10px * var(--scale));
-            --output-card-title-size: calc(11px * var(--scale));
-            --output-card-list-size: calc(10px * var(--scale));
             --legend-size: calc(10px * var(--scale));
             --flow-label-size: calc(10px * var(--scale));
             --badge-size: calc(10px * var(--scale));
             --nb-num-size: calc(11px * var(--scale));
+            --nb-file-size: calc(9px * var(--scale));
             --mech-arrow-size: calc(14px * var(--scale));
             --padding-base: calc(14px * var(--scale));
             --gap-base: calc(10px * var(--scale));
@@ -30,13 +30,39 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
+        /* Single-page export. The page size matches the rendered content
+           (1430 x 2422 CSS px at --scale: 1.34); re-measure if either changes. */
+        @page { size: 14.9in 25.23in; margin: 0; }
+
+        @media print {
+            html, body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
         body {
             font-family: 'Calibri', 'Segoe UI', sans-serif;
             background: white;
             padding: calc(25px * var(--scale));
         }
 
-        .container { max-width: 1200px; margin: 0 auto; }
+        /* Width scales with --scale so larger type does not force extra wrapping. */
+        .container { max-width: calc(1017px * var(--scale)); margin: 0 auto; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: calc(14px * var(--scale));
+            margin-bottom: calc(15px * var(--scale));
+        }
+
+        .header-logo {
+            height: calc(48px * var(--scale));
+            width: auto;
+            flex-shrink: 0;
+        }
 
         h1 {
             text-align: center;
@@ -50,27 +76,12 @@
             text-align: center;
             color: #7f8c8d;
             font-size: var(--subtitle-size);
-            margin-bottom: calc(15px * var(--scale));
-        }
-
-        .scalable {
-            text-align: right;
-            font-size: var(--badge-size);
-            margin-bottom: calc(8px * var(--scale));
-        }
-
-        .scalable span {
-            background: #f1c40f;
-            color: #2c3e50;
-            padding: calc(3px * var(--scale)) calc(10px * var(--scale));
-            border-radius: calc(12px * var(--scale));
-            font-weight: 500;
         }
 
         /* Foundation Strip */
         .foundation-strip {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.15fr 1fr;
             gap: var(--gap-base);
             margin-bottom: calc(12px * var(--scale));
             padding: calc(10px * var(--scale)) calc(14px * var(--scale));
@@ -85,13 +96,9 @@
             gap: calc(10px * var(--scale));
         }
 
-        .foundation-icon {
-            font-size: calc(20px * var(--scale));
-        }
+        .foundation-icon { font-size: calc(20px * var(--scale)); }
 
-        .foundation-content {
-            flex: 1;
-        }
+        .foundation-content { flex: 1; }
 
         .foundation-title {
             font-weight: 600;
@@ -99,27 +106,25 @@
             margin-bottom: calc(2px * var(--scale));
         }
 
-        .foundation-title code {
+        .foundation-title code,
+        .foundation-desc code {
             font-family: 'Consolas', monospace;
-            background: rgba(255,255,255,0.2);
-            padding: calc(1px * var(--scale)) calc(5px * var(--scale));
+            background: rgba(255,255,255,0.18);
+            padding: calc(1px * var(--scale)) calc(4px * var(--scale));
             border-radius: calc(3px * var(--scale));
         }
 
         .foundation-desc {
             font-size: calc(9px * var(--scale));
-            opacity: 0.85;
+            opacity: 0.88;
+            line-height: 1.55;
         }
 
-        .foundation-arrow {
-            color: #f1c40f;
-            font-size: calc(10px * var(--scale));
-        }
+        .foundation-arrow { color: #f1c40f; }
 
         .main-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto auto;
             gap: var(--gap-base);
         }
 
@@ -160,7 +165,7 @@
         .nb-header {
             display: flex;
             align-items: center;
-            margin-bottom: calc(5px * var(--scale));
+            margin-bottom: calc(3px * var(--scale));
             flex-wrap: wrap;
             gap: calc(4px * var(--scale));
         }
@@ -187,11 +192,28 @@
             font-size: var(--nb-title-size);
         }
 
+        .nb-file {
+            font-family: 'Consolas', monospace;
+            font-size: var(--nb-file-size);
+            color: #95a5a6;
+            margin-left: calc(28px * var(--scale));
+            margin-bottom: calc(5px * var(--scale));
+            word-break: break-all;
+        }
+
         .nb-desc {
             color: #555;
             font-size: var(--nb-desc-size);
             line-height: 1.5;
             margin-left: calc(28px * var(--scale));
+        }
+
+        .nb-desc code {
+            font-family: 'Consolas', monospace;
+            font-size: 0.92em;
+            background: #f4f6f7;
+            padding: 0 calc(3px * var(--scale));
+            border-radius: calc(2px * var(--scale));
         }
 
         .nb-output {
@@ -213,6 +235,7 @@
         }
         .tag-pub { background: #aed6f1; color: #1a5276; }
         .tag-priv { background: #f5b7b1; color: #922b21; }
+        .tag-el { background: #e5e8e8; color: #566573; }
 
         .emu {
             background: #d1f2eb;
@@ -249,31 +272,20 @@
 
         .mech-arrow { font-size: var(--mech-arrow-size); }
 
-        .side-effect {
-            background: #fef9e7;
-            border: 1px dashed #f39c12;
-            border-left: 3px solid #f39c12;
+        /* Single neutral callout for externalities, co-benefits and overlaps —
+           the ⚡ / 🌱 / ⇄ prefixes carry the distinction, not colour. */
+        .callout {
+            background: #f8f9f9;
+            border: 1px dashed #aeb6bf;
+            border-left: 3px solid #85929e;
             padding: calc(8px * var(--scale)) var(--gap-base);
             margin: calc(8px * var(--scale)) 0 0 calc(28px * var(--scale));
             font-size: var(--side-effect-size);
-            color: #7d6608;
+            color: #566573;
             border-radius: 0 calc(5px * var(--scale)) calc(5px * var(--scale)) 0;
         }
 
-        .side-effect strong { color: #d68910; }
-
-        .co-benefit {
-            background: #eafaf1;
-            border: 1px dashed #27ae60;
-            border-left: 3px solid #27ae60;
-            padding: calc(8px * var(--scale)) var(--gap-base);
-            margin: calc(8px * var(--scale)) 0 0 calc(28px * var(--scale));
-            font-size: var(--side-effect-size);
-            color: #196f3d;
-            border-radius: 0 calc(5px * var(--scale)) calc(5px * var(--scale)) 0;
-        }
-
-        .co-benefit strong { color: #229954; }
+        .callout strong { color: #2c3e50; }
 
         .span-full { grid-column: 1 / 3; }
 
@@ -284,6 +296,29 @@
         }
 
         .adapt-cols .nb { margin-bottom: 0; }
+
+        /* Cross-notebook coupling strip inside the adaptation section */
+        .couplings {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--gap-base);
+            margin-top: var(--gap-base);
+            padding-top: var(--gap-base);
+            border-top: 1px dashed #7dcea0;
+        }
+
+        .coupling {
+            font-size: var(--side-effect-size);
+            color: #145a32;
+            background: rgba(255,255,255,0.55);
+            border-radius: calc(4px * var(--scale));
+            padding: calc(6px * var(--scale)) var(--gap-base);
+            line-height: 1.45;
+        }
+
+        .coupling strong { color: #0e6655; }
+
+        .coupling .to { color: #7f8c8d; font-style: italic; }
 
         .flow-arrow {
             display: flex;
@@ -323,9 +358,9 @@
         .legend {
             display: flex;
             justify-content: center;
-            gap: calc(20px * var(--scale));
-            margin-top: calc(20px * var(--scale));
-            padding-top: calc(15px * var(--scale));
+            gap: calc(18px * var(--scale));
+            margin-top: calc(18px * var(--scale));
+            padding-top: calc(14px * var(--scale));
             border-top: 1px solid #ddd;
             flex-wrap: wrap;
         }
@@ -342,6 +377,7 @@
             height: calc(16px * var(--scale));
             border-radius: calc(3px * var(--scale));
             margin-right: calc(6px * var(--scale));
+            flex-shrink: 0;
         }
 
         .risk-cols {
@@ -355,83 +391,108 @@
 </head>
 <body>
     <div class="container">
-        <h1>URBADAPT-HEAT — Urban Heat Adaptation Framework</h1>
-        <p class="subtitle">Probabilistic, city-level cost–benefit analysis of heat-mortality adaptation</p>
+        <div class="header">
+            <img class="header-logo" src="logo_urbadapt_icon.png" alt="URBADAPT logo">
+            <div class="header-text">
+                <h1>URBADAPT-HEAT v1.0 — Urban Heat Adaptation Framework</h1>
+                <p class="subtitle">Probabilistic, city-level cost&ndash;benefit analysis of heat-mortality adaptation</p>
+            </div>
+        </div>
 
         <!-- Foundation Strip -->
         <div class="foundation-strip">
             <div class="foundation-item">
                 <span class="foundation-icon">⚙️</span>
                 <div class="foundation-content">
-                    <div class="foundation-title"><code>configs/{city}.yml</code> · city-agnostic <code>template/</code></div>
-                    <div class="foundation-desc">Per-city parameters &amp; policy — hazard track, income source, EWS mode, costs. One template driven by the <code>CITY</code> variable <span class="foundation-arrow">→ drives all 10 notebooks identically</span></div>
+                    <div class="foundation-title">City-agnostic <code>template/</code> driven by <code>configs/&lt;city&gt;.yml</code></div>
                 </div>
             </div>
             <div class="foundation-item">
-                <span class="foundation-icon">🧩</span>
+                <span class="foundation-icon">🗂️</span>
                 <div class="foundation-content">
-                    <div class="foundation-title"><code>cityheat/</code> engine · <code>scripts/</code></div>
-                    <div class="foundation-desc">Shared scientific code + reproducible generator &amp; Drive data manifests</div>
+                    <div class="foundation-title"><code>data_manifests/</code></div>
+                    <div class="foundation-desc">
+                        Per-city manifests pointing to every source dataset, synced from Drive at setup
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="main-grid">
-            <!-- ROW 1: Data Harmonisation -->
+            <!-- ROW 1: Data & grid harmonisation -->
             <div class="section data">
-                <div class="section-title">Data retrieval and processing modules</div>
+                <div class="section-title">Inputs &amp; grid harmonisation</div>
                 <div class="nb">
                     <div class="nb-header">
                         <span class="nb-num">NB1</span>
-                        <span class="nb-title">Setup &amp; Loading</span>
+                        <span class="nb-title">Setup &amp; Data Sync</span>
                     </div>
+                    <div class="nb-file">01_setup_0126.ipynb</div>
                     <div class="nb-desc">
-                        City configuration (YAML)<br>
-                        LCZ, GVI, UrbClim T2M (daily mean + max)<br>
-                        Population &amp; demographics · Drive manifests
+                        Load &amp; validate city YAML · resolve paths<br>
+                        Sync inputs from Drive manifest<br>
+                        Input audit: FUA, LCZ, GVI, historical UrbClim<br>
+                        T2M archive, GVI&ndash;LST cooling coefficients
                     </div>
+                    <div class="nb-output">→ Validated config, resolved paths, masked LCZ raster</div>
                 </div>
                 <div class="nb">
                     <div class="nb-header">
                         <span class="nb-num">NB2</span>
                         <span class="nb-title">Harmonised Grids</span>
+                        <span class="tag tag-el">Hazard · Exposure · Vulnerability</span>
                     </div>
+                    <div class="nb-file">02_grids_0126.ipynb</div>
                     <div class="nb-desc">
-                        Harmonise to 100 m grid (EPSG:3035)<br>
-                        FUA &amp; administrative masks<br>
-                        Dynamic vulnerability layers
+                        Reference grid + FUA mask (100 m, EPSG:3035)<br>
+                        <strong>Hazard fields:</strong> synthetic baseline year (month/day
+                        climatology of the historical archive) + monthly CMIP6 warming deltas →
+                        daily T2M for each future target year<br>
+                        <strong>Exposure:</strong> WorldPop age-structured population (&lt;15 · 15&ndash;64 · 65+),
+                        conservative reprojection; WCDE age-specific scaling for future years<br>
+                        <strong>Vulnerability:</strong> baseline SVI — thermal (GHS-AGE vintage) +
+                        foreign-born share + non-employment, equally weighted
                     </div>
+                    <div class="nb-output">→ Daily T2M files · age grids · baseline SVI</div>
                 </div>
             </div>
 
             <!-- ROW 1: Climate Risk Model -->
             <div class="section risk">
-                <div class="section-title">Climate Risk Model</div>
+                <div class="section-title">Climate risk and impact modelling</div>
                 <div class="risk-cols">
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB3</span>
-                            <span class="nb-title">Hazard &amp;<br>Exposure</span>
+                            <span class="nb-title">Hazard, Exposure &amp;<br>Dynamic Vulnerability</span>
                         </div>
+                        <div class="nb-file">03_hazard_exposure_0126.ipynb</div>
                         <div class="nb-desc">
-                            CLIMADA hazard &amp; exposure objects<br>
-                            Daily T2M (2020–2050)<br>
-                            Dynamic, time-varying exposure<br>
-                            (age-stratified population, by scenario &amp; year)
+                            CLIMADA <code>Hazard</code> (<code>T2M</code>, °C, one event per
+                            calendar day × target year; frequencies corrected to sum to one per year)<br>
+                            Age-differentiated <code>Exposures</code> (one <code>impf_T2M</code> per age group)<br>
+                            <strong>Projected SVI</strong> per year &amp; scenario (persistence <em>k</em>,
+                            spatial retention φ, thermal-retrofit pathway) →
+                            <code>exposure_with_vulnerability</code> read by NB04&ndash;NB08
                         </div>
-                        <div class="nb-output">→ Temperature hazard</div>
+                        <div class="nb-output">→ Hazard + exposure + time-consistent vulnerability</div>
                     </div>
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB4</span>
                             <span class="nb-title">Impact<br>Functions</span>
                         </div>
+                        <div class="nb-file">04_impact_functions_sensitivity.ipynb</div>
                         <div class="nb-desc">
-                            Masselot age-specific mortality ERFs<br>
-                            (log-linear tail extrapolation)<br>
-                            Burke sensitivity + cold-city Track-A/B
+                            <strong>Main:</strong> Masselot city- <em>and</em> age-specific ERFs —
+                            genuinely local, not a European average.
+                            <code>IF_MAIN_FAMILY</code> selects the high-<em>T</em> tail:
+                            constant vs <strong>log-linear</strong> (default)<br>
+                            <strong>Sensitivity:</strong> Burke polynomial &amp; convex
+                            power-law (city-agnostic); cold-city variant for Track B<br>
+                            Annual scaling by projected baseline mortality (WCDE life tables)
                         </div>
-                        <div class="nb-output">→ Impact functions</div>
+                        <div class="nb-output">→ Per-year <code>ImpactFuncSet</code> (main + sensitivity families)</div>
                     </div>
                 </div>
             </div>
@@ -441,36 +502,43 @@
                 <div class="arrow-container">
                     <div class="arrow-line"></div>
                     <div class="arrow-head"></div>
-                    <div class="flow-label">Age-resolved mortality risk (pre-adaptation)</div>
+                    <div class="flow-label">Age-resolved heat-attributable mortality — current-AC baseline (no additional policy)</div>
                 </div>
             </div>
 
             <!-- ROW 2: Adaptation Strategies -->
             <div class="section adapt span-full">
-                <div class="section-title">Adaptation Strategies — Each computes its own costs &amp; benefits</div>
+                <div class="section-title">Adaptation options: effectiveness, costs, synergies, and trade-offs</div>
                 <div class="adapt-cols">
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB5</span>
-                            <span class="nb-title">AC Policy</span>
+                            <span class="nb-title">Air Conditioning</span>
                             <span class="tag tag-priv">Private</span>
                         </div>
+                        <div class="nb-file">05_AC_0126.ipynb</div>
                         <div class="nb-desc">
-                            AC coverage scenarios (SSP2)<br>
-                            Within-city <span class="emu">🤖 income emulator</span><br>
-                            Efficacy-adjusted mortality reduction<br>
-                            CAPEX + O&amp;M + electricity
+                            NUTS3 penetration → zone-level coverage via a
+                            <strong>logistic income-rank curve</strong>, calibrated to reproduce the
+                            NUTS3 mean (observed sub-municipal income or
+                            <span class="emu">🤖 income emulator</span>)<br>
+                            Two policies under an <strong>equal-users constraint</strong>:
+                            income-targeted catch-up vs uniform uplift<br>
+                            Age-specific efficacy ε<sub>a</sub> attenuates the mortality dose<br>
+                            Costs: CAPEX + maintenance + electricity (kWh/user
+                            dispersed by local summer heat exposure)
                         </div>
                         <div class="mechanism-box mech-vuln">
                             <span class="mech-arrow">→</span>
-                            <strong>Vulnerability ↓</strong>
-                            <span style="margin-left:auto;">reduces mortality given T</span>
+                            <strong>Impact function ↓</strong>
+                            <span style="margin-left:auto;">dose scaled by (1 − ε<sub>a</sub>·c)</span>
                         </div>
-                        <div class="side-effect">
-                            <strong>⚡ Side effect:</strong> Waste heat → Hazard ↑ (+ΔT)<br>
-                            Exports <em>marginal deaths per °C</em> for penalty calc
+                        <div class="callout">
+                            <strong>⚡ Externality:</strong> waste heat → hazard ↑<br>
+                            Empirical penetration→night-ΔT lookup + temperature-dependent
+                            COP degradation, CDD-share activation
                         </div>
-                        <div class="nb-output">→ GROSS benefits + Costs + Marginal</div>
+                        <div class="nb-output">→ GROSS avoided deaths · costs · marginal deaths per °C</div>
                     </div>
 
                     <div class="nb">
@@ -479,43 +547,80 @@
                             <span class="nb-title">Early Warning</span>
                             <span class="tag tag-pub">Public</span>
                         </div>
+                        <div class="nb-file">06_EWS_0126.ipynb</div>
                         <div class="nb-desc">
-                            Heat–health warning system<br>
-                            Three efficacy cases:<br>
-                            &nbsp;&nbsp;marginal / counterfactual / intermediate<br>
-                            Infrastructure + operational costs<br>
-                            25-year benefit interpolation
+                            Warning days triggered by a <strong>baseline-deaths threshold</strong>
+                            (<code>epi_deaths_file</code>, periodically recalibrated;
+                            <code>event_mask</code> fallback where heat deaths are too few — Track B)<br>
+                            Efficacy interpretation follows a city-specific
+                            <strong>three-tier maturity taxonomy</strong>:<br>
+                            &nbsp;&nbsp;<strong>marginal</strong> — mature epidemiological HHWS with
+                            surveillance (e.g. Rome, Lisbon); added protection only<br>
+                            &nbsp;&nbsp;<strong>intermediate</strong> — meteorologically triggered HHWS
+                            (e.g. Berlin, Vienna); midpoint of marginal &amp; counterfactual efficacy<br>
+                            &nbsp;&nbsp;<strong>counterfactual</strong> — no comprehensive HHAP
+                            (e.g. Athens, Copenhagen); deployment from a low baseline<br>
+                            Setup CAPEX graded by tier — zero for mature systems<br>
+                            Institutional ramp-up · gross → net via mortality displacement<br>
+                            Costs: per-capita per-warning-day (default) or per-day city-level model
                         </div>
                         <div class="mechanism-box mech-vuln">
                             <span class="mech-arrow">→</span>
-                            <strong>Vulnerability ↓</strong>
-                            <span style="margin-left:auto;">behavioural response</span>
+                            <strong>Conditional mortality ↓</strong>
+                            <span style="margin-left:auto;">on warning days only</span>
                         </div>
-                        <div class="nb-output">→ Benefits + Costs (25y PV)</div>
+                        <div class="callout">
+                            <strong>⇄ Overlap:</strong> efficacy scaled down by population-weighted
+                            current-AC coverage — AC shrinks the addressable residual mortality pool
+                        </div>
+                        <div class="nb-output">→ Avoided deaths · costs over the CBA horizon</div>
                     </div>
 
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB7</span>
-                            <span class="nb-title">Urban Trees</span>
+                            <span class="nb-title">Urban Street Trees</span>
                             <span class="tag tag-pub">Public</span>
                         </div>
+                        <div class="nb-file">07_vegetation_0126_emulator2.ipynb</div>
                         <div class="nb-desc">
-                            GVI cooling coefficients (ΔGVI→ΔLST, by LCZ)<br>
-                            <span class="emu">🤖 LST→T2M emulator</span> bridge (142 cities)<br>
-                            Tree-maturity ramp · regional / equity allocation<br>
-                            CAPEX + O&amp;M costs
+                            Baseline greenness from the <strong>Green View Index</strong>,
+                            by LCZ class<br>
+                            Default policy: <strong>regional Q3 catch-up</strong> — every region below the
+                            city-wide upper quartile receives its ΔGVI shortfall, built LCZ classes only<br>
+                            Two-step cooling: ΔGVI→ΔLST from city/month/LCZ regressions (cooling-only,
+                            warming clipped) then ΔLST→ΔT2M via a
+                            <span class="emu">🤖 quadratic emulator</span><br>
+                            Maturity ramp · asset lifetime · equity-weighted allocation variant<br>
+                            Costs: city-specific PLI-adjusted CAPEX + O&amp;M per tree
                         </div>
                         <div class="mechanism-box mech-hazard">
                             <span class="mech-arrow">→</span>
                             <strong>Hazard ↓</strong>
-                            <span style="margin-left:auto;">ΔGVI→ΔLST→emulator→ΔT2M</span>
+                            <span style="margin-left:auto;">ΔGVI → ΔLST → 🤖 → ΔT2M</span>
                         </div>
-                        <div class="co-benefit">
-                            <strong>🌱 Co-benefit:</strong> Greening → AC electricity ↓<br>
-                            Runtime-calibrated from JJA daily-max T2M
+                        <div class="callout">
+                            <strong>🌱 Co-benefit:</strong> cooling → AC electricity ↓
+                            at a configured reduction rate per GVI point
                         </div>
-                        <div class="nb-output">→ Benefits + Costs + Equity metrics</div>
+                        <div class="nb-output">→ Avoided deaths · costs · equity metrics</div>
+                    </div>
+                </div>
+
+                <!-- Explicit cross-notebook coupling -->
+                <div class="couplings">
+                    <div class="coupling">
+                        <strong>NB5 → NB6</strong> <span class="to">calibration</span><br>
+                        Current-AC baseline daily deaths (NB4 IFs × AC coverage) calibrate the
+                        deaths-per-day threshold that defines warning days
+                    </div>
+                    <div class="coupling">
+                        <strong>NB5 → NB8</strong> <span class="to">externality</span><br>
+                        Marginal deaths per °C priced as the incremental waste-heat penalty (scaled by λ<sub>y</sub>)
+                    </div>
+                    <div class="coupling">
+                        <strong>NB7 → NB8</strong> <span class="to">co-benefit</span><br>
+                        Trees lower <code>kwh_per_user</code>, cutting AC operating cost in the combined scenario
                     </div>
                 </div>
             </div>
@@ -525,75 +630,80 @@
                 <div class="arrow-container">
                     <div class="arrow-line"></div>
                     <div class="arrow-head"></div>
-                    <div class="flow-label">Policy-specific costs, benefits &amp; feedback parameters</div>
+                    <div class="flow-label">Policy-specific incremental costs, avoided deaths &amp; interaction parameters</div>
                 </div>
             </div>
 
             <!-- ROW 3: Economics, Uncertainty & Synthesis -->
             <div class="section cba span-full">
-                <div class="section-title">Economics, Uncertainty &amp; Synthesis — Integration &amp; comparison</div>
+                <div class="section-title">Economics, uncertainty &amp; synthesis</div>
                 <div class="adapt-cols">
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB8</span>
-                            <span class="nb-title">CBA &amp; Optimisation</span>
+                            <span class="nb-title">Cost&ndash;Benefit Analysis</span>
                         </div>
+                        <div class="nb-file">08_CBA_0126.ipynb</div>
                         <div class="nb-desc">
-                            <strong>Integrate</strong> NB5 + NB6 + NB7<br>
-                            25-year NPV (3% central discount)<br>
-                            Budget-constrained optimisation<br>
-                            Public vs private cost split<br><br>
-                            <strong>Feedback adjustments:</strong><br>
-                            Waste-heat penalty (marginal deaths/°C):<br>
-                            &nbsp;&nbsp;NET AC = GROSS − penalty<br>
-                            Vegetation–AC electricity co-benefit
+                            <strong>Integrates NB5 + NB6 + NB7</strong> on a common discounted horizon;
+                            hazard track read from <code>HAZARD_TRACK</code><br>
+                            Anchor-year mortality interpolated to annual streams; trees scaled by maturity;
+                            gross → net displacement; optional life-years saved<br><br>
+                            <strong>Explicit bookkeeping</strong> instead of silent netting:<br>
+                            &nbsp;&nbsp;<code>AC (NET)</code> — standalone, minus standalone waste-heat penalty<br>
+                            &nbsp;&nbsp;<code>AC (NET + trees)</code> — combined: lower kWh/user, λ<sub>y</sub>-corrected penalty<br>
+                            &nbsp;&nbsp;<code>Trees (base O&amp;M)</code> — direct health benefits only<br><br>
+                            <strong>Pareto frontier</strong> over policy scales + ICERs along it;
+                            benefits by SVI quintile; public vs private cost bearer
                         </div>
-                        <div class="nb-output">→ Net benefits, NPV &amp; cost-effectiveness</div>
+                        <div class="nb-output">→ PV cost, NPV, BCR, cost/death, cost/life-year, ICER, efficient portfolios</div>
                     </div>
 
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB9</span>
-                            <span class="nb-title">Uncertainty</span>
+                            <span class="nb-title">Uncertainty Quantification</span>
                         </div>
+                        <div class="nb-file">09_uncertainty_0126_improved_fast.ipynb<br>→ <code>cityheat.nb09_improved_fast</code></div>
                         <div class="nb-desc">
-                            <strong>Monte-Carlo</strong> sampling over:<br>
-                            &nbsp;&nbsp;climate scenario &amp; GCM<br>
-                            &nbsp;&nbsp;impact-function family &amp; T-ref<br>
-                            &nbsp;&nbsp;adaptation efficacy<br>
-                            &nbsp;&nbsp;costs &amp; discount rate<br>
-                            Propagated through the full pipeline
+                            <strong>Monte Carlo</strong> propagation through the full chain over:<br>
+                            &nbsp;&nbsp;climate scenario &amp; GCM band (low / central / high)<br>
+                            &nbsp;&nbsp;IF family, tail extrapolation &amp; <em>T</em><sub>ref</sub><br>
+                            &nbsp;&nbsp;AC / EWS / tree efficacy &amp; maturity timing<br>
+                            &nbsp;&nbsp;SVI projection (<em>k</em>, φ, retrofit rate)<br>
+                            &nbsp;&nbsp;costs, cost model choice &amp; discount rate<br>
+                            Spatially explicit <strong>daily raster</strong> modifiers for tree cooling and
+                            AC waste heat; event-level warning-day logic<br>
+                            <strong>PAWN</strong> global sensitivity indices per output
                         </div>
-                        <div class="nb-output">→ Probabilistic deaths avoided &amp; CE</div>
+                        <div class="nb-output">→ Probabilistic deaths avoided, BCR distributions &amp; factor ranking</div>
                     </div>
 
                     <div class="nb">
                         <div class="nb-header">
                             <span class="nb-num">NB10</span>
-                            <span class="nb-title">Framework Summary</span>
+                            <span class="nb-title">Summary &amp; Reporting</span>
                         </div>
+                        <div class="nb-file">10_summary_0126.ipynb<br>→ <code>cityheat.nb10_summary</code></div>
                         <div class="nb-desc">
-                            Cross-pathway &amp; cross-city synthesis<br>
-                            Comparative figures &amp; tables<br>
-                            Ranking of adaptation options<br>
-                            by cost-effectiveness &amp; equity<br>
-                            Reproducible per-city report
+                            Aggregated results tables &amp; figures across pathways, scenarios and hazard tracks<br>
+                            Ranking of adaptation options by cost-effectiveness and equity<br>
+                            Output manifests record every configuration choice, so a run is
+                            reproducible from config alone<br>
+                            Variant-namespaced, self-contained per-city report
                         </div>
-                        <div class="nb-output">→ Decision-ready comparison</div>
+                        <div class="nb-output">→ Decision-ready comparison, reproducible per city &amp; variant</div>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="legend">
-            <div class="leg-item"><div class="leg-box" style="background: #d6eaf8;"></div> Data Prep</div>
-            <div class="leg-item"><div class="leg-box" style="background: #fadbd8;"></div> Risk Model</div>
+            <div class="leg-item"><div class="leg-box" style="background: #d6eaf8;"></div> Inputs &amp; grids</div>
+            <div class="leg-item"><div class="leg-box" style="background: #fadbd8;"></div> Risk model</div>
             <div class="leg-item"><div class="leg-box" style="background: #d5f5e3;"></div> Adaptation</div>
-            <div class="leg-item"><div class="leg-box" style="background: #e8daef;"></div> Economics &amp; Uncertainty</div>
-            <div class="leg-item"><div class="leg-box" style="background: linear-gradient(90deg, #fdebd0, #f9e79f); border: 1px solid #f7dc6f;"></div> Hazard modifier</div>
-            <div class="leg-item"><div class="leg-box" style="background: linear-gradient(90deg, #eaeded, #d5dbdb); border: 1px solid #aeb6bf;"></div> Vulnerability modifier</div>
-            <div class="leg-item"><div class="leg-box" style="background: #eafaf1; border: 1px dashed #27ae60;"></div> Co-benefit</div>
-            <div class="leg-item"><div class="leg-box" style="background: #d1f2eb;"></div> 🤖 Learned emulator</div>
+            <div class="leg-item"><div class="leg-box" style="background: #e8daef;"></div> Economics &amp; uncertainty</div>
+            <div class="leg-item"><div class="leg-box" style="background: #d1f2eb;"></div> 🤖 Statistical emulator</div>
         </div>
     </div>
 </body>
