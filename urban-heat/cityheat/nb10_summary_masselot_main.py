@@ -806,7 +806,8 @@ _EXTENDED_PARAM_LABELS: dict[str, str] = {
     # AC parameters
     "AC_EFF_SCEN_IDX": "AC efficacy scenario",
     "AC_SSP_IDX": "AC SSP pathway",
-    "AC_CAPEX_PER_USER_IDX": "AC CAPEX per user",
+    "AC_CAPEX_PER_USER_IDX": "AC CAPEX per user",  # legacy: pre-2026-08 outputs (absolute €/user)
+    "AC_CAPEX_MULT_IDX": "AC CAPEX multiplier",
     "AC_TARIFF_EUR_PER_KWH_IDX": "AC electricity tariff",
     "AC_LIFETIME_YEARS_IDX": "AC equipment lifetime",
     # Waste-heat and COP parameters

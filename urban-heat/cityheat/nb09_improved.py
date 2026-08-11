@@ -6,6 +6,7 @@ import argparse
 import copy
 import json
 import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -946,6 +947,22 @@ class NB09Improved:
         )
         self.ac_cost_params = _load_json(self.ac_cost_params_path)
 
+        # AC CAPEX / maintenance: the city CONFIG is the canonical source (calibrated).
+        # NB09 samples a MULTIPLIER on the configured per-user CAPEX; maintenance is
+        # recomputed as configured maint_rate x sampled CAPEX. The NB05 interim JSON is
+        # validated against the config and only used as a fallback.
+        self.ac_capex_base = float(self.ac_cfg.get("capex_per_user", self.ac_cost_params.get("capex_per_user", 500.0)))
+        self.ac_maint_rate = float(self.ac_cfg.get("maint_rate", self.ac_cost_params.get("maint_rate", 0.05)))
+        # Validate the NB05 interim JSON against the canonical config (warn-only; config wins).
+        for _key, _cfg_val in (
+            ("capex_per_user", self.ac_capex_base),
+            ("maint_rate", self.ac_maint_rate),
+            ("lifetime_years", self.ac_cfg.get("lifetime_years")),
+        ):
+            _js_val = self.ac_cost_params.get(_key)
+            if _cfg_val is not None and _js_val is not None and not np.isclose(float(_js_val), float(_cfg_val), rtol=1e-3, atol=1e-6):
+                warnings.warn(f"[{self.slug}] AC {_key}: config={_cfg_val} != NB05 JSON={_js_val}; using config.")
+
         # AC electricity tariff uncertainty should be anchored to each city config.
         tariff_base = float(
             self.ac_cost_params.get(
@@ -987,22 +1004,32 @@ class NB09Improved:
         self.ews_init = float(self.ews_cfg.get("ramp_initial_efficacy", 0.10))
         self.ews_ramp_base = int(self.ews_cfg.get("ramp_years", 3))
         self.ews_ramp_options = sorted(set([2, self.ews_ramp_base, 5]))
-        # EWS interpretation (maturity/efficacy regime) as a UQ axis.
-        # Config-centred bracket, mirroring `ews_ramp_options` above: the per-city
-        # configured interpretation is the centre and the two regime extremes
-        # ("marginal", "counterfactual") are the fixed anchors, deduped in scale
-        # order. So marginal-/counterfactual-configured cities keep the historical
-        # {marginal, counterfactual} pair unchanged, while an "intermediate"
-        # (meteo-HHWS) config additionally samples the midpoint case (see NB06).
+        # EWS effectiveness-INTERPRETATION uncertainty (a UQ axis).
+        # NB09 does NOT re-cost the EWS: the city's configured infrastructure and its
+        # setup / fixed-opex costs (capex_setup, opex_annual_fixed) are held FIXED as
+        # the OBSERVED system. What we vary is how the epidemiological *effectiveness*
+        # credited to that infrastructure is interpreted, over a LOCAL bracket = the
+        # configured class plus its adjacent class(es) on the
+        #   marginal -> intermediate -> counterfactual
+        # effectiveness scale. This is a local-classification bracket, not a
+        # distribution "centred" on the config (equal-probability categorical
+        # sampling has no centre):
+        #   marginal       -> {marginal, intermediate}
+        #   intermediate   -> {marginal, intermediate, counterfactual}
+        #   counterfactual -> {intermediate, counterfactual}
         _interp_scale = ["marginal", "intermediate", "counterfactual"]
+        _interp_brackets = {
+            "marginal":       ["marginal", "intermediate"],
+            "intermediate":   ["marginal", "intermediate", "counterfactual"],
+            "counterfactual": ["intermediate", "counterfactual"],
+        }
         self.ews_interp_base = str(self.ews_cfg.get("interpretation", "marginal")).lower()
         _interp_center = self.ews_interp_base if self.ews_interp_base in _interp_scale else "marginal"
         if bool(self.ews_cfg.get("uq_interp_full_range", False)):
             # Escape hatch: sample the full marginal->intermediate->counterfactual range for every city.
             self.ews_interp_options = list(_interp_scale)
         else:
-            _interp_keep = {"marginal", _interp_center, "counterfactual"}
-            self.ews_interp_options = [x for x in _interp_scale if x in _interp_keep]
+            self.ews_interp_options = list(_interp_brackets[_interp_center])
         self.level_options = ["low", "central", "high"]
         self.ews_cost_model_options = ["pavanello", "chiabai"]
         self.ews_target_base = int(self.ews_cfg.get("target_activation_days", 23))
@@ -1405,9 +1432,9 @@ class NB09Improved:
             ParamSpec("EWS_RAMP_YEARS_IDX", "choice", options=list(range(len(self.ews_ramp_options)))),
             ParamSpec("EWS_COST_MODEL_IDX", "choice", options=list(range(len(self.ews_cost_model_options)))),
             ParamSpec("DISCOUNT_RATE_IDX", "choice", options=[0.02, 0.03, 0.05]),
-            ParamSpec("AC_CAPEX_PER_USER_IDX", "choice", options=[350.0, 500.0, 650.0]),
+            ParamSpec("AC_CAPEX_MULT_IDX", "choice", options=[0.8, 1.0, 1.2]),
             ParamSpec("AC_TARIFF_EUR_PER_KWH_IDX", "choice", options=self.ac_tariff_options),
-            ParamSpec("AC_LIFETIME_YEARS_IDX", "choice", options=[8, 10, 12]),
+            ParamSpec("AC_LIFETIME_YEARS_IDX", "choice", options=[9, 12, 16]),
             ParamSpec("TREE_CAPEX_MULT_IDX", "choice", options=[0.8, 1.0, 1.2]),
             ParamSpec("TREE_OM_MULT_IDX", "choice", options=[1.0, 5.0]),
             # Electricity feedback (Falchetta et al. 2026)
@@ -2238,9 +2265,10 @@ class NB09Improved:
             "ews_ramp_years": self.ews_ramp_options[int(row["EWS_RAMP_YEARS_IDX"])],
             "ews_cost_model": self.ews_cost_model_options[int(row["EWS_COST_MODEL_IDX"])],
             "discount_rate": [0.02, 0.03, 0.05][int(row["DISCOUNT_RATE_IDX"])],
-            "ac_capex_per_user": [350.0, 500.0, 650.0][int(row["AC_CAPEX_PER_USER_IDX"])],
+            "ac_capex_mult": [0.8, 1.0, 1.2][int(row["AC_CAPEX_MULT_IDX"])],
+            "ac_capex_per_user": self.ac_capex_base * [0.8, 1.0, 1.2][int(row["AC_CAPEX_MULT_IDX"])],
             "ac_tariff_eur_per_kwh": self.ac_tariff_options[int(row["AC_TARIFF_EUR_PER_KWH_IDX"])],
-            "ac_lifetime_years": [8, 10, 12][int(row["AC_LIFETIME_YEARS_IDX"])],
+            "ac_lifetime_years": [9, 12, 16][int(row["AC_LIFETIME_YEARS_IDX"])],
             "tree_capex_mult": [0.8, 1.0, 1.2][int(row["TREE_CAPEX_MULT_IDX"])],
             "tree_om_mult": [1.0, 5.0][int(row["TREE_OM_MULT_IDX"])],
             "elec_feedback_enabled": bool(int(row["ELEC_FEEDBACK_ENABLED_IDX"])),
@@ -2275,13 +2303,10 @@ class NB09Improved:
     ) -> dict[str, float]:
         r = float(sample["discount_rate"])
         t_index = np.arange(len(years_all), dtype=float)
-        maint_rate = float(self.ac_cost_params.get("maint_rate", self.ac_cfg.get("maint_rate", 0.05)))
-        maint_per_user_yr = float(
-            self.ac_cost_params.get(
-                "maint_per_user_yr",
-                maint_rate * float(sample["ac_capex_per_user"]),
-            )
-        )
+        # Maintenance recomputed from the SAMPLED CAPEX at the configured rate (config
+        # canonical); the central multiplier reproduces configured maint_rate x CAPEX.
+        maint_rate = self.ac_maint_rate
+        maint_per_user_yr = maint_rate * float(sample["ac_capex_per_user"])
         discount_factors = (1.0 + r) ** t_index
         tariff = float(sample["ac_tariff_eur_per_kwh"])
 
@@ -3049,9 +3074,10 @@ class NB09Improved:
             "tree_start_age_options": self.tree_start_age_options,
             "economic_options": {
                 "discount_rate": [0.02, 0.03, 0.05],
-                "ac_capex_per_user": [350.0, 500.0, 650.0],
+                "ac_capex_mult": [0.8, 1.0, 1.2],
+                "ac_capex_per_user_base": self.ac_capex_base,
                 "ac_tariff_eur_per_kwh": self.ac_tariff_options,
-                "ac_lifetime_years": [8, 10, 12],
+                "ac_lifetime_years": [9, 12, 16],
                 "tree_capex_mult": [0.8, 1.0, 1.2],
                 "tree_om_mult": [1.0, 5.0],
             },
@@ -3074,7 +3100,7 @@ class NB09Improved:
                 "CBA uncertainty now samples discounting plus AC/tree cost parameters in the same global sample as the impact-chain uncertainty.",
                 "AC CBA is evaluated as policy AC versus current/autonomous AC under the same sampled hazard, exposure, IF and vulnerability settings.",
                 "Tree CBA is evaluated as tree policy versus the same sampled no-tree reference branch.",
-                "Vulnerability projection uncertainty (Level A): 7 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
+                "Vulnerability projection uncertainty (Level A): 10 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
                 "Original March2026/NB09 outputs remain untouched; all improved artifacts are saved in tables/uncertainty_improved.",
             ],
         }
