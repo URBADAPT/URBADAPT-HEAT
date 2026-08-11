@@ -306,7 +306,7 @@ def _pv_capex_with_replacements(
             continue
         pay_idx = int(start_idx)
         while pay_idx < horizon:
-            pv += cohort * float(capex_per_user) / ((1.0 + r) ** float(pay_idx))
+            pv += cohort * float(capex_per_user) / ((1.0 + r) ** float(pay_idx + 1))  # end-of-year (t=1..T) to match NB08
             pay_idx += life
     return float(pv)
 
@@ -344,7 +344,7 @@ def _npv_capex_linear(
     r = float(discount_rate)
     pv = 0.0
     for t_idx in range(years):
-        pv += float(capex_per_index_pt) * inc / ((1.0 + r) ** float(t_idx))
+        pv += float(capex_per_index_pt) * inc / ((1.0 + r) ** float(t_idx + 1))  # end-of-year (t=1..T) to match NB08
     return float(pv)
 
 
@@ -365,7 +365,7 @@ def _npv_om_cohorts_scaled(
         lifetime_years=lifetime_years,
     )
     om_stream = float(om_per_index_per_year) * float(delta_index_total) * factor
-    discount = (1.0 + float(discount_rate)) ** np.arange(int(years), dtype=float)
+    discount = (1.0 + float(discount_rate)) ** np.arange(1, int(years) + 1, dtype=float)  # end-of-year (t=1..T) to match NB08
     pv = float(np.sum(om_stream / discount))
     return pv, om_stream
 
@@ -2302,7 +2302,7 @@ class NB09Improved:
         pop_25y: np.ndarray,
     ) -> dict[str, float]:
         r = float(sample["discount_rate"])
-        t_index = np.arange(len(years_all), dtype=float)
+        t_index = np.arange(1, len(years_all) + 1, dtype=float)  # end-of-year (t=1..T) to match NB08 AC cost timing
         # Maintenance recomputed from the SAMPLED CAPEX at the configured rate (config
         # canonical); the central multiplier reproduces configured maint_rate x CAPEX.
         maint_rate = self.ac_maint_rate
@@ -2579,7 +2579,7 @@ class NB09Improved:
         residual_daily = year_res["daily_residual_total"]
         impact_freq = _freq_curve_from_daily(residual_daily, RETURN_PERIODS)
         annual_deaths = float(residual_daily.sum())
-        aai_agg = annual_deaths / float(self.days_in_year(sample_year))
+        aai_agg = annual_deaths  # deaths/yr (annual total); prior /days_in_year gave mean-daily, mismatching the "deaths/yr" label
 
         anchor_years = np.array(self.years, dtype=int)
         years_all = np.arange(min(self.years), min(self.years) + HORIZON_YEARS, dtype=int)
