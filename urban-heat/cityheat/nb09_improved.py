@@ -987,7 +987,22 @@ class NB09Improved:
         self.ews_init = float(self.ews_cfg.get("ramp_initial_efficacy", 0.10))
         self.ews_ramp_base = int(self.ews_cfg.get("ramp_years", 3))
         self.ews_ramp_options = sorted(set([2, self.ews_ramp_base, 5]))
-        self.ews_interp_options = ["marginal", "counterfactual"]
+        # EWS interpretation (maturity/efficacy regime) as a UQ axis.
+        # Config-centred bracket, mirroring `ews_ramp_options` above: the per-city
+        # configured interpretation is the centre and the two regime extremes
+        # ("marginal", "counterfactual") are the fixed anchors, deduped in scale
+        # order. So marginal-/counterfactual-configured cities keep the historical
+        # {marginal, counterfactual} pair unchanged, while an "intermediate"
+        # (meteo-HHWS) config additionally samples the midpoint case (see NB06).
+        _interp_scale = ["marginal", "intermediate", "counterfactual"]
+        self.ews_interp_base = str(self.ews_cfg.get("interpretation", "marginal")).lower()
+        _interp_center = self.ews_interp_base if self.ews_interp_base in _interp_scale else "marginal"
+        if bool(self.ews_cfg.get("uq_interp_full_range", False)):
+            # Escape hatch: sample the full marginal->intermediate->counterfactual range for every city.
+            self.ews_interp_options = list(_interp_scale)
+        else:
+            _interp_keep = {"marginal", _interp_center, "counterfactual"}
+            self.ews_interp_options = [x for x in _interp_scale if x in _interp_keep]
         self.level_options = ["low", "central", "high"]
         self.ews_cost_model_options = ["pavanello", "chiabai"]
         self.ews_target_base = int(self.ews_cfg.get("target_activation_days", 23))
@@ -2004,9 +2019,17 @@ class NB09Improved:
             deaths_warning = float(base_arr[warning_mask].sum())
             deaths_warning_by_age[age] = deaths_warning
 
-            if str(sample["ews_interpretation"]).lower() == "marginal":
+            _interp = str(sample["ews_interpretation"]).lower()
+            if _interp == "marginal":
                 lvl = sample[f"ews_eff_{self._age_key(age)}_level"]
                 eff_age = float(self.ews_marg.get(age, {}).get(lvl, self.ews_marg.get(age, {}).get("central", 0.0)))
+            elif _interp == "intermediate":
+                # meteo-HHWS midpoint (mirrors NB06): 50/50 mix of the age-differentiated
+                # marginal efficacy and the (age-flat) counterfactual efficacy.
+                lvl = sample[f"ews_eff_{self._age_key(age)}_level"]
+                eff_marg = float(self.ews_marg.get(age, {}).get(lvl, self.ews_marg.get(age, {}).get("central", 0.0)))
+                eff_cf = float(self.ews_cf.get(sample["ews_cf_eff_level"], self.ews_cf.get("central", 0.0)))
+                eff_age = 0.5 * eff_marg + 0.5 * eff_cf
             else:
                 eff_age = float(self.ews_cf.get(sample["ews_cf_eff_level"], self.ews_cf.get("central", 0.0)))
 
