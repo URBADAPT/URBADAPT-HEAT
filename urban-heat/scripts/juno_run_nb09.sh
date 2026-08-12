@@ -64,8 +64,12 @@ python -m ipykernel install --user --name urbanheat --display-name urbanheat
 export URBAN_HEAT_KERNEL="urbanheat"
 
 #### 5) sanity check + the run (all 40 cities, one at a time, resumable)
-python scripts/run_agnostic_batch.py --notebooks 09 --skip-completed --workers "${WORKERS}" --dry-run
-python scripts/run_agnostic_batch.py --notebooks 09 --skip-completed --workers "${WORKERS}"
+# Per-cell (nbconvert) timeout. NB09 at N=512 exceeds the 2h default on large cities,
+# so raise it well under the 24h walltime. To trade UQ resolution for speed on the
+# serial queue, lower N:  NB09_N=256 (or 128) FRESH=1 bsub < scripts/juno_run_nb09.sh
+NB09_TIMEOUT="${NB09_TIMEOUT:-72000}"   # 20h per city; a slower city just gets resumed
+python scripts/run_agnostic_batch.py --notebooks 09 --skip-completed --workers "${WORKERS}" --timeout "${NB09_TIMEOUT}" --dry-run
+python scripts/run_agnostic_batch.py --notebooks 09 --skip-completed --workers "${WORKERS}" --timeout "${NB09_TIMEOUT}"
 
 #### 6) how much is left
 TOTAL=$(find calibration/preview_configs -name '*.yml' | wc -l)
