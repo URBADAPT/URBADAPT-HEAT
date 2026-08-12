@@ -212,7 +212,7 @@ def _load_four_family_aai_stats(sp: _base.SummaryPaths) -> pd.DataFrame:
 
 
 def _load_four_family_freq_curves(sp: _base.SummaryPaths) -> dict[str, pd.DataFrame]:
-    """Return per-family freq-curve DataFrames (rp2/rp5/rp10/rp20 LHS samples).
+    """Return per-family freq-curve DataFrames (daily_p50/p80/p90/p95 LHS samples).
 
     Masselot families share the same headline freq-curve CSV (the headline LHS
     samples both tail modes uniformly), so both keys map to the same DataFrame.
@@ -475,8 +475,8 @@ def plot_section_9_if_source_comparison(
     # (b) Frequency curve uncertainty envelopes: median + P5-P95 shaded band
     # for each available source (Masselot combined headline + each Burke band).
     curves = _load_four_family_freq_curves(sp)
-    rp_cols = ("rp2", "rp5", "rp10", "rp20")
-    rps = [2, 5, 10, 20]
+    rp_cols = ("daily_p50", "daily_p80", "daily_p90", "daily_p95")
+    rps = [50, 80, 90, 95]
     freq_drawn = False
     legend_pairs: list[tuple[str, str]] = [
         ("masselot_headline", "Masselot headline LHS (both tails)"),
@@ -504,9 +504,9 @@ def plot_section_9_if_source_comparison(
         freq_drawn = True
 
     if freq_drawn:
-        ax_freq.set_title("Frequency curve uncertainty by IF source")
-        ax_freq.set_xlabel("Return period (years)")
-        ax_freq.set_ylabel("Deaths per event")
+        ax_freq.set_title("Daily heat-death quantiles by IF source")
+        ax_freq.set_xlabel("Daily-death percentile")
+        ax_freq.set_ylabel("Deaths on that day")
         ax_freq.grid(alpha=0.25)
         ax_freq.legend(frameon=False, fontsize=8, loc="best")
     else:
@@ -820,8 +820,10 @@ _EXTENDED_PARAM_LABELS: dict[str, str] = {
     "TREE_CAP_UPLIFT": "Tree canopy uplift",
     "TREE_RAMP_YEARS_IDX": "Tree ramp years",
     "TREE_START_AGE_IDX": "Tree starting age",
-    "TREE_CAPEX_PER_TREE_IDX": "Tree CAPEX per tree",
-    "TREE_OM_PER_TREE_YR_IDX": "Tree O&M per tree per year",
+    "TREE_CAPEX_PER_TREE_IDX": "Tree CAPEX per tree",  # legacy: pre-2026-08 outputs (absolute €/tree)
+    "TREE_OM_PER_TREE_YR_IDX": "Tree O&M per tree per year",  # legacy
+    "TREE_CAPEX_MULT_IDX": "Tree CAPEX multiplier",
+    "TREE_OM_MULT_IDX": "Tree O&M multiplier",
     # Electricity feedback (Falchetta-De Cian-Lunghi 2026)
     "ELEC_FEEDBACK_ENABLED_IDX": "Veg-AC elec feedback enabled",
     "ELEC_COEFF_SCALE": "Veg-AC elec feedback scale",
@@ -858,6 +860,9 @@ _EXTENDED_PARAM_LABELS: dict[str, str] = {
     "VULN_GVI_SCALE_FB": "GVI scale, foreign-born",
     "VULN_GVI_SCALE_UE": "GVI scale, non-employment",
     "VULN_RETROFIT_RATE": "Building retrofit rate",
+    "VULN_GROWTH_SENS": "SVI growth sensitivity",
+    "VULN_GROWTH_CAP": "SVI growth cap",
+    "VULN_NEW_BUILD": "New-build overheating share",
 }
 
 
@@ -957,17 +962,17 @@ def plot_section_7_uncertainty(
     if freq_path is not None:
         freq = pd.read_csv(freq_path)
     else:
-        freq = impact[[col for col in ("rp2", "rp5", "rp10", "rp20") if col in impact.columns]].copy()
-    rp_cols = [col for col in ("rp2", "rp5", "rp10", "rp20") if col in freq.columns]
+        freq = impact[[col for col in ("daily_p50", "daily_p80", "daily_p90", "daily_p95") if col in impact.columns]].copy()
+    rp_cols = [col for col in ("daily_p50", "daily_p80", "daily_p90", "daily_p95") if col in freq.columns]
     if rp_cols:
-        rps = [int(col.replace("rp", "")) for col in rp_cols]
+        rps = [int(col.replace("daily_p", "")) for col in rp_cols]
         medians = [pd.to_numeric(freq[col], errors="coerce").median() for col in rp_cols]
         p5s = [pd.to_numeric(freq[col], errors="coerce").quantile(0.05) for col in rp_cols]
         p95s = [pd.to_numeric(freq[col], errors="coerce").quantile(0.95) for col in rp_cols]
         axes[1].fill_between(rps, p5s, p95s, color="#c7d2fe", alpha=0.55)
         axes[1].plot(rps, medians, color="#4338ca", marker="o", linewidth=2)
-        axes[1].set_title("Frequency curve uncertainty\n(Masselot headline LHS)")
-        axes[1].set_xlabel("Return period (years)")
+        axes[1].set_title("Daily heat-death quantiles\n(Masselot headline LHS)")
+        axes[1].set_xlabel("Daily-death percentile")
         axes[1].set_ylabel("Deaths")
         axes[1].grid(alpha=0.2)
     else:

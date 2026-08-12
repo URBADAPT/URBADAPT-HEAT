@@ -48,7 +48,7 @@ AGE_TO_ID = {"<15": 1, "15-64": 2, "65+": 3}
 IF_FAMILIES = ["burke_polynomial", "burke_powerlaw", "masselot", "masselot_tail"]
 TREF_OPTIONS = [18.0, 20.0, 22.0, 24.0, 26.0]
 TREF_BASE = 20.0
-RETURN_PERIODS = [2, 5, 10, 20]
+DAILY_QUANTILE_PCTS = [50, 80, 90, 95]  # percentiles of the DAILY heat-death distribution (NOT annual return periods)
 HORIZON_YEARS = 25
 DISCOUNT_RATE_DEFAULT = 0.03
 SEED_DEFAULT = 42
@@ -278,12 +278,17 @@ def _pawn_table(
     return out[cols]
 
 
-def _freq_curve_from_daily(daily_impacts: np.ndarray, rps: list[int]) -> dict[str, float]:
+def _daily_quantiles(daily_impacts: np.ndarray, pcts: list[int]) -> dict[str, float]:
+    """Percentiles of the DAILY heat-death distribution (NOT annual return levels).
+
+    Keys are ``daily_p{pct}`` (e.g. daily_p50/p80/p90/p95): the deaths on the day at
+    that percentile of the year's daily-death series. The earlier form divided by
+    ``1 - 1/rp`` and mislabeled these as 2/5/10/20-year return periods.
+    """
     vals = np.asarray(daily_impacts, dtype=float)
     out: dict[str, float] = {}
-    for rp in rps:
-        q = float(np.clip(1.0 - 1.0 / float(rp), 0.0, 1.0))
-        out[f"rp{int(rp)}"] = float(np.quantile(vals, q)) if vals.size else np.nan
+    for p in pcts:
+        out[f"daily_p{int(p)}"] = float(np.percentile(vals, p)) if vals.size else np.nan
     return out
 
 
@@ -2840,7 +2845,7 @@ class NB09ImprovedFast:
         sample_year = int(sample["year"])
         year_res = anchor_results[sample_year]
         residual_daily = year_res["daily_residual_total"]
-        impact_freq = _freq_curve_from_daily(residual_daily, RETURN_PERIODS)
+        impact_freq = _daily_quantiles(residual_daily, DAILY_QUANTILE_PCTS)
         annual_deaths = float(residual_daily.sum())
         aai_agg = annual_deaths  # deaths/yr (annual total); prior /days_in_year gave mean-daily, mismatching the "deaths/yr" label
 
@@ -3048,7 +3053,7 @@ class NB09ImprovedFast:
                 {
                     "aai_agg": out["aai_agg"],
                     "annual_deaths": out["annual_deaths"],
-                    **{f"rp{rp}": out[f"rp{rp}"] for rp in RETURN_PERIODS},
+                    **{f"daily_p{p}": out[f"daily_p{p}"] for p in DAILY_QUANTILE_PCTS},
                 }
             )
             cba_ews_rows.append(
@@ -3129,7 +3134,7 @@ class NB09ImprovedFast:
         sens_freq_df = _pawn_table(
             self.problem,
             x,
-            {f"rp{rp}": samples_df[f"rp{rp}"].to_numpy(float) for rp in RETURN_PERIODS},
+            {f"daily_p{p}": samples_df[f"daily_p{p}"].to_numpy(float) for p in DAILY_QUANTILE_PCTS},
         )
         sens_cba_df = _pawn_table(
             self.problem,
@@ -3246,7 +3251,7 @@ class NB09ImprovedFast:
         }
         samples_df.to_csv(paths["samples"], index=False)
         impact_df.to_csv(paths["impact"], index=False)
-        impact_df[[f"rp{rp}" for rp in RETURN_PERIODS]].to_csv(paths["freq"], index=False)
+        impact_df[[f"daily_p{p}" for p in DAILY_QUANTILE_PCTS]].to_csv(paths["freq"], index=False)
         cba_ews_df.to_csv(paths["cba"], index=False)
         cba_ac_df.to_csv(paths["cba_ac"], index=False)
         cba_tree_df.to_csv(paths["cba_trees"], index=False)
@@ -3431,19 +3436,19 @@ class NB09ImprovedFast:
             plt.savefig(self.unc_dir / f"sens_tornado_cba_ews_{self.slug}_improved_fast.png", dpi=160)
             plt.close(fig)
 
-        freq_cols = [f"rp{rp}" for rp in RETURN_PERIODS]
+        freq_cols = [f"daily_p{p}" for p in DAILY_QUANTILE_PCTS]
         freq_df = samples_df[freq_cols].replace([np.inf, -np.inf], np.nan)
         q05 = freq_df.quantile(0.05)
         q50 = freq_df.quantile(0.50)
         q95 = freq_df.quantile(0.95)
-        x_rp = np.asarray(RETURN_PERIODS, dtype=float)
+        x_pct = np.asarray(DAILY_QUANTILE_PCTS, dtype=float)
         fig, ax = plt.subplots(figsize=(7.5, 4.5))
-        ax.fill_between(x_rp, q05.to_numpy(float), q95.to_numpy(float), color="#4C78A8", alpha=0.22, label="5-95%")
-        ax.plot(x_rp, q50.to_numpy(float), marker="o", color="#1F4E79", lw=1.8, label="median")
-        ax.set_title(f"{self.city} - uncertainty frequency curve (improved)")
-        ax.set_xlabel("Return period (years)")
-        ax.set_ylabel("Annual deaths")
-        ax.set_xticks(x_rp)
+        ax.fill_between(x_pct, q05.to_numpy(float), q95.to_numpy(float), color="#4C78A8", alpha=0.22, label="5-95%")
+        ax.plot(x_pct, q50.to_numpy(float), marker="o", color="#1F4E79", lw=1.8, label="median")
+        ax.set_title(f"{self.city} - daily heat-death quantiles (improved)")
+        ax.set_xlabel("Daily-death percentile")
+        ax.set_ylabel("Deaths on that day")
+        ax.set_xticks(x_pct)
         ax.grid(alpha=0.3)
         ax.legend(frameon=False)
         plt.tight_layout()

@@ -1,3 +1,13 @@
+"""DEPRECATED — legacy 4-city (March2026 Burke-main) NB09 launcher.
+
+Superseded by the agnostic 40-city path:
+    scripts/run_agnostic_batch.py --notebooks 09      (local)
+    scripts/juno_run_nb09.sh                          (Juno / LSF)
+
+This module still targets notebooks/city_agnostic/March2026/<City>/ and hardcodes the
+four pilots plus Copenhagen's obsolete extreme track; kept for reference only. Do NOT
+use it for the masselot-main agnostic run.
+"""
 from __future__ import annotations
 
 import argparse
