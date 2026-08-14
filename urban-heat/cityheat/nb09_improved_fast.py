@@ -626,8 +626,11 @@ class NB09ImprovedFast:
             try:
                 self._assert_city_pattern(csr)
             except ValueError:
-                if self.slug != "copenhagen":
-                    raise
+                # Some cities' daily hazard NetCDFs have a valid-cell (non-zero) pattern that
+                # varies across days (NaN/0 boundary cells appear/disappear day-to-day). Fall
+                # back to a FIXED city-mask column set for ANY such city (was Copenhagen-only).
+                # This only runs for cities that fail the stability check, so cities that pass
+                # are unaffected; filled cells carry 0 degC -> ~0 heat deaths (as for Copenhagen).
                 if not self._used_fixed_city_pattern:
                     self.row_cols = np.where(self.city_mask.ravel())[0].astype(np.int32)
                     self.row_is_city = np.ones(len(self.row_cols), dtype=bool)

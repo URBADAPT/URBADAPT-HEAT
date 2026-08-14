@@ -595,6 +595,7 @@ class NB09Improved:
             raise FileNotFoundError("No fully-available tagged baseline mode found for all modeled years.")
         self.ref_mode = "climatology_mean" if "climatology_mean" in self.baseline_modes else self.baseline_modes[0]
 
+        self._used_fixed_city_pattern = False
         self.base_matrix_by_year: dict[int, sparse.csr_matrix] = {}
         self.ref_citymean_by_year: dict[int, np.ndarray] = {}
         self.mode_day_anom: dict[tuple[str, int], np.ndarray] = {}
@@ -607,7 +608,16 @@ class NB09Improved:
             self.ref_citymean_by_year[y] = citymean
             mat = np.nan_to_num(arr, nan=0.0).reshape(arr.shape[0], -1).astype(np.float32)
             csr = sparse.csr_matrix(mat)
-            self._assert_city_pattern(csr)
+            try:
+                self._assert_city_pattern(csr)
+            except ValueError:
+                # Fixed city-mask column set for cities whose daily valid-cell pattern varies
+                # across days (mirrors the fast engine; filled cells carry 0 degC -> ~0 deaths).
+                if not self._used_fixed_city_pattern:
+                    self.row_cols = np.where(self.city_mask.ravel())[0].astype(np.int32)
+                    self.row_is_city = np.ones(len(self.row_cols), dtype=bool)
+                    self._used_fixed_city_pattern = True
+                csr = self._csr_with_fixed_row_cols(mat, self.row_cols)
             self.base_matrix_by_year[y] = csr
 
         for mode in self.baseline_modes:
@@ -630,6 +640,17 @@ class NB09Improved:
                 )
             if not np.array_equal(mat.indices[a:b], self.row_cols):
                 raise ValueError("Base matrix sparse column pattern is not stable across rows.")
+
+    @staticmethod
+    def _csr_with_fixed_row_cols(mat: np.ndarray, row_cols: np.ndarray) -> sparse.csr_matrix:
+        n_days, n_cells = mat.shape
+        rc = np.asarray(row_cols, dtype=np.int32)
+        if rc.size == 0:
+            return sparse.csr_matrix((n_days, n_cells), dtype=np.float32)
+        vals = mat[:, rc].reshape(-1).astype(np.float32, copy=False)
+        rows = np.repeat(np.arange(n_days, dtype=np.int32), rc.size)
+        cols = np.tile(rc, n_days)
+        return sparse.csr_matrix((vals, (rows, cols)), shape=(n_days, n_cells), dtype=np.float32)
 
     def _load_nc_time_yx(self, path: Path) -> np.ndarray:
         ds = xr.open_dataset(path)
