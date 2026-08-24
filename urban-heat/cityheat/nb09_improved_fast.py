@@ -1802,6 +1802,7 @@ class NB09ImprovedFast:
                 exp = Exposures(gdf)
             if f"centr_T2M" not in exp.gdf.columns:
                 # threshold=None: assign each exposure cell to its coincident hazard centroid, matching the
+                # deterministic ImpactCalc (nb04). threshold=0 on the full multi-age exposure (triplicate
                 # geometries) kept only ~1/3 of cells, silently dropping ~2/3 of the population from the
                 # mortality impact (~3x too low); verified threshold=None recovers 99% of the deterministic.
                 exp.assign_centroids(self.hazard_template, distance="euclidean", threshold=None, overwrite=True)
