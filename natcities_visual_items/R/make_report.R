@@ -24,25 +24,29 @@ esc <- function(x) {
 }
 
 FIGURES <- list(
-  list(sec = "Main figures", name = "fig1_risk_effectiveness", slot = "fig:result1",
-       title = "Risk and effectiveness across the climate gradient",
-       cap = "Baseline heat mortality against warm-season temperature (log-log), then the
-              mortality reduction and avoided deaths delivered by each pathway. One point
-              per city; AC is net of its waste-heat feedback."),
+  list(sec = "Main figures", name = "fig1_risk_costs_portfolios", slot = "fig:result1",
+       title = "Risk, policy archetypes and public-private portfolios",
+       cap = "Baseline heat mortality across the climate gradient; the standardised
+              policy-outcome profiles behind the outcome-based city archetypes, with
+              climate class and LCZ composition as external annotations; cost per avoided
+              death by pathway and archetype; and the composition of the
+              benefit-maximising portfolio as the per-capita budget rises."),
   list(sec = "Main figures", name = "fig2_distribution", slot = "fig:result2",
        title = "Who pays, and who benefits",
        cap = "Public versus private cost per capita by lever; the equity-efficiency
               trade-off of targeting cooling support by income; and whether an explicit
               equity rule makes greening more progressive than a uniform one."),
-  list(sec = "Main figures", name = "fig3_costeffectiveness", slot = "fig:result3",
-       title = "Cost-effectiveness and budget choice",
-       cap = "Euros per death avoided by pathway; the budget frontier normalised per
-              capita so 40 cities share one pair of axes; and the order in which a
-              benefit-maximising city buys the three levers."),
-  list(sec = "Main figures", name = "fig4_synergies", slot = "fig:result4",
+  list(sec = "Main figures", name = "fig3_synergies", slot = "fig:result3",
        title = "Synergies and trade-offs between the levers",
        cap = "How much of air conditioning's benefit its own waste heat takes back, how
               little of that greening offsets, and how far the two levers overlap."),
+  list(sec = "Main figures", name = "fig4_city_maps", slot = "fig:result4",
+       title = "Within-city maps for one city per climate cluster",
+       cap = "Palermo, Budapest and Amsterdam by district: population not already
+              protected by air conditioning, coverage gained under the uniform and the
+              income-targeted roll-out, and adaptation cost per capita. Panels 2 and 3
+              show where each policy deploys cooling, not deaths avoided: no
+              per-neighbourhood mortality output exists in the runs."),
   list(sec = "Supplementary figures", name = "si1_sensitivity", slot = "SI",
        title = "Sensitivity of the cost-effectiveness ranking",
        cap = "Discount rate, greening cost assumptions and greening ambition. None of
@@ -67,7 +71,11 @@ TABLES <- list(
        cap = "`Attribution' records which wording that city's run produced for the EWS
               row; all three carry the same central estimate."),
   list(name = "tab_synergies_by_city", title = "Lever interactions by city",
-       cap = "The quantities behind Fig 4, city by city."))
+       cap = "The quantities behind Fig 4, city by city."),
+  list(name = "tab_city_characteristics", title = "Per-city characterisation (SI)",
+       cap = "Climate metrics, greening-cooling coefficient coverage and LCZ composition
+              for each of the 40 cities. This is the per-city detail that used to be a grey
+              annotation strip on Fig 1 panel b."))
 
 # One <img> block per figure, skipped silently if that figure was not rendered.
 figure_html <- function(f) {
@@ -172,20 +180,6 @@ build_report <- function() {
     h <- figure_html(f); if (is.null(h)) NULL else list(sec = f$sec, html = h,
       nav = sprintf('<a href="#%s">%s</a>', f$name, esc(f$title)))
   }))
-  # Exemplar dashboards are discovered rather than listed: which cities are
-  # medoids changes with the city set.
-  ex <- list.files(FIG_DIR, pattern = "^exemplar_.*\\.png$")
-  ex_html <- vapply(sort(ex), function(p) {
-    city <- sub("^exemplar_(.*)\\.png$", "\\1", p)
-    cl <- if (!is.null(meta)) as.character(meta$climate_cluster[meta$city == city]) else ""
-    figure_html(list(name = sub("\\.png$", "", p), slot = "Exemplar",
-      title = sprintf("%s — %s cluster medoid", city_label(city),
-                      if (length(cl) && !is.na(cl[1])) cl[1] else "?"),
-      cap = "Single-city dashboard: baseline mortality trajectory, avoided deaths by
-             pathway, district greening against vulnerability, and the cost-benefit
-             frontier with constrained portfolios."))
-  }, character(1), USE.NAMES = FALSE)
-
   tabs <- Filter(Negate(is.null), lapply(TABLES, function(t) {
     h <- table_html(t); if (is.null(h)) NULL else list(html = h,
       nav = sprintf('<a href="#%s">%s</a>', t$name, esc(t$title)))
@@ -225,13 +219,11 @@ Images link to the PDF version used for typesetting.</footer>
              vapply(tabs, function(t) t$nav, character(1))), collapse = ""),
     sec_html("Main figures", pick("Main figures")),
     sec_html("Supplementary figures", pick("Supplementary figures")),
-    paste0(sec_html("Exemplar cities", ex_html), "\n",
-           sec_html("Tables", vapply(tabs, function(t) t$html, character(1)))))
+    sec_html("Tables", vapply(tabs, function(t) t$html, character(1))))
 
   writeLines(html, REPORT_OUT, useBytes = TRUE)
-  message(sprintf("  [saved] report.html  (%d figures, %d exemplars, %d tables, %.0f KB)",
-                  length(figs), length(ex_html), length(tabs),
-                  file.size(REPORT_OUT) / 1024))
+  message(sprintf("  [saved] report.html  (%d figures, %d tables, %.0f KB)",
+                  length(figs), length(tabs), file.size(REPORT_OUT) / 1024))
   invisible(REPORT_OUT)
 }
 

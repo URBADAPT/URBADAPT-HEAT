@@ -234,6 +234,12 @@ CEA_HEADLINE <- c("Trees (base O&M)" = "Trees", "AC (NET)" = "AC",
 # death is reported as "no measurable benefit" instead of a 1e10 euro artefact.
 NO_BENEFIT_DEATHS <- 0.5
 
+# Below this share of summer LCZ-months with a non-zero greening-cooling
+# coefficient, a city's tree-pathway numbers are driven by how complete its
+# coefficient bridge is rather than by the city. Used to mark (not drop) such
+# cities wherever a greening quantity is plotted. See the README.
+COEF_MIN_PCT <- 25
+
 read_cea <- function(city, headline_only = TRUE) {
   d <- read_city_csv(city, sprintf("%s_cea_summary.csv", city), quiet = TRUE)
   if (is.null(d) || !"Policy" %in% names(d)) return(NULL)
@@ -318,7 +324,11 @@ attach_meta <- function(df, meta = load_city_meta()) {
   if (is.null(meta) || is.null(df)) return(df)
   cols <- c("city", "country", "pop_k", "pop_k_model", "pop_k_config",
             "warmseason_mean_t2m", "hot_days", "climate_cluster", "is_exemplar",
-            "coef_lst_coverage_pct")
+            "coef_lst_coverage_pct",
+            # LCZ morphology descriptors (external annotations, never inputs to
+            # the climate clusters or the outcome-based archetypes).
+            "lcz_compact_pct", "lcz_open_pct", "lcz_other_built_pct",
+            "lcz_built_pct", "lcz_diversity")
   dplyr::left_join(df, meta[, intersect(cols, names(meta))], by = "city")
 }
 
@@ -367,8 +377,31 @@ save_item <- function(plot, name, width = 8, height = 5, dpi = 300) {
 }
 
 # Writes a data.frame as both CSV and an \input-able LaTeX table.
+# A longtable that breaks across pages loses its column header on page 2 unless
+# the head is declared with \\endfirsthead / \\endhead. xtable does not emit
+# those, so duplicate the toprule/header/midrule block it did write.
+.longtable_repeat_header <- function(path) {
+  x <- readLines(path, warn = FALSE)
+  i_top <- which(grepl("\\\\toprule", x))[1]
+  i_mid <- which(grepl("\\\\midrule", x))[1]
+  if (is.na(i_top) || is.na(i_mid) || i_mid <= i_top) return(invisible(FALSE))
+  head_block <- x[i_top:i_mid]          # toprule, header row(s), midrule
+  out <- append(x, c("\\endfirsthead", head_block, "\\endhead"),
+                after = i_mid)
+  writeLines(out, path)
+  invisible(TRUE)
+}
+# `size` is passed straight to xtable (e.g. "\footnotesize"): the wide city
+# tables overflow the text block at normal size, and a longtable cannot be
+# scaled with \resizebox because it breaks across pages.
+
+# `longtable = TRUE` emits a longtable instead of a tabular inside a float: a
+# 40-row city table overflows a page and a float cannot break. The caller must
+# then NOT wrap the input in a table environment; the longtable carries its own
+# caption and label, exactly like tables/ews_taxonomy_table.
 save_table <- function(df, name, caption = NULL, label = NULL,
-                       digits = 2, align = NULL) {
+                       digits = 2, align = NULL, longtable = FALSE,
+                       size = NULL) {
   csv_p <- file.path(TAB_DIR, paste0(name, ".csv"))
   tex_p <- file.path(TAB_DIR, paste0(name, ".tex"))
   readr::write_csv(df, csv_p)
@@ -382,7 +415,11 @@ save_table <- function(df, name, caption = NULL, label = NULL,
                          align = align)
     print(xt, file = tex_p, include.rownames = FALSE, booktabs = TRUE,
           caption.placement = "top",
-          sanitize.colnames.function = latex_colname)
+          sanitize.colnames.function = latex_colname,
+          floating = !longtable,
+          tabular.environment = if (longtable) "longtable" else "tabular",
+          size = size)
+    if (longtable) .longtable_repeat_header(tex_p)
   }
   message(sprintf("  [saved] %s.csv / .tex", name))
   invisible(c(csv = csv_p, tex = tex_p))

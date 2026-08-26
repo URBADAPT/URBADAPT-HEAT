@@ -1,11 +1,12 @@
 # =============================================================================
-# fig2_distribution.R  --  Summary Fig 2 (fig:result2)
+# fig2_distribution.R  --  Main Fig 2 (fig:result2)
 # Public vs private costs and the distributional / justice implications of the
 # three levers, across cities grouped by climate cluster.
 #
-#   (a) Who pays: public vs private PV cost per capita by lever, faceted by
-#       cluster. Trees & EWS are collective (public); AC is largely an
-#       out-of-pocket private burden.
+#   (a) What each lever costs per capita, faceted by cluster. Trees & EWS are
+#       wholly public in the model, so they are split public/private; AC's
+#       public share is a single assumed subsidy rate, so AC is split by cost
+#       component (capital, maintenance, electricity) instead.
 #   (b) Equity vs efficiency: what income-targeted AC roll-out buys (share of
 #       the mortality benefit reaching the two most vulnerable quintiles) and
 #       what it costs (total lives saved), one point per city.
@@ -47,33 +48,69 @@ equity_efficiency <- function(city) {
 }
 
 build_fig2 <- function(cities = discover_cities()) {
-  banner("Summary Fig 2: public vs private costs and distributional justice")
+  banner("Main Fig 2: public vs private costs and distributional justice")
   meta <- load_city_meta()
   if (!length(cities) || is.null(meta)) { message("Missing cities/metadata."); return(invisible(NULL)) }
 
-  # --- (a) public vs private cost per capita, by lever & cluster -------------
+  # --- (a) cost per capita by lever, split the way each cost is really borne ---
+  # Trees and EWS are wholly public in the model, so a public/private split is
+  # the informative one for them. For AC it is not: the public share there is a
+  # single assumed number -- 20% of capex is treated as subsidised, maintenance
+  # and electricity entirely private -- so `public_share` reduces to
+  # 0.20 x capex/total and describes the assumption rather than the city
+  # (verified: the implied rate is exactly 0.20 in all 40). What does vary, and
+  # what a household actually faces, is where the money goes: purchase,
+  # maintenance, electricity. So AC is broken out by component instead.
+  COST_COMPONENTS <- c("Private", "AC: electricity", "AC: maintenance",
+                       "AC: capital", "Public")
+  COST_COLORS <- c("Public"          = "#00695C",
+                   "Private"         = "#C62828",
+                   "AC: capital"     = "#0D47A1",
+                   "AC: maintenance" = "#1976D2",
+                   "AC: electricity" = "#90CAF9")
+
   costs <- gather_cities(cities, function(c) {
-    d <- read_city_csv(c, sprintf("%s_public_private_costs.csv", c))
-    if (is.null(d)) return(NULL)
-    d$pathway <- pathway_key(d$policy)
-    d[, c("pathway", "public_pv", "private_pv")]
+    pp <- read_city_csv(c, sprintf("%s_public_private_costs.csv", c))
+    j  <- read_city_json(c, sprintf("%s_cba_summary.json", c), quiet = TRUE)
+    if (is.null(pp) || is.null(j)) return(NULL)
+    pp$pathway <- pathway_key(pp$policy)
+    pub <- pp[pp$pathway %in% c("Trees", "EWS"),
+              c("pathway", "public_pv", "private_pv"), drop = FALSE]
+    pub <- tidyr::pivot_longer(pub, c("public_pv", "private_pv"),
+                               names_to = "component", values_to = "pv")
+    pub$component <- ifelse(pub$component == "public_pv", "Public", "Private")
+    ac <- data.frame(
+      pathway   = "AC",
+      component = c("AC: capital", "AC: maintenance", "AC: electricity"),
+      pv = c(n1(j$costs$ac$pv_capex), n1(j$costs$ac$pv_maint),
+             n1(j$costs$ac$pv_elec)),
+      stringsAsFactors = FALSE)
+    dplyr::bind_rows(pub, ac)
   })
   costs <- attach_meta(costs, meta)
   costs <- costs[!is.na(costs$pop_k) & !is.na(costs$climate_cluster), , drop = FALSE]
   pa <- if (!is.null(costs) && nrow(costs)) {
+    # There are now several rows per city, so the per-capita denominator has to
+    # be built from distinct cities -- summing pop_k over the long frame would
+    # count each city two or three times.
+    citypop <- unique(costs[, c("city", "climate_cluster", "pop_k")])
+    popc <- citypop |> dplyr::group_by(climate_cluster) |>
+      dplyr::summarise(cap = sum(pop_k) * 1000, .groups = "drop")
     agg <- costs |>
-      dplyr::group_by(climate_cluster, pathway) |>
-      dplyr::summarise(cap = sum(pop_k) * 1000,
-                       Public = sum(public_pv) / cap,
-                       Private = sum(private_pv) / cap, .groups = "drop")
-    la <- tidyr::pivot_longer(agg, c("Public", "Private"),
-                              names_to = "bearer", values_to = "eur_cap")
-    la$pathway <- factor(la$pathway, levels = PATHWAY_LEVELS)
-    la$bearer <- factor(la$bearer, levels = c("Private", "Public"))
-    la$climate_cluster <- factor(la$climate_cluster, levels = CLUSTER_LEVELS)
-    tot <- la |> dplyr::group_by(climate_cluster, pathway) |>
+      dplyr::group_by(climate_cluster, pathway, component) |>
+      dplyr::summarise(pv = sum(pv, na.rm = TRUE), .groups = "drop") |>
+      dplyr::left_join(popc, by = "climate_cluster") |>
+      dplyr::mutate(eur_cap = pv / cap) |>
+      dplyr::filter(is.finite(eur_cap), eur_cap > 0)
+    agg$pathway <- factor(agg$pathway, levels = PATHWAY_LEVELS)
+    agg$climate_cluster <- factor(agg$climate_cluster, levels = CLUSTER_LEVELS)
+    # Level order sets the stack: the first level is drawn on top, so capital
+    # sits at the base of the AC bar and Public at the base of the others.
+    agg$component <- factor(agg$component, levels = COST_COMPONENTS)
+    present <- levels(droplevels(agg$component))
+    tot <- agg |> dplyr::group_by(climate_cluster, pathway) |>
       dplyr::summarise(t = sum(eur_cap), .groups = "drop")
-    ggplot(la, aes(pathway, eur_cap, fill = bearer)) +
+    ggplot(agg, aes(pathway, eur_cap, fill = component)) +
       geom_col(width = 0.7) +
       # EWS costs ~1 EUR/capita against AC's several hundred, so its bar is
       # invisible next to them; the value label is what makes it readable.
@@ -81,12 +118,12 @@ build_fig2 <- function(cities = discover_cities()) {
                 aes(pathway, t, label = paste0("€", round(t))),
                 vjust = -0.45, size = 2.9, color = "grey25") +
       facet_wrap(~climate_cluster, nrow = 1, drop = FALSE) +
-      scale_fill_manual(values = BEARER_COLORS, name = "Cost borne by",
-                        breaks = c("Public", "Private")) +
+      scale_fill_manual(values = COST_COLORS, name = "Cost component",
+                        breaks = intersect(c("Public", "Private", "AC: capital",
+                                             "AC: maintenance", "AC: electricity"),
+                                           present)) +
       scale_y_continuous(expand = expansion(mult = c(0, 0.14))) +
-      labs(tag = "a", title = "Who pays for adaptation",
-           subtitle = "Greening & warnings are collective; cooling is a private out-of-pocket burden",
-           x = NULL, y = "PV cost per capita (€)") +
+      labs(tag = "a", x = NULL, y = "PV cost per capita (€)") +
       theme_natcities()
   } else patchwork::plot_spacer()
 
@@ -104,10 +141,7 @@ build_fig2 <- function(cities = discover_cities()) {
       cluster_scale() +
       annotate("text", x = -Inf, y = Inf, hjust = -0.05, vjust = 1.4, size = 2.9,
                color = "grey35", label = "more equitable\nand more effective") +
-      labs(tag = "b", title = "Equity is cheap, not free",
-           subtitle = sprintf(
-             "Median: +%.0f pp of benefit to the 2 most vulnerable quintiles for %.0f%% of lives saved",
-             med[["gain"]], med[["eff"]]),
+      labs(tag = "b",
            x = "Lives saved given up by targeting (% of uniform)",
            y = "Benefit shifted to most\nvulnerable quintiles (pp)") +
       theme_natcities()
@@ -136,19 +170,27 @@ build_fig2 <- function(cities = discover_cities()) {
       # patchwork shrink this panel's width until its title is clipped. The
       # dashed line is still exactly y = x.
       coord_cartesian(xlim = lim, ylim = lim) +
-      labs(tag = "c", title = "Uniform greening is already progressive",
-           subtitle = sprintf("Equity targeting steepens it in only %d of %d cities",
-             nrow(slopes) - n_below, nrow(slopes)),
+      labs(tag = "c",
            x = "Uniform allocation (ΔGVI per unit SVI)",
            y = "Equity-targeted allocation") +
       theme_natcities()
   } else patchwork::plot_spacer()
 
+  # Caption numbers (panel titles/subtitles removed -- Nature style), printed
+  # so a rebuild reveals any drift against the LaTeX caption.
+  if (exists("med") && exists("slopes"))
+  message(sprintf(paste0("  [caption] targeting shifts a median +%.1f pp of ",
+                         "benefit to the 2 most vulnerable quintiles for ",
+                         "%.1f%% of lives saved; equity greening steepens ",
+                         "the SVI slope in %d of %d cities"),
+                  med[["gain"]], med[["eff"]],
+                  nrow(slopes) - sum(slopes$equity < slopes$uniform, na.rm = TRUE),
+                  nrow(slopes)))
+
   bottom <- (pb | pc) + patchwork::plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
   fig <- pa / bottom +
-    patchwork::plot_layout(heights = c(1, 1.15)) &
-    theme(plot.subtitle = element_text(size = rel(0.8)))
+    patchwork::plot_layout(heights = c(1, 1.15))
   save_item(fig, "fig2_distribution", width = 13, height = 8.8)
 }
 

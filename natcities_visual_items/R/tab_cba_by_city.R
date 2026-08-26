@@ -64,6 +64,7 @@ build_tab_cba <- function(cities = discover_cities()) {
                "A blank cost per death marks a pathway avoiding fewer than",
                "0.5 deaths over the 25-year horizon."),
              label = "tab:cba_by_city",
+             longtable = TRUE, size = "\\footnotesize",
              align = c("l", "l", "l", "l", "r", "r", "r", "r", "r"),
              digits = c(0, 0, 0, 0, 1, 0, 0, 0, 0))
   message(sprintf("  %d rows, %d cities, pathways: %s", nrow(out),

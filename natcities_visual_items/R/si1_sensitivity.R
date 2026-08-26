@@ -58,8 +58,7 @@ build_si1 <- function(cities = discover_cities()) {
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
       scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
       eur_log_scale("Cost per death avoided (€, log)") +
-      labs(tag = "a", title = "Discount rate",
-           subtitle = "Median across cities, IQR shaded; the ranking never crosses",
+      labs(tag = "a",
            x = "Discount rate") +
       theme_natcities()
   } else patchwork::plot_spacer()
@@ -99,8 +98,7 @@ build_si1 <- function(cities = discover_cities()) {
                   size = 1.8, alpha = 0.75) +
       cluster_scale() +
       eur_log_scale("Cost per death avoided (€, log)") +
-      labs(tag = "b", title = "Greening cost assumptions",
-           subtitle = "Maintenance intensity matters far more than planting age",
+      labs(tag = "b",
            x = NULL) +
       theme_natcities()
   } else patchwork::plot_spacer()
@@ -125,16 +123,14 @@ build_si1 <- function(cities = discover_cities()) {
                   size = 1.8, alpha = 0.75) +
       cluster_scale() +
       eur_log_scale("Cost per death avoided (€, log)") +
-      labs(tag = "c", title = "Greening ambition",
-           subtitle = "Target canopy vs the city's 3rd-quartile district;\nplanting more does not get cheaper per life saved",
+      labs(tag = "c",
            x = NULL) +
       theme_natcities() +
       theme(axis.text.x = element_text(angle = 20, hjust = 1))
   } else patchwork::plot_spacer()
 
   fig <- (pa | pb | pc) &
-    theme(legend.position = "bottom",
-          plot.subtitle = element_text(size = rel(0.8)))
+    theme(legend.position = "bottom")
   save_item(fig, "si1_sensitivity", width = 14, height = 5.2)
 }
 

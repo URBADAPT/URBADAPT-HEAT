@@ -72,9 +72,7 @@ build_si2 <- function(cities = discover_cities()) {
       scale_y_continuous(labels = scales::label_scientific(digits = 1)) +
       scale_color_manual(values = IF_COLORS, name = "Exposure-response function") +
       scale_fill_manual(values = IF_COLORS, guide = "none") +
-      labs(tag = "a", title = "Four temperature-mortality curves",
-           subtitle = sprintf("Median across %d cities, IQR shaded",
-                              length(unique(ifc$city))),
+      labs(tag = "a",
            x = "Daily mean temperature (°C)",
            y = "Marginal deaths per degree") +
       theme_natcities() +
@@ -110,18 +108,19 @@ build_si2 <- function(cities = discover_cities()) {
                   size = 1.9, alpha = 0.75) +
       cluster_scale() +
       scale_y_log10(labels = scales::label_number(accuracy = 0.1, suffix = "x")) +
-      labs(tag = "b", title = "Effect on baseline heat mortality",
-           subtitle = sprintf(
-             "Relative to the Masselot main specification (dashed).\nThe tail extension binds in %d of %d cities (max %.1f%%); the Burke families move it by orders of magnitude.",
-             n_bind, nrow(tl), max_bind),
+      labs(tag = "b",
            x = NULL, y = "Baseline heat deaths (ratio, log)") +
       theme_natcities() +
       theme(axis.text.x = element_text(angle = 15, hjust = 1))
   } else patchwork::plot_spacer()
 
+  # Caption number (panel titles/subtitles removed -- Nature style).
+  if (exists("n_bind"))
+  message(sprintf(paste0("  [caption] the masselot tail extension binds in %d of ",
+                         "%d cities (max %.1f%%)"), n_bind, nrow(tl), max_bind))
+
   fig <- (pa | pb) + patchwork::plot_layout(widths = c(2.1, 1)) &
-    theme(legend.position = "bottom",
-          plot.subtitle = element_text(size = rel(0.8)))
+    theme(legend.position = "bottom")
   save_item(fig, "si2_if_comparison", width = 14, height = 5.2)
 }
 

@@ -70,6 +70,7 @@ build_tab_ews <- function(cities = discover_cities()) {
                "\\texttt{policy\\_effectiveness}; all three carry the same central",
                "estimate as the city's \\texttt{EWS (central)} cost-effectiveness row."),
              label = "tab:ews_by_city",
+             longtable = TRUE, size = "\\scriptsize",
              align = c("l", "l", "l", "r", "r", "r", "r", "r", "r", "r", "l"),
              digits = c(0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0))
   message(sprintf("  %d cities; attribution wording: %s", nrow(out),

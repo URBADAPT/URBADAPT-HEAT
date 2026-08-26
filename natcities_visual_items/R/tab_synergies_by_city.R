@@ -48,6 +48,7 @@ build_tab_synergies <- function(cities = discover_cities()) {
                "operation adds; the last column is greening's benefit alongside",
                "AC as a share of its stand-alone benefit."),
              label = "tab:synergies_by_city",
+             longtable = TRUE, size = "\\scriptsize",
              align = c("l", "l", "l", "r", "r", "r", "r", "r", "r", "r"),
              digits = c(0, 0, 0, 1, 0, 0, 1, 1, 1, 1))
   message(sprintf("  %d cities", nrow(out)))

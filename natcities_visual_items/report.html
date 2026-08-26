@@ -56,31 +56,31 @@ footer{margin-top:4rem;padding-top:1.25rem;border-top:1px solid var(--line);
 <h1>Synergies and trade-offs of public and private urban heat adaptation</h1>
 <p class="sub">Figures and tables for the Nature Cities results manuscript.</p>
 <div class="meta">
-<strong>40 cities</strong> &middot; built 2026-08-10<br>
+<strong>40 cities</strong> &middot; built 2026-08-25<br>
 Inputs: <code>G:\Il mio Drive\adaptation_infrastructure_database\juno_pull\outputs_variants\masselot_main_agnostic</code><br>
 Regenerate: <code>Rscript build_all.R</code> then <code>Rscript make_report.R</code>
 </div>
-<nav><a href="#fig1_risk_effectiveness">Risk and effectiveness across the climate gradient</a><a href="#fig2_distribution">Who pays, and who benefits</a><a href="#fig3_costeffectiveness">Cost-effectiveness and budget choice</a><a href="#fig4_synergies">Synergies and trade-offs between the levers</a><a href="#si1_sensitivity">Sensitivity of the cost-effectiveness ranking</a><a href="#si2_if_comparison">Exposure-response function sensitivity</a><a href="#si3_ews">The early-warning pathway in detail</a><a href="#tab_cba_by_city">Cost-benefit by city and pathway</a><a href="#tab_risk_by_city">Hazard, exposure and baseline risk by city</a><a href="#tab_ews_by_city">The early-warning pathway by city</a><a href="#tab_synergies_by_city">Lever interactions by city</a></nav>
+<nav><a href="#fig1_risk_costs_portfolios">Risk, policy archetypes and public-private portfolios</a><a href="#fig2_distribution">Who pays, and who benefits</a><a href="#fig3_synergies">Synergies and trade-offs between the levers</a><a href="#fig4_city_maps">Within-city maps for one city per climate cluster</a><a href="#si1_sensitivity">Sensitivity of the cost-effectiveness ranking</a><a href="#si2_if_comparison">Exposure-response function sensitivity</a><a href="#si3_ews">The early-warning pathway in detail</a><a href="#tab_cba_by_city">Cost-benefit by city and pathway</a><a href="#tab_risk_by_city">Hazard, exposure and baseline risk by city</a><a href="#tab_ews_by_city">The early-warning pathway by city</a><a href="#tab_synergies_by_city">Lever interactions by city</a><a href="#tab_city_characteristics">Per-city characterisation (SI)</a></nav>
 <h2>Main figures</h2>
-<figure id="fig1_risk_effectiveness">
-<figcaption><span class="slot">fig:result1</span><h3>Risk and effectiveness across the climate gradient</h3><p>Baseline heat mortality against warm-season temperature (log-log), then the mortality reduction and avoided deaths delivered by each pathway. One point per city; AC is net of its waste-heat feedback.</p></figcaption>
-<a href="figures/fig1_risk_effectiveness.png"><img src="figures/fig1_risk_effectiveness.png" alt="Risk and effectiveness across the climate gradient"></a>
-<p class="files">figures/fig1_risk_effectiveness.png &middot; <a href="figures/fig1_risk_effectiveness.pdf">PDF</a></p>
+<figure id="fig1_risk_costs_portfolios">
+<figcaption><span class="slot">fig:result1</span><h3>Risk, policy archetypes and public-private portfolios</h3><p>Baseline heat mortality across the climate gradient; the standardised policy-outcome profiles behind the outcome-based city archetypes, with climate class and LCZ composition as external annotations; cost per avoided death by pathway and archetype; and the composition of the benefit-maximising portfolio as the per-capita budget rises.</p></figcaption>
+<a href="figures/fig1_risk_costs_portfolios.png"><img src="figures/fig1_risk_costs_portfolios.png" alt="Risk, policy archetypes and public-private portfolios"></a>
+<p class="files">figures/fig1_risk_costs_portfolios.png &middot; <a href="figures/fig1_risk_costs_portfolios.pdf">PDF</a></p>
 </figure>
 <figure id="fig2_distribution">
 <figcaption><span class="slot">fig:result2</span><h3>Who pays, and who benefits</h3><p>Public versus private cost per capita by lever; the equity-efficiency trade-off of targeting cooling support by income; and whether an explicit equity rule makes greening more progressive than a uniform one.</p></figcaption>
 <a href="figures/fig2_distribution.png"><img src="figures/fig2_distribution.png" alt="Who pays, and who benefits"></a>
 <p class="files">figures/fig2_distribution.png &middot; <a href="figures/fig2_distribution.pdf">PDF</a></p>
 </figure>
-<figure id="fig3_costeffectiveness">
-<figcaption><span class="slot">fig:result3</span><h3>Cost-effectiveness and budget choice</h3><p>Euros per death avoided by pathway; the budget frontier normalised per capita so 40 cities share one pair of axes; and the order in which a benefit-maximising city buys the three levers.</p></figcaption>
-<a href="figures/fig3_costeffectiveness.png"><img src="figures/fig3_costeffectiveness.png" alt="Cost-effectiveness and budget choice"></a>
-<p class="files">figures/fig3_costeffectiveness.png &middot; <a href="figures/fig3_costeffectiveness.pdf">PDF</a></p>
+<figure id="fig3_synergies">
+<figcaption><span class="slot">fig:result3</span><h3>Synergies and trade-offs between the levers</h3><p>How much of air conditioning's benefit its own waste heat takes back, how little of that greening offsets, and how far the two levers overlap.</p></figcaption>
+<a href="figures/fig3_synergies.png"><img src="figures/fig3_synergies.png" alt="Synergies and trade-offs between the levers"></a>
+<p class="files">figures/fig3_synergies.png &middot; <a href="figures/fig3_synergies.pdf">PDF</a></p>
 </figure>
-<figure id="fig4_synergies">
-<figcaption><span class="slot">fig:result4</span><h3>Synergies and trade-offs between the levers</h3><p>How much of air conditioning's benefit its own waste heat takes back, how little of that greening offsets, and how far the two levers overlap.</p></figcaption>
-<a href="figures/fig4_synergies.png"><img src="figures/fig4_synergies.png" alt="Synergies and trade-offs between the levers"></a>
-<p class="files">figures/fig4_synergies.png &middot; <a href="figures/fig4_synergies.pdf">PDF</a></p>
+<figure id="fig4_city_maps">
+<figcaption><span class="slot">fig:result4</span><h3>Within-city maps for one city per climate cluster</h3><p>Palermo, Budapest and Amsterdam by district: population not already protected by air conditioning, coverage gained under the uniform and the income-targeted roll-out, and adaptation cost per capita. Panels 2 and 3 show where each policy deploys cooling, not deaths avoided: no per-neighbourhood mortality output exists in the runs.</p></figcaption>
+<a href="figures/fig4_city_maps.png"><img src="figures/fig4_city_maps.png" alt="Within-city maps for one city per climate cluster"></a>
+<p class="files">figures/fig4_city_maps.png &middot; <a href="figures/fig4_city_maps.pdf">PDF</a></p>
 </figure>
 <h2>Supplementary figures</h2>
 <figure id="si1_sensitivity">
@@ -97,22 +97,6 @@ Regenerate: <code>Rscript build_all.R</code> then <code>Rscript make_report.R</c
 <figcaption><span class="slot">SI</span><h3>The early-warning pathway in detail</h3><p>Warning days to 2050, the share of heat deaths falling on warned days, and the behavioural take-up ramp behind the benefits.</p></figcaption>
 <a href="figures/si3_ews.png"><img src="figures/si3_ews.png" alt="The early-warning pathway in detail"></a>
 <p class="files">figures/si3_ews.png &middot; <a href="figures/si3_ews.pdf">PDF</a></p>
-</figure>
-<h2>Exemplar cities</h2>
-<figure id="exemplar_amsterdam">
-<figcaption><span class="slot">Exemplar</span><h3>Amsterdam — Cool cluster medoid</h3><p>Single-city dashboard: baseline mortality trajectory, avoided deaths by pathway, district greening against vulnerability, and the cost-benefit frontier with constrained portfolios.</p></figcaption>
-<a href="figures/exemplar_amsterdam.png"><img src="figures/exemplar_amsterdam.png" alt="Amsterdam — Cool cluster medoid"></a>
-<p class="files">figures/exemplar_amsterdam.png &middot; <a href="figures/exemplar_amsterdam.pdf">PDF</a></p>
-</figure>
-<figure id="exemplar_budapest">
-<figcaption><span class="slot">Exemplar</span><h3>Budapest — Temperate cluster medoid</h3><p>Single-city dashboard: baseline mortality trajectory, avoided deaths by pathway, district greening against vulnerability, and the cost-benefit frontier with constrained portfolios.</p></figcaption>
-<a href="figures/exemplar_budapest.png"><img src="figures/exemplar_budapest.png" alt="Budapest — Temperate cluster medoid"></a>
-<p class="files">figures/exemplar_budapest.png &middot; <a href="figures/exemplar_budapest.pdf">PDF</a></p>
-</figure>
-<figure id="exemplar_palermo">
-<figcaption><span class="slot">Exemplar</span><h3>Palermo — Hot cluster medoid</h3><p>Single-city dashboard: baseline mortality trajectory, avoided deaths by pathway, district greening against vulnerability, and the cost-benefit frontier with constrained portfolios.</p></figcaption>
-<a href="figures/exemplar_palermo.png"><img src="figures/exemplar_palermo.png" alt="Palermo — Hot cluster medoid"></a>
-<p class="files">figures/exemplar_palermo.png &middot; <a href="figures/exemplar_palermo.pdf">PDF</a></p>
 </figure>
 <h2>Tables</h2>
 <section id="tab_cba_by_city">
@@ -370,6 +354,50 @@ Regenerate: <code>Rscript build_all.R</code> then <code>Rscript make_report.R</c
 <tr><td>Vilnius</td><td>Cool</td><td class="n">47.9</td><td class="n">138</td><td class="n">135</td><td class="n">2.9</td><td class="n">2.1</td><td class="n">3.1</td><td class="n">88.7</td></tr>
 <tr><td>Tallinn</td><td>Cool</td><td class="n">120.3</td><td class="n">28</td><td class="n">28</td><td class="n">0.5</td><td class="n">1.6</td><td class="n">24.9</td><td class="n">86.1</td></tr>
 <tr><td>Dublin</td><td>Cool</td><td class="n">21.8</td><td class="n">2</td><td class="n">2</td><td class="n">0</td><td class="n">0</td><td class="n"><span class="na">&mdash;</span></td><td class="n">90.6</td></tr></tbody></table></div>
+</section>
+<section id="tab_city_characteristics">
+<h3>Per-city characterisation (SI)</h3><p class="cap">Climate metrics, greening-cooling coefficient coverage and LCZ composition for each of the 40 cities. This is the per-city detail that used to be a grey annotation strip on Fig 1 panel b.</p>
+<p class="files">40 rows &middot; <a href="tables/tab_city_characteristics.csv">CSV</a> &middot; <a href="tables/tab_city_characteristics.tex">LaTeX</a></p>
+<div class="tw"><table><thead><tr><th>City</th><th>Country</th><th class="n">Pop (k)</th><th>Class</th><th class="n">T2M (°C)</th><th class="n">Hot days</th><th class="n">Coef. cov. (%)</th><th class="n">Compact (%)</th><th class="n">Open (%)</th><th class="n">Other (%)</th><th class="n">Built (%)</th><th class="n">LCZ div.</th></tr></thead><tbody><tr><td>Sevilla</td><td>Spain</td><td class="n">682</td><td>Hot</td><td class="n">26.3</td><td class="n">99</td><td class="n">8.6</td><td class="n">10.1</td><td class="n">18.7</td><td class="n">71.3</td><td class="n">38.6</td><td class="n">4.35</td></tr>
+<tr><td>Athens</td><td>Greece</td><td class="n">665</td><td>Hot</td><td class="n">25.5</td><td class="n">98</td><td class="n">48</td><td class="n">14.7</td><td class="n">50.7</td><td class="n">34.6</td><td class="n">64.2</td><td class="n">7.47</td></tr>
+<tr><td>Thessaloniki</td><td>Greece</td><td class="n">375</td><td>Hot</td><td class="n">24.3</td><td class="n">79</td><td class="n">31.4</td><td class="n">8.2</td><td class="n">29.3</td><td class="n">62.5</td><td class="n">37.9</td><td class="n">5.53</td></tr>
+<tr><td>Palermo</td><td>Italy</td><td class="n">640</td><td>Hot</td><td class="n">23.9</td><td class="n">71</td><td class="n">12.5</td><td class="n">6.9</td><td class="n">53.7</td><td class="n">39.4</td><td class="n">64.4</td><td class="n">6.51</td></tr>
+<tr><td>Madrid</td><td>Spain</td><td class="n">3314</td><td>Hot</td><td class="n">23.9</td><td class="n">73</td><td class="n">0</td><td class="n">9.2</td><td class="n">24.1</td><td class="n">66.6</td><td class="n">25.7</td><td class="n">5.24</td></tr>
+<tr><td>Naples</td><td>Italy</td><td class="n">935</td><td>Hot</td><td class="n">23.5</td><td class="n">63</td><td class="n">50</td><td class="n">9</td><td class="n">63.3</td><td class="n">27.7</td><td class="n">63.3</td><td class="n">5.93</td></tr>
+<tr><td>Rome</td><td>Italy</td><td class="n">2408</td><td>Hot</td><td class="n">23.3</td><td class="n">65</td><td class="n">68.6</td><td class="n">3.8</td><td class="n">47.2</td><td class="n">49</td><td class="n">55.8</td><td class="n">6.4</td></tr>
+<tr><td>Bologna</td><td>Italy</td><td class="n">382</td><td>Hot</td><td class="n">22.8</td><td class="n">57</td><td class="n">83.3</td><td class="n">3.5</td><td class="n">30.3</td><td class="n">66.2</td><td class="n">29</td><td class="n">4.97</td></tr>
+<tr><td>Milan</td><td>Italy</td><td class="n">1376</td><td>Hot</td><td class="n">22.7</td><td class="n">49</td><td class="n">75</td><td class="n">5.7</td><td class="n">65.2</td><td class="n">29.1</td><td class="n">46.4</td><td class="n">6.76</td></tr>
+<tr><td>Barcelona</td><td>Spain</td><td class="n">1906</td><td>Hot</td><td class="n">22.7</td><td class="n">44</td><td class="n">5</td><td class="n">9.8</td><td class="n">48</td><td class="n">42.2</td><td class="n">54.8</td><td class="n">6.57</td></tr>
+<tr><td>Bucharest</td><td>Romania</td><td class="n">1734</td><td>Temperate</td><td class="n">22.1</td><td class="n">33</td><td class="n">17.5</td><td class="n">3.7</td><td class="n">56.4</td><td class="n">39.9</td><td class="n">28</td><td class="n">4.38</td></tr>
+<tr><td>Varna</td><td>Bulgaria</td><td class="n">311</td><td>Temperate</td><td class="n">21.9</td><td class="n">25</td><td class="n">54.3</td><td class="n">2.5</td><td class="n">56.7</td><td class="n">40.9</td><td class="n">31.2</td><td class="n">6.29</td></tr>
+<tr><td>Marseille</td><td>France</td><td class="n">880</td><td>Temperate</td><td class="n">21.5</td><td class="n">3</td><td class="n">31.1</td><td class="n">4.5</td><td class="n">60.4</td><td class="n">35.1</td><td class="n">51.3</td><td class="n">7.26</td></tr>
+<tr><td>Budapest</td><td>Hungary</td><td class="n">1660</td><td>Temperate</td><td class="n">20.8</td><td class="n">4</td><td class="n">75</td><td class="n">1.2</td><td class="n">65.6</td><td class="n">33.2</td><td class="n">25.1</td><td class="n">5.24</td></tr>
+<tr><td>Lisbon</td><td>Portugal</td><td class="n">544</td><td>Temperate</td><td class="n">20.8</td><td class="n">0</td><td class="n">28.6</td><td class="n">6.1</td><td class="n">32.9</td><td class="n">61</td><td class="n">57.8</td><td class="n">7.43</td></tr>
+<tr><td>Porto</td><td>Portugal</td><td class="n">537</td><td>Temperate</td><td class="n">20.6</td><td class="n">0</td><td class="n">25</td><td class="n">2.4</td><td class="n">71.8</td><td class="n">25.8</td><td class="n">63.6</td><td class="n">5.01</td></tr>
+<tr><td>Sofia</td><td>Bulgaria</td><td class="n">1209</td><td>Temperate</td><td class="n">20.3</td><td class="n">1</td><td class="n">20</td><td class="n">1.9</td><td class="n">66.4</td><td class="n">31.7</td><td class="n">24.9</td><td class="n">5.08</td></tr>
+<tr><td>Zagreb</td><td>Croatia</td><td class="n">689</td><td>Temperate</td><td class="n">20.1</td><td class="n">2</td><td class="n">50</td><td class="n">1.9</td><td class="n">44.8</td><td class="n">53.3</td><td class="n">34.1</td><td class="n">5.63</td></tr>
+<tr><td>Bratislava</td><td>Slovakia</td><td class="n">435</td><td>Temperate</td><td class="n">19.8</td><td class="n">0</td><td class="n">33.3</td><td class="n">2.1</td><td class="n">65.7</td><td class="n">32.1</td><td class="n">25.5</td><td class="n">5.23</td></tr>
+<tr><td>Ljubljana</td><td>Slovenia</td><td class="n">272</td><td>Temperate</td><td class="n">19.7</td><td class="n">0</td><td class="n">42.9</td><td class="n">0.8</td><td class="n">47.9</td><td class="n">51.3</td><td class="n">27.4</td><td class="n">5.1</td></tr>
+<tr><td>Lyon</td><td>France</td><td class="n">570</td><td>Temperate</td><td class="n">19.6</td><td class="n">0</td><td class="n">37.5</td><td class="n">1.3</td><td class="n">45.1</td><td class="n">53.5</td><td class="n">32.5</td><td class="n">5.49</td></tr>
+<tr><td>Vienna</td><td>Austria</td><td class="n">1878</td><td>Temperate</td><td class="n">19.4</td><td class="n">0</td><td class="n">66.7</td><td class="n">6.3</td><td class="n">58.8</td><td class="n">34.9</td><td class="n">22.2</td><td class="n">5.03</td></tr>
+<tr><td>Paris</td><td>France</td><td class="n">2318</td><td>Temperate</td><td class="n">18.7</td><td class="n">0</td><td class="n">57.1</td><td class="n">6.8</td><td class="n">63.4</td><td class="n">29.8</td><td class="n">32.8</td><td class="n">6.01</td></tr>
+<tr><td>Warsaw</td><td>Poland</td><td class="n">1821</td><td>Cool</td><td class="n">18.2</td><td class="n">0</td><td class="n">37.5</td><td class="n">0.5</td><td class="n">57.5</td><td class="n">42</td><td class="n">31.6</td><td class="n">6.09</td></tr>
+<tr><td>Berlin</td><td>Germany</td><td class="n">3683</td><td>Cool</td><td class="n">18</td><td class="n">0</td><td class="n">42.2</td><td class="n">2.8</td><td class="n">72</td><td class="n">25.2</td><td class="n">32.7</td><td class="n">6.28</td></tr>
+<tr><td>Prague</td><td>Czechia</td><td class="n">1298</td><td>Cool</td><td class="n">17.7</td><td class="n">0</td><td class="n">33.3</td><td class="n">1.7</td><td class="n">66.9</td><td class="n">31.4</td><td class="n">23</td><td class="n">4.66</td></tr>
+<tr><td>Nantes</td><td>France</td><td class="n">322</td><td>Cool</td><td class="n">17.7</td><td class="n">0</td><td class="n">34.3</td><td class="n">0.2</td><td class="n">24.6</td><td class="n">75.1</td><td class="n">32.9</td><td class="n">4.57</td></tr>
+<tr><td>Cologne</td><td>Germany</td><td class="n">1187</td><td>Cool</td><td class="n">17.6</td><td class="n">0</td><td class="n">62.2</td><td class="n">1.8</td><td class="n">63.8</td><td class="n">34.5</td><td class="n">34.5</td><td class="n">6.2</td></tr>
+<tr><td>Munich</td><td>Germany</td><td class="n">1448</td><td>Cool</td><td class="n">17.4</td><td class="n">0</td><td class="n">35</td><td class="n">4.5</td><td class="n">70.7</td><td class="n">24.9</td><td class="n">21.9</td><td class="n">5.26</td></tr>
+<tr><td>Rotterdam</td><td>Netherlands</td><td class="n">501</td><td>Cool</td><td class="n">17</td><td class="n">0</td><td class="n">28.6</td><td class="n">1.4</td><td class="n">58.5</td><td class="n">40.1</td><td class="n">33.4</td><td class="n">5.67</td></tr>
+<tr><td>Brussels</td><td>Belgium</td><td class="n">1560</td><td>Cool</td><td class="n">16.9</td><td class="n">0</td><td class="n">60</td><td class="n">4.3</td><td class="n">57.3</td><td class="n">38.4</td><td class="n">44</td><td class="n">6.08</td></tr>
+<tr><td>Hamburg</td><td>Germany</td><td class="n">1711</td><td>Cool</td><td class="n">16.6</td><td class="n">0</td><td class="n">53.3</td><td class="n">0.7</td><td class="n">50.4</td><td class="n">48.8</td><td class="n">33.8</td><td class="n">6.17</td></tr>
+<tr><td>Amsterdam</td><td>Netherlands</td><td class="n">843</td><td>Cool</td><td class="n">16.5</td><td class="n">0</td><td class="n">44.4</td><td class="n">1.5</td><td class="n">59.9</td><td class="n">38.6</td><td class="n">34.8</td><td class="n">5.94</td></tr>
+<tr><td>Vilnius</td><td>Lithuania</td><td class="n">493</td><td>Cool</td><td class="n">16.3</td><td class="n">0</td><td class="n">22.9</td><td class="n">1</td><td class="n">49.8</td><td class="n">49.2</td><td class="n">29.5</td><td class="n">6.03</td></tr>
+<tr><td>Riga</td><td>Latvia</td><td class="n">599</td><td>Cool</td><td class="n">16.1</td><td class="n">0</td><td class="n">35</td><td class="n">1.4</td><td class="n">54.4</td><td class="n">44.2</td><td class="n">18.5</td><td class="n">5.6</td></tr>
+<tr><td>Copenhagen</td><td>Denmark</td><td class="n">628</td><td>Cool</td><td class="n">15.9</td><td class="n">0</td><td class="n">26.7</td><td class="n">1.1</td><td class="n">56.6</td><td class="n">42.3</td><td class="n">26</td><td class="n">4.9</td></tr>
+<tr><td>Helsinki</td><td>Finland</td><td class="n">913</td><td>Cool</td><td class="n">15.1</td><td class="n">0</td><td class="n">33.3</td><td class="n">1.2</td><td class="n">64.6</td><td class="n">34.1</td><td class="n">20.4</td><td class="n">5.12</td></tr>
+<tr><td>Stockholm</td><td>Sweden</td><td class="n">970</td><td>Cool</td><td class="n">15</td><td class="n">0</td><td class="n">11.1</td><td class="n">1.8</td><td class="n">70.9</td><td class="n">27.3</td><td class="n">26.9</td><td class="n">6.44</td></tr>
+<tr><td>Tallinn</td><td>Estonia</td><td class="n">420</td><td>Cool</td><td class="n">14.8</td><td class="n">0</td><td class="n">31.1</td><td class="n">0.7</td><td class="n">57.3</td><td class="n">42</td><td class="n">26.7</td><td class="n">6.31</td></tr>
+<tr><td>Dublin</td><td>Ireland</td><td class="n">1240</td><td>Cool</td><td class="n">14</td><td class="n">0</td><td class="n">26.7</td><td class="n">1.2</td><td class="n">49.6</td><td class="n">49.2</td><td class="n">30.1</td><td class="n">4.87</td></tr></tbody></table></div>
 </section>
 <footer>Generated by <code>natcities_visual_items/R/make_report.R</code>.
 Images link to the PDF version used for typesetting.</footer>

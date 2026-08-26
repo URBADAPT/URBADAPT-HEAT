@@ -44,8 +44,7 @@ build_si3 <- function(cities = discover_cities()) {
       geom_line(linewidth = 0.9) + geom_point(size = 1.8) +
       scale_color_manual(values = CLUSTER_COLORS, name = "Climate cluster", drop = FALSE) +
       scale_fill_manual(values = CLUSTER_COLORS, guide = "none", drop = FALSE) +
-      labs(tag = "a", title = "The warning system fires more often",
-           subtitle = "Median warning days per season, IQR shaded",
+      labs(tag = "a",
            x = NULL, y = "Warning days per season") +
       theme_natcities()
   } else patchwork::plot_spacer()
@@ -67,8 +66,7 @@ build_si3 <- function(cities = discover_cities()) {
                   size = 1.8, alpha = 0.75) +
       cluster_scale() +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
-      labs(tag = "b", title = "Risk concentrates on warned days",
-           subtitle = "Ceiling on what a perfect warning system could avert",
+      labs(tag = "b",
            x = NULL, y = "Annual heat deaths on warning days") +
       theme_natcities()
   } else patchwork::plot_spacer()
@@ -93,16 +91,14 @@ build_si3 <- function(cities = discover_cities()) {
       scale_color_manual(values = CLUSTER_COLORS, name = "Climate cluster", drop = FALSE) +
       scale_linetype_manual(values = c(low = 3, central = 1, high = 2),
                             name = "Take-up") +
-      labs(tag = "c", title = "Benefits ramp with behavioural take-up",
-           subtitle = "Median net avoided deaths per 100k per year",
+      labs(tag = "c",
            x = NULL, y = "Net avoided deaths / 100k / yr") +
       theme_natcities()
   } else patchwork::plot_spacer()
 
   fig <- (pa | pb | pc) &
     theme(legend.position = "bottom", legend.box = "vertical",
-          legend.text = element_text(size = rel(0.8)),
-          plot.subtitle = element_text(size = rel(0.8)))
+          legend.text = element_text(size = rel(0.8)))
   save_item(fig, "si3_ews", width = 14, height = 5.4)
 }
 

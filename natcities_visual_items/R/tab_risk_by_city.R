@@ -45,6 +45,7 @@ build_tab_risk <- function(cities = discover_cities(require_tables = FALSE)) {
   save_table(out, "tab_risk_by_city",
              caption = "Heat hazard, exposure, and baseline risk by city and climate cluster.",
              label = "tab:risk_by_city",
+             longtable = TRUE, size = "\\footnotesize",
              align = c("l", "l", "l", "l", "r", "r", "r", "r", "r"),
              digits = c(0, 0, 0, 0, 0, 1, 0, 0, 1))
   print(out, row.names = FALSE)

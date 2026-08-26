@@ -5,9 +5,13 @@
 #   warmseason_mean_t2m, t2m_p95, hot_days  (from 2020 baseline hazard netCDF)
 #   climate_cluster (k=3 on [intensity, frequency], labelled by centroid heat)
 #   is_exemplar     (cluster medoid = city nearest its cluster centroid)
+#   coef_lst_coverage_pct  (greening-cooling coefficient coverage; see below)
+#   lcz_*           (LCZ composition: compact/open/other built shares of built
+#                    land, built share of the FUA, effective number of classes)
 #
-# The expensive netCDF read is cached in .city_heat_cache.csv; clustering is
-# always recomputed (it depends on the full set of cities).
+# The expensive reads -- the hazard source and the 40 LCZ rasters -- are cached
+# in .city_heat_cache.csv and .city_lcz_cache.csv; clustering is always
+# recomputed (it depends on the full set of cities).
 #
 # NOTE: run with Rscript under *PowerShell* -- terra/ncdf4 segfault under the
 # Git Bash Rscript on this machine.  From natcities_visual_items/R:
@@ -170,6 +174,85 @@ load_or_compute_heat <- function(cities, force = FALSE) {
   cache[cache$city %in% cities, , drop = FALSE]
 }
 
+
+# ---- LCZ composition --------------------------------------------------------
+# Urban morphology descriptors from each city's `lcz_masked_fua.tif` (the same
+# Local Climate Zone raster the tree pathway is applied on). Present for all 40
+# cities. Used only as an EXTERNAL descriptor of the outcome-based policy
+# archetypes -- never as a clustering variable -- to interpret why cities with
+# similar heat exposure get different returns from spatial cooling.
+#
+# WUDAPT / Stewart-Oke classes: 1-10 are built types, 11-17 (A-G) natural land
+# cover. The greening policy is restricted to built classes 1-10, so the
+# built/natural split is also the split between the part of the FUA the tree
+# policy can act on and the part it cannot.
+LCZ_COMPACT <- 1:3        # compact high-, mid-, low-rise
+LCZ_OPEN    <- 4:6        # open high-, mid-, low-rise
+LCZ_OTHER   <- 7:10       # lightweight, large low-rise, sparsely built, industry
+LCZ_BUILT   <- 1:10
+LCZ_CACHE   <- file.path(TAB_DIR, ".city_lcz_cache.csv")
+
+.lcz_na_row <- function(city) data.frame(
+  city = city, lcz_compact_pct = NA_real_, lcz_open_pct = NA_real_,
+  lcz_other_built_pct = NA_real_, lcz_built_pct = NA_real_,
+  lcz_diversity = NA_real_, lcz_cells = NA_real_, stringsAsFactors = FALSE)
+
+# compact/open/other are shares OF BUILT LAND (they sum to 100), because the
+# question they answer is which built form dominates the fabric; built_pct is
+# the share of the whole valid FUA, i.e. the built/natural balance.
+lcz_composition <- function(city) {
+  p <- file.path(OUTPUTS_BASE, city, "lcz_masked_fua.tif")
+  if (!file.exists(p)) {
+    message(sprintf("  [skip] %s: no lcz_masked_fua.tif", city))
+    return(.lcz_na_row(city))
+  }
+  if (!requireNamespace("terra", quietly = TRUE)) {
+    message("  [skip] LCZ composition: package `terra` not installed.")
+    return(.lcz_na_row(city))
+  }
+  f <- tryCatch(terra::freq(terra::rast(p)), error = function(e) {
+    message(sprintf("  [error] %s LCZ raster: %s", city, conditionMessage(e))); NULL })
+  if (is.null(f) || !all(c("value", "count") %in% names(f))) return(.lcz_na_row(city))
+  f$value <- round(as.numeric(f$value))
+  # 0 is the nodata fill outside the FUA mask, not an LCZ class.
+  f <- f[!is.na(f$value) & f$value > 0 & is.finite(f$count), , drop = FALSE]
+  tot <- sum(f$count)
+  if (!nrow(f) || tot <= 0) return(.lcz_na_row(city))
+  n_of <- function(cls) sum(f$count[f$value %in% cls])
+  built <- n_of(LCZ_BUILT)
+  pc <- function(num, den) if (den > 0) round(100 * num / den, 1) else NA_real_
+  # Effective number of LCZ classes (exp of Shannon entropy): 1 = monoculture,
+  # higher = a more mixed fabric. Preferred over bare entropy because it reads
+  # on the same scale as "how many classes does this city really have".
+  p_i <- f$count / tot
+  data.frame(
+    city                = city,
+    lcz_compact_pct     = pc(n_of(LCZ_COMPACT), built),
+    lcz_open_pct        = pc(n_of(LCZ_OPEN),    built),
+    lcz_other_built_pct = pc(n_of(LCZ_OTHER),   built),
+    lcz_built_pct       = pc(built, tot),
+    lcz_diversity       = round(exp(-sum(p_i * log(p_i))), 2),
+    lcz_cells           = tot,
+    stringsAsFactors = FALSE)
+}
+
+# Same cache-and-top-up pattern as the heat metrics: reading 40 rasters is the
+# slow part of the metadata build, and it never changes for a completed city.
+load_or_compute_lcz <- function(cities, force = FALSE) {
+  cache <- if (!force && file.exists(LCZ_CACHE))
+    suppressWarnings(readr::read_csv(LCZ_CACHE, show_col_types = FALSE)) else NULL
+  have <- if (!is.null(cache)) cache$city else character(0)
+  todo <- setdiff(cities, have)
+  if (length(todo)) {
+    message(sprintf("Computing LCZ composition for: %s", paste(todo, collapse = ", ")))
+    new <- dplyr::bind_rows(lapply(todo, lcz_composition))
+    cache <- dplyr::bind_rows(cache, new)
+    readr::write_csv(cache, LCZ_CACHE)
+  }
+  if (is.null(cache)) return(dplyr::bind_rows(lapply(cities, .lcz_na_row)))
+  cache[cache$city %in% cities, , drop = FALSE]
+}
+
 # ---- clustering + labelling -------------------------------------------------
 assign_clusters <- function(df, k = N_CLUSTERS) {
   # A city missing either metric cannot be clustered; set it aside and rejoin
@@ -220,7 +303,7 @@ assign_clusters <- function(df, k = N_CLUSTERS) {
   df
 }
 
-build_city_meta <- function(force_heat = FALSE) {
+build_city_meta <- function(force_heat = FALSE, force_lcz = FALSE) {
   banner("City metadata: climate metrics + clusters")
   cities <- discover_cities(require_tables = FALSE)
   cities <- cities[vapply(cities, has_hazard_source, logical(1))]
@@ -243,6 +326,10 @@ build_city_meta <- function(force_heat = FALSE) {
 
   meta$coef_lst_coverage_pct <- vapply(meta$city, coef_lst_coverage, numeric(1))
 
+  # Morphology descriptors (external annotations for the policy archetypes).
+  meta <- merge(meta, load_or_compute_lcz(cities, force = force_lcz),
+                by = "city", all.x = TRUE)
+
   meta <- assign_clusters(meta)
   meta$city_label <- city_label(meta$city)
   meta <- meta[order(meta$warmseason_mean_t2m), ]
@@ -256,7 +343,8 @@ build_city_meta <- function(force_heat = FALSE) {
     length(low), paste(low, collapse = ", ")))
   print(meta[, c("city_label", "country", "pop_k", "pop_source",
                  "warmseason_mean_t2m", "hot_days", "climate_cluster",
-                 "is_exemplar", "coef_lst_coverage_pct")],
+                 "is_exemplar", "coef_lst_coverage_pct",
+                 "lcz_compact_pct", "lcz_built_pct", "lcz_diversity")],
         row.names = FALSE)
   invisible(meta)
 }
