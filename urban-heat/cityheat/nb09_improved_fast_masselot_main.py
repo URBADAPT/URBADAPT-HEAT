@@ -396,7 +396,7 @@ def run_nb09_improved_fast(
     sub-run, and ``*_unc_dir`` entries for the output directories.
     """
     slug = (city or os.environ.get("CITY") or "rome").strip().lower()
-    n_use = int(n if n is not None else os.environ.get("NB09_N", 512))
+    n_use = int(n if n is not None else os.environ.get("NB09_N", 128))
     seed_use = int(seed if seed is not None else os.environ.get("NB09_SEED", _base.SEED_DEFAULT))
     make_figures_env = os.environ.get("NB09_MAKE_FIGURES", "0").strip().lower() in {"1", "true", "yes", "y"}
     make_figures_use = make_figures_env if make_figures is None else bool(make_figures)
@@ -453,7 +453,7 @@ def run_nb09_improved_fast(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Masselot-main improved-fast March2026 NB09 uncertainty workflow.")
     parser.add_argument("--city", default=os.environ.get("CITY", "rome"), help="City slug")
-    parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 512)), help="Latin hypercube sample size")
+    parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 128)), help="Latin hypercube sample size")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("NB09_SEED", _base.SEED_DEFAULT)), help="Sampling seed")
     parser.add_argument("--figures-only", action="store_true", help="Regenerate saved figures from existing outputs")
     parser.add_argument("--make-figures", action="store_true", help="Generate figures during the uncertainty run")

@@ -12,6 +12,8 @@
 #
 # First (clean) submission:  FRESH=1 bsub < scripts/juno_run_nb09.sh
 # Resume after a timeout:            bsub < scripts/juno_run_nb09.sh   (no FRESH)
+# Production default: N=128. Override explicitly, for example NB09_N=64,
+# only for a named comparison run whose outputs are kept separately.
 # =============================================================================
 
 #### -------------------- LSF resource request --------------------------------
@@ -64,9 +66,11 @@ python -m ipykernel install --user --name urbanheat --display-name urbanheat
 export URBAN_HEAT_KERNEL="urbanheat"
 
 #### 5) sanity check + the run (all 40 cities, one at a time, resumable)
-# Per-cell (nbconvert) timeout. NB09 at N=512 exceeds the 2h default on large cities,
-# so raise it well under the 24h walltime. To trade UQ resolution for speed on the
-# serial queue, lower N:  NB09_N=256 (or 128) FRESH=1 bsub < scripts/juno_run_nb09.sh
+# Per-cell (nbconvert) timeout. Keep an explicit launcher-level default so the
+# submitted job, notebook, and Python runners all use the manuscript's N=128
+# design without relying on an inherited shell variable.
+export NB09_N="${NB09_N:-128}"
+echo "NB09 LHS sample size: ${NB09_N}"
 NB09_TIMEOUT="${NB09_TIMEOUT:-72000}"   # 20h per city; a slower city just gets resumed
 python scripts/run_agnostic_batch.py --notebooks 09 --skip-completed --workers "${WORKERS}" --timeout "${NB09_TIMEOUT}" --dry-run
 python scripts/run_agnostic_batch.py --notebooks 09 --skip-completed --workers "${WORKERS}" --timeout "${NB09_TIMEOUT}"
