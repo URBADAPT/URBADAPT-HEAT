@@ -94,12 +94,14 @@ def run_nb(city: str, nn: str, timeout: int) -> tuple[bool, str]:
     return False, first_error(out) or (r.stderr or "").strip()[-300:]
 
 
-def write_summary(summary: list[dict]) -> None:
+def write_summary(summary: list[dict], requested_notebooks: list[str]) -> None:
+    final_nb = requested_notebooks[-1]
+    run_label = f"NB{requested_notebooks[0]}--{final_nb}" if len(requested_notebooks) > 1 else f"NB{final_nb}"
     (RUNS / "summary.json").write_text(json.dumps(summary, indent=2))
     lines = ["# Agnostic batch run summary", "", f"_updated {dt.datetime.now().isoformat(timespec='seconds')}_", "",
              "| city | reached | status | failing NB | error |", "|---|---|---|---|---|"]
     for s in summary:
-        status = "DONE (01-08)" if s["failed_nb"] is None and s["last_ok"] == ALL_NB[-1] else (
+        status = f"DONE ({run_label})" if s["failed_nb"] is None and s["last_ok"] == final_nb else (
             "partial" if s["failed_nb"] else "in-progress")
         lines.append(f"| {s['city']} | {s['last_ok'] or '-'} | {status} | {s['failed_nb'] or '-'} | {s['error'][:120].replace('|','/')} |")
     (RUNS / "summary.md").write_text("\n".join(lines) + "\n")
@@ -160,9 +162,13 @@ def main() -> int:
     def record(st: dict) -> None:
         with lock:
             summary.append(st)
-            write_summary(summary)
+            write_summary(summary, args.notebooks)
             done = sum(1 for s in summary if s["failed_nb"] is None)
-            print(f"  === {len(summary)}/{len(todo)} cities finished ({done} full 01-08) ===", flush=True)
+            print(
+                f"  === {len(summary)}/{len(todo)} cities finished "
+                f"({done} reached NB{args.notebooks[-1]}) ===",
+                flush=True,
+            )
 
     def safe_run(city: str) -> dict:
         # Belt-and-suspenders: even an unexpected crash in one city must not stop the batch.
