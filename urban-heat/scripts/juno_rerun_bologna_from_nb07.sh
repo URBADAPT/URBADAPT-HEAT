@@ -61,7 +61,14 @@ micromamba activate urbanheat
 
 python -c 'import csv,sys; p=sys.argv[1]; rows=list(csv.DictReader(open(p, newline=""))); b=[r for r in rows if r["city"]=="Bologna"]; assert len(rows)==4017 and len(b)==36 and len({(r["city"],r["lcz"],r["month"]) for r in rows})==4017, "coefficient-table structural check failed"; print(f"OK: {len(rows)} rows, {len(b)} Bologna rows, all keys unique")' "$COEFF"
 
-python -m ipykernel install --user --name urbanheat --display-name urbanheat
+# Reuse the shared user kernelspec when it already exists. Concurrent jobs that
+# both run ``ipykernel install --user`` can race while replacing kernel.json.
+if jupyter kernelspec list --json \
+  | python -c 'import json,sys; sys.exit(0 if "urbanheat" in json.load(sys.stdin).get("kernelspecs", {}) else 1)'; then
+  echo "Reusing existing Jupyter kernel: urbanheat"
+else
+  python -m ipykernel install --user --name urbanheat --display-name urbanheat
+fi
 export URBAN_HEAT_KERNEL="urbanheat"
 export NB09_N="$SAMPLE_SIZE"
 
