@@ -1,8 +1,9 @@
 # =============================================================================
 # build_all.R  --  render every Nature Cities visual item
 # Usage (run under PowerShell -- ncdf4 segfaults under Git Bash Rscript here):
-#   $env:NATCITIES_OUTPUTS_BASE = "<path to the 40-city results tree>"
 #   Rscript build_all.R
+# The input tree defaults to the current cluster run in the Drive juno_pull sync
+# (see _helpers.R); override with $env:NATCITIES_OUTPUTS_BASE to render another.
 #
 # Order: metadata (climate metrics + clusters) -> outcome-based policy archetypes
 # -> main figures -> SI figures -> big city tables. Auto-discovers cities;
@@ -33,6 +34,7 @@ banner(sprintf("Cities with results (%d): %s", length(cities),
 
 # 2. Figures + tables
 SCRIPTS <- c("fig1_risk_costs_portfolios.R",
+             "fig1b_outcome_profiles.R",
              "fig2_distribution.R",
              "fig3_synergies.R", "fig4_city_maps.R",
              "si1_sensitivity.R", "si2_if_comparison.R", "si3_ews.R",
@@ -43,6 +45,7 @@ for (s in SCRIPTS) source(file.path(.d, s))
 
 steps <- list(
   fig1 = function() build_fig1(cities),
+  fig1b = function() build_fig1b(cities),
   fig2 = function() build_fig2(cities),
   fig3 = function() build_fig3(cities),
   fig4 = function() build_fig4_maps(),
@@ -64,6 +67,8 @@ for (nm in names(steps)) {
                                                conditionMessage(e)); FALSE })
   if (!ok) failed <- c(failed, nm)
 }
+
+aux_report()
 
 banner(if (length(failed))
          sprintf("Done with %d failure(s): %s", length(failed),

@@ -145,7 +145,8 @@ build_fig2 <- function(cities = discover_cities()) {
            x = "Lives saved given up by targeting (% of uniform)",
            y = "Benefit shifted to most\nvulnerable quintiles (pp)") +
       theme_natcities()
-  } else patchwork::plot_spacer()
+  } else blank_panel("b", paste("no city has deaths_by_vulnerability_quintile_",
+                                "popweighted_<city>.csv (interim/)", sep = ""))
 
   # --- (c) greening progressivity slope --------------------------------------
   slopes <- gather_cities(cities, function(c) {

@@ -25,12 +25,17 @@ esc <- function(x) {
 
 FIGURES <- list(
   list(sec = "Main figures", name = "fig1_risk_costs_portfolios", slot = "fig:result1",
-       title = "Risk, policy archetypes and public-private portfolios",
-       cap = "Baseline heat mortality across the climate gradient; the standardised
-              policy-outcome profiles behind the outcome-based city archetypes, with
-              climate class and LCZ composition as external annotations; cost per avoided
-              death by pathway and archetype; and the composition of the
-              benefit-maximising portfolio as the per-capita budget rises."),
+       title = "Risk, cost-effectiveness and public-private portfolios",
+       cap = "Baseline heat mortality across the climate gradient; cost per avoided
+              death by pathway and climate class; the budget-constrained efficiency
+              frontier per capita; and the composition of the benefit-maximising
+              portfolio as the per-capita budget rises."),
+  list(sec = "Main figures", name = "fig1b_outcome_profiles", slot = "fig:result1b",
+       title = "Cross-city adaptation outcome profiles",
+       cap = "Standardised policy-outcome profiles, one row per city ordered by
+              descending baseline mortality, with climate class as an adjacent strip.
+              Oriented so red is always the less favourable direction; crossed cells
+              are not measurements. Was panel b of fig:result1."),
   list(sec = "Main figures", name = "fig2_distribution", slot = "fig:result2",
        title = "Who pays, and who benefits",
        cap = "Public versus private cost per capita by lever; the equity-efficiency

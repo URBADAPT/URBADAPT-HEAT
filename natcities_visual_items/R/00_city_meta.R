@@ -68,14 +68,10 @@ find_hazard_events_csv <- function(city) {
 }
 
 find_hazard_nc <- function(city) {
-  hd <- file.path(OUTPUTS_BASE, city, "hazard")
-  if (!dir.exists(hd)) return(NA_character_)
   # Prefer the run-tagged central file; fall back to the legacy plain name.
   cand <- c(
-    list.files(hd, pattern = "T2M_daily_mean_2020_FUA_degC__.*central\\.nc$",
-               full.names = TRUE),
-    list.files(hd, pattern = "^T2M_daily_mean_2020_FUA_degC\\.nc$",
-               full.names = TRUE))
+    city_files(city, "T2M_daily_mean_2020_FUA_degC__.*central\\.nc$", where = "hazard"),
+    city_files(city, "^T2M_daily_mean_2020_FUA_degC\\.nc$", where = "hazard"))
   if (length(cand)) cand[1] else NA_character_
 }
 

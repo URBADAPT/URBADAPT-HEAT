@@ -39,13 +39,62 @@ find_repo_root <- function(start = getwd()) {
 
 REPO_ROOT   <- find_repo_root()
 VARIANT     <- Sys.getenv("NATCITIES_VARIANT", "masselot_main_agnostic")
-# The results tree can live outside the repo (e.g. the Drive `juno_pull` sync of
-# the cluster runs). NATCITIES_OUTPUTS_BASE points at it directly and wins over
-# the in-repo default; VARIANT still applies to the in-repo layout.
+
+# The results tree lives outside the repo, in the Drive `juno_pull` sync of the
+# cluster runs. As of 2026-09-07 the current run is `n128_results` (n=128
+# uncertainty draws); it supersedes the `outputs_variants/masselot_main_agnostic`
+# tree, which Drive now keeps as `outputs_variants_pre_fix_aug7/`.
+# Resolution order: NATCITIES_OUTPUTS_BASE -> the Drive default -> in-repo tree.
+JUNO_PULL <- "G:/Il mio Drive/adaptation_infrastructure_database/juno_pull"
+DEFAULT_OUTPUTS_BASE <- file.path(JUNO_PULL, "n128_results")
 OUTPUTS_BASE <- {
   ob <- Sys.getenv("NATCITIES_OUTPUTS_BASE", "")
-  if (nzchar(ob)) ob else file.path(REPO_ROOT, "urban-heat", "outputs_variants", VARIANT)
+  if (nzchar(ob)) ob
+  else if (dir.exists(DEFAULT_OUTPUTS_BASE)) DEFAULT_OUTPUTS_BASE
+  else file.path(REPO_ROOT, "urban-heat", "outputs_variants", VARIANT)
 }
+
+# ---- Auxiliary tree: the interim companion of the same run -------------------
+# `n128_results` is a slimmed export: tables/, figures/, emulator/ and
+# lcz_masked_fua.tif, but no interim/ or hazard/. Six inputs read from those two
+# (baseline daily T2M, the LCZ->cooling coefficient bridge, district geometry,
+# the vulnerability-quintile deaths, the greening-ambition sensitivity, and the
+# per-IF-family baseline deaths), so they resolve against an auxiliary tree,
+# laid out as <city>/interim/<file>, when absent from the primary one.
+#
+# AUX_BASE must be the interim companion of *the same run* as OUTPUTS_BASE.
+# `n128_interim_for_figures` is exactly that, so model outputs can cross over
+# freely. Pointed at a different run it would produce figures that silently mix
+# runs -- internally inconsistent and undetectable downstream -- so the resolved
+# path is announced up front, every borrowed file is listed by aux_report(), and
+# a city-set mismatch against the primary tree is flagged as a warning.
+AUX_BASE <- {
+  ab <- Sys.getenv("NATCITIES_AUX_BASE", "")
+  if (nzchar(ab)) ab else file.path(JUNO_PULL, "n128_interim_for_figures")
+}
+
+.AUX_USED <- new.env(parent = emptyenv())
+
+# Path in the auxiliary tree, or NA if it is unusable or absent.
+.aux_path <- function(city, parts, where) {
+  if (!length(parts)) return(NA_character_)
+  if (!nzchar(AUX_BASE) || !dir.exists(AUX_BASE)) return(NA_character_)
+  p <- do.call(file.path, c(list(AUX_BASE, city, where), as.list(parts)))
+  if (!file.exists(p)) return(NA_character_)
+  assign(parts[[length(parts)]], TRUE, envir = .AUX_USED)
+  p
+}
+
+# Report, once per build, how many inputs came from the auxiliary tree. The file
+# list is long and uninformative once it is the expected 6-per-city, so print the
+# per-pattern tally instead and only name outright gaps.
+aux_report <- function() {
+  k <- ls(.AUX_USED)
+  if (!length(k)) return(invisible(NULL))
+  message(sprintf("[inputs] %d input(s) resolved from the interim companion tree\n[inputs]   %s",
+                  length(k), AUX_BASE))
+}
+
 VIS_ROOT    <- file.path(REPO_ROOT, "natcities_visual_items")
 # Output dirs are env-overridable so an alternative run (e.g. a sensitivity
 # variant) can write elsewhere without clobbering the main figures/tables.
@@ -54,15 +103,43 @@ TAB_DIR     <- Sys.getenv("NATCITIES_TAB_DIR", file.path(VIS_ROOT, "tables"))
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(TAB_DIR, showWarnings = FALSE, recursive = TRUE)
 
-# State the resolved input tree up front: the in-repo default still holds a stale
-# 2-city run, so a forgotten NATCITIES_OUTPUTS_BASE would silently render the
-# wrong paper. Printing the path + city count makes that impossible to miss.
+# State the resolved input tree up front. Several stale trees are reachable (the
+# in-repo 2-city run, the pre-fix Drive export), so a wrong resolution would
+# silently render the wrong paper. Printing the path + city count makes that
+# impossible to miss.
 .announce_source <- function() {
   n <- length(discover_cities(require_tables = TRUE))
   message(sprintf("[inputs] %s\n[inputs] %d city(ies) with results%s",
                   OUTPUTS_BASE, n,
                   if (nzchar(Sys.getenv("NATCITIES_OUTPUTS_BASE")))
-                    "  (via NATCITIES_OUTPUTS_BASE)" else "  (in-repo default)"))
+                    "  (via NATCITIES_OUTPUTS_BASE)"
+                  else if (identical(OUTPUTS_BASE, DEFAULT_OUTPUTS_BASE))
+                    "  (Drive juno_pull default)" else "  (in-repo default)"))
+  # Flag the slimmed export explicitly: the absence of interim/ decides which
+  # panels can be built at all, so it must not read as a per-city data gap.
+  cs <- discover_cities(require_tables = TRUE)
+  if (length(cs) && !any(dir.exists(file.path(OUTPUTS_BASE, cs, "interim")))) {
+    if (!dir.exists(AUX_BASE)) {
+      message("[inputs] this export has no interim/; dependent panels will skip",
+              " (no companion tree)")
+    } else {
+      message(sprintf("[inputs] no interim/ here; resolved from the companion tree\n[inputs]   %s",
+                      AUX_BASE))
+      # A city present in one tree but not the other means the two are not the
+      # same run, or one of them is a partial pull. Either way the figures would
+      # quietly rest on two different runs, so say so.
+      ac <- list.dirs(AUX_BASE, full.names = FALSE, recursive = FALSE)
+      ac <- ac[ac != "" & !grepl(DRIVE_CONFLICT_RE, ac)]
+      only_p <- setdiff(cs, ac)
+      only_a <- setdiff(ac, cs)
+      if (length(only_p))
+        message(sprintf("[inputs] [warn] %d city(ies) have no interim companion: %s",
+                        length(only_p), paste(only_p, collapse = ", ")))
+      if (length(only_a))
+        message(sprintf("[inputs] [note] %d interim folder(s) with no results: %s",
+                        length(only_a), paste(only_a, collapse = ", ")))
+    }
+  }
 }
 
 # ---- City discovery ---------------------------------------------------------
@@ -111,7 +188,36 @@ city_path <- function(city, ..., where = c("tables", "root", "figures", "interim
                  interim = file.path(OUTPUTS_BASE, city, "interim"),
                  hazard  = file.path(OUTPUTS_BASE, city, "hazard"),
                  root    = file.path(OUTPUTS_BASE, city))
-  file.path(base, ...)
+  parts <- list(...)
+  p <- do.call(file.path, c(list(base), parts))
+  # interim/ and hazard/ are absent from the current slimmed export; fall back to
+  # the auxiliary tree for the allow-listed run-invariant inputs only.
+  if (where %in% c("interim", "hazard") && !file.exists(p)) {
+    a <- .aux_path(city, parts, where)
+    if (!is.na(a)) return(a)
+  }
+  p
+}
+
+# List inputs matching `pattern` in a city's interim/ or hazard/ folder, in the
+# primary tree and then the auxiliary one. Pattern-based discovery is needed
+# where the filename is country-specific (the district geometry is named
+# circoscrizione / kerulet / stadsdeel / ... per city).
+city_files <- function(city, pattern, where = "interim") {
+  f <- character(0)
+  d <- file.path(OUTPUTS_BASE, city, where)
+  if (dir.exists(d)) f <- list.files(d, pattern = pattern, full.names = TRUE)
+  if (!length(f) && nzchar(AUX_BASE)) {
+    da <- file.path(AUX_BASE, city, where)
+    if (dir.exists(da)) {
+      cand <- list.files(da, pattern = pattern, full.names = TRUE)
+      if (length(cand)) {
+        for (b in basename(cand)) assign(b, TRUE, envir = .AUX_USED)
+        f <- cand
+      }
+    }
+  }
+  f
 }
 
 read_city_csv <- function(city, file, where = "tables", quiet = FALSE) {
@@ -426,3 +532,41 @@ save_table <- function(df, name, caption = NULL, label = NULL,
 }
 
 banner <- function(x) message("\n=== ", x, " ===")
+
+# Pick the rows a reader would ask about: the n_high largest and n_low smallest
+# values of `col`. Labelling all 40 cities in a panel this size is unreadable,
+# but labelling only the top of the range hides the other tail, which in these
+# figures is usually the more surprising end. Non-finite values are dropped, and
+# the result is deduplicated on `city` so a city that is extreme on two criteria
+# is not labelled twice.
+standouts <- function(d, col, n_high = 3, n_low = 2) {
+  if (is.null(d) || !nrow(d) || !col %in% names(d)) return(d[0, , drop = FALSE])
+  x <- suppressWarnings(as.numeric(d[[col]]))
+  d <- d[is.finite(x), , drop = FALSE]
+  x <- x[is.finite(x)]
+  if (!nrow(d)) return(d)
+  i <- c(order(-x)[seq_len(min(n_high, length(x)))],
+         order(x)[seq_len(min(n_low, length(x)))])
+  out <- d[unique(i), , drop = FALSE]
+  if ("city" %in% names(out)) out <- out[!duplicated(out$city), , drop = FALSE]
+  out
+}
+
+# Shared label geom for the cross-city scatters. max.overlaps = Inf matters:
+# ggrepel silently DROPS labels past the default of 10, so a panel would quietly
+# lose the very cities it was meant to name.
+repel_city <- function(data, size = 2.7) {
+  ggrepel::geom_text_repel(data = data, aes(label = city_label), size = size,
+                           color = "grey25", seed = 1, min.segment.length = 0,
+                           box.padding = 0.35, point.padding = 0.2,
+                           segment.color = "grey60", segment.size = 0.25,
+                           max.overlaps = Inf, show.legend = FALSE)
+}
+
+# A panel with no usable input becomes an empty slot in the composite figure.
+# Left silent that reads as a layout choice, so say out loud which panel went
+# missing and why -- a dropped panel is a result the caption must not claim.
+blank_panel <- function(tag, why) {
+  message(sprintf("  [warn] panel %s left blank: %s", tag, why))
+  patchwork::plot_spacer()
+}

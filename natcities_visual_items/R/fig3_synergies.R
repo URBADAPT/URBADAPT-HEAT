@@ -12,8 +12,10 @@
 #       deaths avoided by the whole greening programme. Above the 1:1 line the
 #       private lever adds more heat mortality than the public one removes.
 #
+# Every panel labels the cities that stand out, chosen by an explicit rule per
+# panel (see the comment at each) and drawn with the shared repel_city() geom.
+#
 # Sources: <city>_cba_summary.json (benefits.ac.*, benefits.trees.*,
-# vegetation_feedbacks.lambda_y_waste_heat.*).
 # vegetation_feedbacks.lambda_y_waste_heat.*).
 # =============================================================================
 
@@ -50,13 +52,19 @@ build_fig3 <- function(cities = discover_cities()) {
       lab <- sprintf("+%.1f pp per °C  (R² = %.2f)",
                      coef(m)[2], summary(m)$r.squared)
     }
-    top <- a_dat[order(-a_dat$penalty_pct), ][1:3, ]
+    # Two things "stand out" on a fitted scatter and they are not the same: the
+    # extremes of the quantity itself, and the cities the trend fails to explain.
+    # Label both, so the panel names the worst-affected cities and the ones that
+    # sit furthest off the temperature relationship it is asserting.
+    a_dat$resid <- if (nrow(a_dat) >= 3) resid(m) else NA_real_
+    top <- rbind(standouts(a_dat, "penalty_pct", 3, 1),
+                 standouts(a_dat, "resid", 1, 1))
+    top <- top[!duplicated(top$city), , drop = FALSE]
     ggplot(a_dat, aes(warmseason_mean_t2m, penalty_pct)) +
       geom_smooth(method = "lm", formula = y ~ x, se = TRUE,
                   color = "grey45", fill = "grey85", linewidth = 0.7) +
       geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
-      ggrepel::geom_text_repel(data = top, aes(label = city_label), size = 2.8,
-                               color = "grey25", seed = 1, min.segment.length = 0) +
+      repel_city(top) +
       scale_size_continuous(range = c(1.6, 6), guide = "none") +
       cluster_scale() +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
@@ -70,9 +78,24 @@ build_fig3 <- function(cities = discover_cities()) {
   b_dat <- syn[is.finite(syn$penalty_removed_pct), , drop = FALSE]
   pb <- if (nrow(b_dat)) {
     med <- median(b_dat$penalty_removed_pct, na.rm = TRUE)
+    # This panel carried no labels at all, so the reader could see that greening
+    # cancels almost none of the penalty but not where the exceptions are. Both
+    # tails are worth naming: the few cities where greening does meaningful work,
+    # and those where it does essentially none.
+    #
+    # Draw from the same restricted pool as panel c. A city with no usable
+    # cooling coefficients cancels ~0% of the penalty by construction, so
+    # labelling the low tail unfiltered names Madrid (0% coverage) and Sevilla
+    # (8.6%) as the places greening fails -- which reports the gap in the
+    # coefficient bridge as a finding about those cities. The points stay; only
+    # the naming is restricted.
+    b_pool <- b_dat[!is.na(b_dat$coef_lst_coverage_pct) &
+                    b_dat$coef_lst_coverage_pct >= COEF_MIN_PCT, , drop = FALSE]
+    top <- standouts(b_pool, "penalty_removed_pct", 3, 2)
     ggplot(b_dat, aes(warmseason_mean_t2m, penalty_removed_pct)) +
       geom_hline(yintercept = med, linetype = 2, color = "grey55") +
       geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
+      repel_city(top) +
       scale_size_continuous(range = c(1.6, 6), guide = "none") +
       cluster_scale() +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
@@ -112,13 +135,16 @@ build_fig3 <- function(cities = discover_cities()) {
     # Copenhagen's ratio of 1.7 is 1.1 deaths against 0.6 and would otherwise
     # be headlined alongside Athens' 369 against 83.
     lab_pool <- wc[wc$ac_penalty >= 5, , drop = FALSE]
-    top <- lab_pool[order(-lab_pool$ac_penalty / lab_pool$trees_alone), ][
-      seq_len(min(4, nrow(lab_pool))), ]
+    # Distance from the 1:1 line in log space, so BOTH tails get named. Ranking
+    # on the raw ratio, as this did before, only ever surfaces cities above the
+    # line; the ones where the greening programme comfortably outweighs the
+    # waste heat are equally worth pointing at.
+    lab_pool$log_ratio <- log10(lab_pool$ac_penalty / lab_pool$trees_alone)
+    top <- standouts(lab_pool, "log_ratio", 3, 2)
     ggplot(wc, aes(trees_alone, ac_penalty)) +
       geom_abline(slope = 1, intercept = 0, linetype = 2, color = "grey60") +
       geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
-      ggrepel::geom_text_repel(data = top, aes(label = city_label), size = 2.8,
-                               color = "grey25", seed = 1, min.segment.length = 0) +
+      repel_city(top) +
       scale_size_continuous(range = c(1.6, 6), guide = "none") +
       cluster_scale() +
       scale_x_log10(labels = scales::label_number(accuracy = 0.1, drop0trailing = TRUE)) +
@@ -132,15 +158,16 @@ build_fig3 <- function(cities = discover_cities()) {
 
   # Caption numbers (panel titles/subtitles removed -- Nature style), printed
   # so a rebuild reveals any drift against the LaTeX caption.
-  if ("penalty_removed_pct" %in% names(syn))
-  # Caption numbers (panel titles/subtitles removed -- Nature style), printed
-  # so a rebuild reveals any drift against the LaTeX caption.
-  if (exists("c_dat") && nrow(c_dat)) {
+  # The waste-heat regression is no longer annotated on panel a, so its
+  # coefficients are logged here instead -- the caption still quotes them. This
+  # used to sit inside the panel-c block, so panel a's fit went unreported
+  # whenever panel c had no data, and `lab` is undefined when panel a is empty.
+  if (exists("lab") && nzchar(lab))
+    message(sprintf("  [caption] panel a fit: %s", lab))
+
+  if (nrow(c_dat)) {
     wc <- c_dat[c_dat$coef_lst_coverage_pct >= COEF_MIN_PCT &
                 !is.na(c_dat$coef_lst_coverage_pct), , drop = FALSE]
-  # The waste-heat regression is no longer annotated on panel a, so its
-  # coefficients are logged here instead -- the caption still quotes them.
-  if (nzchar(lab)) message(sprintf("  [caption] panel a fit: %s", lab))
     message(sprintf(paste0("  [caption] penalty cancelled by greening: median ",
                            "%.1f%%; AC waste heat outweighs the whole greening ",
                            "programme in %d of %d cities with usable greening ",

@@ -6,18 +6,18 @@
 #
 #   (a) Baseline annual heat mortality per 100k vs warm-season mean T2M.
 #       Point size = population, colour = descriptive climate class.
-#   (b) Standardised policy-outcome profiles, one row per city ordered by
-#       descending baseline mortality, with climate class as an adjacent strip.
-#       Oriented so that red is always the less favourable direction, blank where
-#       a value is not a measurement. No city typology is imposed: see the note
-#       in the body and the SI table tab_city_characteristics for the per-city
-#       descriptors.
-#   (c) Present-value cost per avoided death by pathway and climate class,
+#   (b) Present-value cost per avoided death by pathway and climate class,
 #       with the group medians annotated.
-#   (d) Budget-constrained efficiency frontier, normalised per capita.
-#   (e) Share of each lever deployed by the benefit-maximising portfolio as
+#   (c) Budget-constrained efficiency frontier, with both axes indexed to the
+#       grid's smallest budget point so the shape of the returns is visible.
+#   (d) Share of each lever deployed by the benefit-maximising portfolio as
 #       available present-value budget per capita rises. AC is net of the
 #       modelled waste-heat feedback throughout.
+#
+# The standardised outcome-profile heatmap that was panel b is now a figure of
+# its own, fig1b_outcome_profiles.R -- 40 city rows by 15 columns had outgrown a
+# panel slot. Panels c/d/e were retagged b/c/d to keep the sequence contiguous,
+# so caption references to the old letters need updating.
 #
 # Absorbs the whole of the former fig3_costeffectiveness, which overlapped it
 # almost entirely: fig3a is panel c (now stratified by climate class rather than
@@ -25,7 +25,7 @@
 # deployment panel. fig3_costeffectiveness.R is therefore retired.
 #
 # fig1_risk_effectiveness, whose panel a was this panel a and whose pathway
-# boxes duplicated columns of panel b, has been deleted.
+# boxes duplicated columns of the outcome-profile heatmap, has been deleted.
 # =============================================================================
 
 .d <- {
@@ -34,8 +34,9 @@
   if (length(.f)) dirname(normalizePath(.f)) else getwd()
 }
 if (!exists("REPO_ROOT")) source(file.path(.d, "_helpers.R"))
-# PROFILE_FEATURES / PROFILE_ANNOT / load_city_profiles() live in 01_city_profiles.R. Source
-# it for the definitions only -- never let it rebuild the clustering from here.
+# load_city_profiles() lives in 01_city_profiles.R (it supplies mort_100k and the
+# climate class for panel a). Source it for the definitions only -- never let it
+# rebuild the clustering from here.
 if (!exists("PROFILE_FEATURES")) {
   .had_norun <- exists(".NATCITIES_NORUN")
   .NATCITIES_NORUN <- TRUE
@@ -43,40 +44,13 @@ if (!exists("PROFILE_FEATURES")) {
   if (!.had_norun) rm(.NATCITIES_NORUN)
 }
 
-# Diverging fill for the z-score heatmap, clipped so a single extreme city does
-# not flatten the other 39 to indistinguishable white.
-Z_LIMITS <- c(-2.5, 2.5)
-
-# Frontier (panel d) y scale. Avoided deaths per 100k run from Dublin's ~0.6
-# to Athens' ~400, so a natural scale is one city plus 39 near-flat lines on
-# the floor; a log scale separates all 40 but flattens the diminishing-returns
-# curvature. Set FALSE to compare.
-FRONTIER_LOG_Y <- TRUE
-
-# Rank-percentile within a column: puts four descriptors on very different units
-# (%, %, %, effective class count) on one shared 0-1 grey scale.
-.pctile <- function(x) {
-  ok <- is.finite(x)
-  out <- rep(NA_real_, length(x))
-  if (sum(ok) > 1) out[ok] <- (rank(x[ok]) - 0.5) / sum(ok)
-  else if (sum(ok) == 1) out[ok] <- 0.5
-  out
-}
-
 build_fig1 <- function(cities = discover_cities()) {
-  banner("Main Fig 1: risk, outcome profiles and portfolios")
+  banner("Main Fig 1: risk, cost-effectiveness and portfolios")
   arch <- load_city_profiles()
   if (is.null(arch) || !nrow(arch)) {
     message("No city outcome profiles -- run 01_city_profiles.R first."); return(invisible(NULL)) }
 
-  # One row per city, ordered by descending baseline mortality. No archetype
-  # grouping: across four candidate variable sets the best mean silhouette was
-  # 0.32, and the sets that broke free of the climate gradient were instead led
-  # by greening-coefficient coverage, so no partition was defensible enough to
-  # organise the panel by. The heatmap stands on its own as the cross-city
-  # outcome profile.
   arch <- arch[order(-arch$mort_100k), , drop = FALSE]
-  arch$city_f <- factor(arch$city_label, levels = rev(arch$city_label))
 
   # --- (a) baseline risk across the climate gradient -------------------------
   fit <- arch[is.finite(arch$mort_100k) & arch$mort_100k > 0 &
@@ -104,93 +78,18 @@ build_fig1 <- function(cities = discover_cities()) {
     #          color = "grey25", label = lab) +
     labs(tag = "a", x = "Warm-season mean T2M (°C)",
          y = "Heat deaths / 100k / yr (log)") +
-    theme_natcities()
-
-  # --- (b) standardised outcome profiles + external annotations --------------
-  zcols <- paste0("z_", PROFILE_FEATURES$key)
-  zcols <- zcols[zcols %in% names(arch)]
-  zl <- tidyr::pivot_longer(arch[, c("city_label", zcols)],
-                            dplyr::all_of(zcols),
-                            names_to = "key", values_to = "z")
-  zl$key <- sub("^z_", "", zl$key)
-  zl <- dplyr::left_join(
-    zl, PROFILE_FEATURES[, c("key", "label", "group", "log", "worse_high")],
-    by = "key")
-
-  # Blank the cells that are not measurements. A cost per death is undefined
-  # where the pathway avoids essentially no deaths (Madrid and Sevilla
-  # greening); profile_matrix() censors those at the sample maximum so kmeans
-  # could run, and the raw column is NA wherever that happened. Drawing the
-  # imputed value as an ordinary dark cell would present a fabricated number as
-  # data, so those tiles are left empty.
-  raw <- tidyr::pivot_longer(arch[, c("city_label", PROFILE_FEATURES$key)],
-                             dplyr::all_of(PROFILE_FEATURES$key),
-                             names_to = "key", values_to = "raw")
-  zl <- dplyr::left_join(zl, raw, by = c("city_label", "key"))
-  n_blank <- sum(!is.finite(zl$raw))
-  zl$z[!is.finite(zl$raw)] <- NA_real_
-
-  # One convention for the whole panel: red = less favourable. Cost, risk and
-  # burden variables already run that way; the benefit variables (% reduction,
-  # avoided deaths) are sign-flipped so that a bigger benefit reads blue rather
-  # than red. Without this the same colour means opposite things column to
-  # column, which is worse than no colour coding at all.
-  zl$z <- ifelse(zl$worse_high, zl$z, -zl$z)
-
-  zl$city_f <- factor(zl$city_label, levels = levels(arch$city_f))
-  zl$group <- factor(zl$group, levels = PROFILE_GROUP_LEVELS)
-  # Variables share short labels across groups ("Trees" appears four times), so
-  # order the x axis by the PROFILE_FEATURES row order within each group facet.
-  zl$label <- factor(zl$label, levels = unique(PROFILE_FEATURES$label))
-
-
-  b1 <- ggplot(zl, aes(label, city_f, fill = z)) +
-    geom_tile(color = "white", linewidth = 0.25) +
-    # A blank tile is white, and the diverging scale's midpoint is near-white
-    # too, so an unmeasured cell would read as a merely average one. Mark them.
-    geom_point(data = ~ dplyr::filter(.x, is.na(z)), shape = 4, size = 0.9,
-               stroke = 0.35, colour = "grey45", show.legend = FALSE) +
-    facet_grid(cols = vars(group), scales = "free_x", space = "free_x") +
-    scale_fill_gradient2(low = "#1565C0", mid = "grey96", high = "#C62828",
-                         midpoint = 0, limits = Z_LIMITS,
-                         oob = scales::squish, na.value = "white",
-                         name = "Oriented z-score",
-                         breaks = c(-2, -1, 0, 1, 2),
-                         guide = guide_colorbar(barheight = unit(0.35, "cm"),
-                                                barwidth = unit(3.4, "cm"),
-                                                title.position = "top")) +
-    scale_x_discrete(position = "top") +
-    labs(tag = "b", x = NULL, y = NULL) +
     theme_natcities() +
-    theme(axis.text.y = element_text(size = rel(0.62)),
-          axis.text.x.top = element_text(size = rel(0.66), angle = 45,
-                                         hjust = 0, vjust = 0),
-          strip.text.x = element_text(size = rel(0.72)),
-          strip.text.y = element_blank(),
-          panel.spacing = unit(3, "pt"),
-          panel.grid = element_blank(),
-          legend.position = "bottom")
+    # a and c share the climate legend, b and d the pathway legend. They cannot
+    # be merged by guides="collect" -- b draws box glyphs where d draws lines, so
+    # patchwork keeps them as four distinct guides and they overflow the width.
+    # Keep one of each pair, on the bottom row, so both sit at the figure's foot.
+    theme(legend.position = "none")
 
-  # Climate class: an external descriptor, drawn in the same palette as (a) so
-  # the eye can read the profile against the climate gradient without a second legend.
-  b2 <- ggplot(arch, aes(x = "Climate", y = city_f, fill = climate_cluster)) +
-    geom_tile(color = "white", linewidth = 0.25) +
-    scale_fill_manual(values = CLUSTER_COLORS, na.value = "grey90",
-                      guide = "none", drop = FALSE) +
-    scale_x_discrete(position = "top") +
-    labs(x = NULL, y = NULL) +
-    theme_natcities() +
-    theme(axis.text.y = element_blank(),
-          axis.text.x.top = element_text(size = rel(0.66), angle = 45,
-                                         hjust = 0, vjust = 0))
+  # The standardised outcome-profile heatmap that was panel b now lives in
+  # fig1b_outcome_profiles.R, and takes its blanked-cell and clipping counts
+  # with it.
 
-  # The LCZ / coefficient-coverage descriptor strip that used to sit here was
-  # removed: four more columns of grey on top of a 40-row heatmap was more
-  # information than a main-text panel can carry. That per-city
-  # characterisation is now tab_city_characteristics, an SI longtable.
-  pb <- (b1 | b2) + patchwork::plot_layout(widths = c(1, 0.055))
-
-  # --- (c) cost per avoided death by pathway and climate class --------------
+  # --- (b) cost per avoided death by pathway and climate class --------------
   cea <- gather_cities(cities, function(c) {
     d <- read_cea(c)
     if (is.null(d)) return(NULL)
@@ -198,7 +97,7 @@ build_fig1 <- function(cities = discover_cities()) {
   })
   cea <- attach_meta(cea, load_city_meta())
   cea <- cea[!is.na(cea$climate_cluster), , drop = FALSE]
-  pc <- if (!is.null(cea) && nrow(cea)) {
+  pb <- if (!is.null(cea) && nrow(cea)) {
     d <- cea[is.finite(cea$cost_per_death) & cea$cost_per_death > 0, , drop = FALSE]
     d$pathway <- factor(d$pathway, levels = PATHWAY_LEVELS)
     d$climate_cluster <- factor(d$climate_cluster, levels = CLUSTER_LEVELS)
@@ -247,13 +146,13 @@ build_fig1 <- function(cities = discover_cities()) {
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
       eur_log_scale("Cost per death avoided (€, log)") +
       coord_cartesian(clip = "off") +
-      labs(tag = "c",
+      labs(tag = "b",
            x = "Climate class") +
       theme_natcities() +
-      theme(legend.position = "bottom")
+      theme(legend.position = "none")
   } else patchwork::plot_spacer()
 
-  # --- (d) deployment as the per-capita budget rises -------------------------
+  # --- (c) deployment as the per-capita budget rises -------------------------
   bud <- gather_cities(cities, function(c) {
     d <- read_city_csv(c, sprintf("%s_budget_sensitivity.csv", c), quiet = TRUE)
     need <- c("budget", "max_cost", "max_benefit",
@@ -268,34 +167,93 @@ build_fig1 <- function(cities = discover_cities()) {
   bud$budget_cap   <- bud$budget   / (bud$pop_k * 1000)
   bud$spent_cap    <- bud$max_cost / (bud$pop_k * 1000)
   bud$benefit_100k <- per_100k(bud$max_benefit, bud$pop_k)
-  # --- (d) normalised efficiency frontier (was fig3b) -----------------------
-  pd <- if (nrow(bud)) {
-    # Avoided deaths per 100k span Dublin's ~0.1 to Athens' ~400, so a linear
-    # axis is one city and 39 flat lines on the floor. Zero-benefit grid points
-    # (budgets too small to buy anything) cannot be drawn on a log axis.
+  # --- (c) efficiency frontier, in per-capita terms --------------------------
+  # Both axes are per-capita quantities, so the 40 cities are directly
+  # comparable and overlap on the x axis:
+  #   x = present-value cost actually spent per capita
+  #   y = share of the city's own 25-year baseline heat-death burden avoided
+  #
+  # Dividing the benefit by that burden is what removes the level: in absolute
+  # avoided deaths per 100k the cities span 788x, so no shared axis could show
+  # them together (within a city, benefit rises by a median factor of only 1.26
+  # across the whole grid). As a share of each city's own burden the spread is
+  # ~20x and the curves sit on top of each other, which is the point.
+  #
+  # The denominator is the baseline series integrated over the benefit horizon,
+  # NOT 25x the 2020 rate: baseline mortality nearly doubles to 2050 (Milan
+  # 451 -> 725 deaths/yr), so the flat version understated the burden by ~25%
+  # and put one city above 100% of its own burden avoided, which is what
+  # exposed the error.
+  #
+  # Caveat that no rescaling can fix here: the budget grid is absolute
+  # (0.5-2.0 bn EUR for every city, whatever its size), so each city is only
+  # observed over its own per-capita window and none is observed below it.
+  # Comparable axes, but not a comparable range. Only a per-capita grid upstream
+  # would give that.
+  BURDEN_YEARS <- 2020:2044   # span of the *_25y_* benefit tables
+
+  baseline_burden <- function(city) {
+    d <- read_city_csv(city, sprintf("annual_heat_deaths_baseline_current_ac_%s.csv",
+                                     city), quiet = TRUE)
+    if (is.null(d) || !all(c("year", "deaths_overall") %in% names(d))) return(NA_real_)
+    d <- d[is.finite(d$year) & is.finite(d$deaths_overall), , drop = FALSE]
+    if (nrow(d) < 2) return(NA_real_)
+    # The series is decadal (2020/2030/2040/2050); interpolate to annual and sum.
+    sum(stats::approx(d$year, d$deaths_overall, xout = BURDEN_YEARS, rule = 2)$y)
+  }
+
+  pc <- if (nrow(bud)) {
+    burden <- vapply(sort(unique(bud$city)), baseline_burden, numeric(1))
+    bud$burden <- burden[bud$city]
     fr <- bud[is.finite(bud$benefit_100k) & bud$benefit_100k > 0 &
-              is.finite(bud$spent_cap) & bud$spent_cap > 0, , drop = FALSE]
-    n_zero <- nrow(bud) - nrow(fr)
-    if (n_zero) message(sprintf("  [note] frontier: %d of %d city-budget points at zero benefit omitted (log axis)",
-                                n_zero, nrow(bud)))
-    ggplot(fr, aes(spent_cap, benefit_100k, group = city)) +
-      geom_line(aes(color = climate_cluster), linewidth = 0.55, alpha = 0.55) +
-      geom_point(aes(color = climate_cluster), size = 1.1, alpha = 0.7) +
+              is.finite(bud$spent_cap) & bud$spent_cap > 0 &
+              is.finite(bud$burden) & bud$burden > 0, , drop = FALSE]
+    n_drop <- dplyr::n_distinct(bud$city) - dplyr::n_distinct(fr$city)
+    if (n_drop) message(sprintf("  [note] frontier: %d city(ies) dropped for no usable baseline burden",
+                                n_drop))
+    fr$share <- 100 * fr$max_benefit / fr$burden
+    # The budget grid is the same absolute 0.5-2.0 bn EUR everywhere, so in most
+    # cities the optimiser runs out of things to buy partway up it and the
+    # remaining grid points repeat one identical (cost, benefit) pair -- up to
+    # six times over, which drew as a blob on the end of every line. Keep the
+    # first saturated point as the frontier's endpoint and drop the rest.
+    fr <- fr |>
+      dplyr::arrange(city, spent_cap) |>
+      dplyr::group_by(city) |>
+      dplyr::mutate(.same = !is.na(dplyr::lag(spent_cap)) &
+                            abs(spent_cap - dplyr::lag(spent_cap)) < 1e-6 &
+                            abs(max_benefit - dplyr::lag(max_benefit)) < 1e-9) |>
+      dplyr::mutate(saturates = any(.same)) |>
+      dplyr::filter(!.same) |>
+      dplyr::ungroup()
+    ends <- fr |>
+      dplyr::group_by(city) |>
+      dplyr::slice_max(spent_cap, n = 1, with_ties = FALSE) |>
+      dplyr::ungroup()
+    # Within-city elasticity of benefit to spend. On these log-log axes it is
+    # simply the slope of each city's segment, so the panel already shows it and
+    # needs no label; it is reported as a caption number below instead.
+    el <- vapply(split(fr, fr$city), function(d) {
+      if (nrow(d) < 3) return(NA_real_)
+      unname(coef(lm(log(share) ~ log(spent_cap), data = d))[2])
+    }, numeric(1))
+    ggplot(fr, aes(spent_cap, share, group = city)) +
+      geom_line(aes(color = climate_cluster), linewidth = 0.55, alpha = 0.6) +
+      geom_point(aes(color = climate_cluster), size = 0.9, alpha = 0.55) +
+      # Filled endpoint where the portfolio maxes out inside the grid, so a
+      # curve that has stopped can be told from one merely truncated by it.
+      geom_point(data = ends[ends$saturates, ], aes(color = climate_cluster),
+                 size = 1.9, shape = 16) +
       cluster_scale() +
       scale_x_log10(labels = scales::label_number(prefix = "€", big.mark = ",")) +
-      # FRONTIER_LOG_Y toggles the y scale; see the note where it is defined.
-      { if (FRONTIER_LOG_Y)
-          scale_y_log10(labels = function(v)
-            formatC(v, format = "fg", digits = 2, drop0trailing = TRUE))
-        else scale_y_continuous() } +
-      labs(tag = "d", x = "PV cost spent per capita (log)",
-           y = if (FRONTIER_LOG_Y) "Avoided deaths / 100k (25y, log)"
-               else "Avoided deaths / 100k (25y)") +
+      scale_y_log10(labels = scales::label_number(suffix = "%")) +
+      labs(tag = "c", x = "PV cost spent per capita (log)",
+           y = "% of 25y baseline heat deaths avoided (log)") +
       theme_natcities()
   } else patchwork::plot_spacer()
 
-  # --- (e) deployment as the per-capita budget rises (was fig3c) ------------
-  pe <- if (nrow(bud)) {
+  # --- (d) deployment as the per-capita budget rises (was fig3c) ------------
+  pd <- if (nrow(bud)) {
     lc <- tidyr::pivot_longer(bud, c("max_ben_trees", "max_ben_ac", "max_ben_ews"),
                               names_to = "lever", values_to = "frac")
     lc$pathway <- factor(dplyr::recode(lc$lever, max_ben_trees = "Trees",
@@ -312,7 +270,7 @@ build_fig1 <- function(cities = discover_cities()) {
       # out-of-range rows rather than just not showing them.
       coord_cartesian(ylim = c(0, 100)) +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
-      labs(tag = "e",
+      labs(tag = "d",
            x = "Budget available per capita (log)", y = "% deployment") +
       theme_natcities() +
       theme(legend.position = "bottom")
@@ -321,17 +279,29 @@ build_fig1 <- function(cities = discover_cities()) {
   # Panel titles and subtitles are deliberately absent (Nature style: everything
   # descriptive lives in the caption). The numbers the caption quotes are printed
   # here so a rebuild on new data shows immediately when the caption has drifted.
-  n_clip <- sum(abs(zl$z) > max(Z_LIMITS), na.rm = TRUE)
-  message(sprintf(paste0("  [caption] %d standardised outcome variables; %d cities; ",
-                         "fit %s; %d log-transformed variable(s); %d cell(s) blanked ",
-                         "as not measured; %d cell(s) clipped at |z|=%.1f"),
-                  length(zcols), nrow(arch), lab, sum(PROFILE_FEATURES$log),
-                  n_blank, n_clip, max(Z_LIMITS)))
+  message(sprintf("  [caption] %d cities; fit %s", nrow(arch), lab))
+  if (exists("fr") && nrow(fr)) {
+    tops <- fr |> dplyr::group_by(city, climate_cluster) |>
+      dplyr::summarise(top = max(share), .groups = "drop")
+    byc <- tapply(tops$top, tops$climate_cluster, median)
+    message(sprintf(paste0("  [caption] panel c: spend EUR %.0f-%.0f per capita ",
+                           "avoids %.0f-%.0f%% of the 25y baseline burden (median ",
+                           "by class: %s); median within-city elasticity %.2f; ",
+                           "%d of %d cities saturate inside the grid"),
+                    min(fr$spent_cap), max(fr$spent_cap),
+                    min(fr$share), max(fr$share),
+                    paste(sprintf("%s %.0f%%", names(byc), byc), collapse = ", "),
+                    median(el, na.rm = TRUE),
+                    sum(ends$saturates), dplyr::n_distinct(fr$city)))
+  }
 
-  top <- (pa | pb) + patchwork::plot_layout(widths = c(0.85, 2.15))
-  bot <- (pc | pd | pe) + patchwork::plot_layout(widths = c(1.15, 1, 1.05))
-  fig <- (top / bot) + patchwork::plot_layout(heights = c(1.75, 1))
-  save_item(fig, "fig1_risk_costs_portfolios", width = 18/1.3, height = 13/1.3)
+  # Four panels of similar visual weight, so a 2x2 grid rather than the old
+  # heatmap-dominated top row. In a 2x2 each legend would otherwise be drawn
+  # twice (climate class under a and c, pathway under b and d), so collect them
+  # into one shared strip.
+  fig <- ((pa | pb) / (pc | pd)) +
+    patchwork::plot_layout(heights = c(1, 1.1))
+  save_item(fig, "fig1_risk_costs_portfolios", width = 11.5, height = 9)
 }
 
 if (!exists(".NATCITIES_NORUN")) build_fig1()

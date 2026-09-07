@@ -127,7 +127,7 @@ build_si1 <- function(cities = discover_cities()) {
            x = NULL) +
       theme_natcities() +
       theme(axis.text.x = element_text(angle = 20, hjust = 1))
-  } else patchwork::plot_spacer()
+  } else blank_panel("c", "no city has <city>_trees_target_sensitivity.csv (interim/)")
 
   fig <- (pa | pb | pc) &
     theme(legend.position = "bottom")

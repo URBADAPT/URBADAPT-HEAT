@@ -55,8 +55,7 @@ MAP_BORDER <- "black"
 # kerület, stadsdeel, bezirk, ...), so both the geometry and the trees table are
 # discovered by pattern rather than named.
 district_geom <- function(city) {
-  g <- list.files(city_path(city, where = "interim"), pattern = "\\.gpkg$",
-                  full.names = TRUE)
+  g <- city_files(city, "\\.gpkg$", where = "interim")
   g <- g[!grepl("zones", basename(g))]
   if (!length(g)) return(NULL)
   x <- tryCatch(sf::st_read(g[1], quiet = TRUE), error = function(e) NULL)
