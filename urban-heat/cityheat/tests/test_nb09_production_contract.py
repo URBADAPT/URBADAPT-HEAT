@@ -222,6 +222,41 @@ def test_electricity_feedback_uses_notebook08_maturity_path():
     assert not np.allclose(actual, cohort)
 
 
+def test_interpolated_coverage_pattern_preserves_shared_row_index_width():
+    """Non-anchor AC maps must stay aligned with row_cols/row_is_city.
+
+    The sparse hazard-column index may contain valid non-city cells, making it
+    wider than the strict city mask.  This is the geometry that exposed the
+    Bologna smoke-test failure when an alternative AC SSP requested an
+    interpolated coverage year.
+    """
+    runner = object.__new__(nb09.NB09ImprovedFast)
+    runner.n_city = 3
+    runner.row_is_city = np.array([True, True, True, False, False])
+    runner.coverage_pattern_by_mode_year = {
+        "base": {
+            2020: np.array([1.0, 2.0, 3.0, 0.0, 0.0], dtype=np.float32),
+            2030: np.array([3.0, 4.0, 5.0, 0.0, 0.0], dtype=np.float32),
+        },
+        "policy": {},
+    }
+
+    actual = runner.interpolate_coverage_pattern(2025, mode="base")
+    expected = np.array([2.0, 3.0, 4.0, 0.0, 0.0], dtype=np.float32)
+    np.testing.assert_allclose(actual, expected)
+    assert actual.shape == runner.row_is_city.shape
+
+    scaled = nb09._scale_pattern_to_mean_masked(actual, runner.row_is_city, 0.4)
+    assert scaled.shape == runner.row_is_city.shape
+
+    try:
+        nb09._scale_pattern_to_mean_masked(actual[:-1], runner.row_is_city, 0.4)
+    except ValueError as exc:
+        assert "Pattern and active-mask shapes must match" in str(exc)
+    else:
+        raise AssertionError("Masked coverage scaling accepted misaligned arrays.")
+
+
 def test_campaign_design_and_sample_checkpoint_resume():
     with tempfile.TemporaryDirectory() as directory:
         runner = object.__new__(nb09.NB09ImprovedFast)
@@ -347,6 +382,7 @@ if __name__ == "__main__":
     test_declared_large_input_fingerprint_and_manifest_reuse()
     test_cost_stream_helpers_preserve_end_of_year_discounting()
     test_electricity_feedback_uses_notebook08_maturity_path()
+    test_interpolated_coverage_pattern_preserves_shared_row_index_width()
     test_campaign_design_and_sample_checkpoint_resume()
     test_central_parity_reports_missing_inputs_without_helper_failure()
     test_assembled_trajectory_and_aggregate_qa_contract()

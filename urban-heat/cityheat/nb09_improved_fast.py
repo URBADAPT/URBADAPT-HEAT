@@ -338,6 +338,11 @@ def _scale_pattern_to_mean_masked(
 ) -> np.ndarray:
     pattern = np.asarray(pattern, dtype=np.float32)
     active_mask = np.asarray(active_mask, dtype=bool)
+    if pattern.shape != active_mask.shape:
+        raise ValueError(
+            "Pattern and active-mask shapes must match for masked mean scaling: "
+            f"pattern={pattern.shape}, active_mask={active_mask.shape}."
+        )
     out = np.zeros_like(pattern, dtype=np.float32)
     if not np.any(active_mask):
         return out
@@ -2252,8 +2257,13 @@ class NB09ImprovedFast:
             return pattern_map[year]
         anchor_years = np.array(sorted(pattern_map.keys()), dtype=int)
         stack = np.vstack([pattern_map[y][None, :] for y in anchor_years]).astype(np.float32)
-        out = np.empty(self.n_city, dtype=np.float32)
-        for idx in range(self.n_city):
+        # Coverage vectors use the shared sparse hazard-column index
+        # (``row_cols``), which may include valid non-city cells.  Its length
+        # is therefore not necessarily ``n_city``.  Preserve the stored vector
+        # width when interpolating non-anchor years so the result remains
+        # aligned with ``row_is_city`` and every other row-indexed input.
+        out = np.empty(stack.shape[1], dtype=np.float32)
+        for idx in range(stack.shape[1]):
             out[idx] = np.interp(year, anchor_years, stack[:, idx])
         return out
 

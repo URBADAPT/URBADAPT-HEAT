@@ -115,7 +115,11 @@ for city in "${REQUESTED_CITIES[@]}"; do
     || { echo "ERROR: ${city} is not in the frozen 40-city roster."; exit 1; }
 done
 
-if [[ -n "${LSB_JOBINDEX:-}" ]]; then
+# LSF defines LSB_JOBINDEX=0 for an ordinary (non-array) job.  Only positive
+# indices select one city from the submitted array roster; zero must retain
+# the complete requested roster so the post-array central gate can verify all
+# 40 city controls and write the commit-specific preflight marker.
+if [[ -n "${LSB_JOBINDEX:-}" && "${LSB_JOBINDEX}" != "0" ]]; then
   [[ "$LSB_JOBINDEX" =~ ^[1-9][0-9]*$ ]] \
     || { echo "ERROR: invalid LSF array index ${LSB_JOBINDEX}."; exit 1; }
   array_offset=$((LSB_JOBINDEX - 1))
