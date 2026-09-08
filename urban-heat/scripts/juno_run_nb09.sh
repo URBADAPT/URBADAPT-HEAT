@@ -2,14 +2,17 @@
 # =============================================================================
 # Juno launcher — final Masselot-headline NB09 uncertainty workflow.
 #
-# Required production sequence:
-#   CENTRAL_ONLY=1 bsub < scripts/juno_run_nb09.sh  # all-city parity gate
-#   bsub < scripts/juno_run_nb09.sh                 # final N=128 campaign
+# Required production sequence (prefer the serial-array submitter so every
+# city receives an independent wall-time allocation):
+#   scripts/juno_submit_nb09_serial_array.sh central
+#   scripts/juno_submit_nb09_serial_array.sh smoke
+#   scripts/juno_submit_nb09_serial_array.sh production
 #
-# A timeout is resumed with the same command. Completed sample checkpoints and
-# city DONE markers are reused only when their code/input/design provenance
-# still matches. FRESH=1 is deliberately unsupported: use a new campaign ID
-# for a genuinely different experiment.
+# The serial array avoids a single all-city wall-time envelope by giving every
+# city its own LSF job. Completed sample checkpoints and city DONE markers are
+# reused only when their code/input/design provenance still matches. FRESH=1
+# is deliberately unsupported: use a new campaign ID for a genuinely different
+# experiment.
 # =============================================================================
 
 #### -------------------- LSF resource request --------------------------------
@@ -20,8 +23,9 @@
 #BSUB -M 32G
 #BSUB -R "rusage[mem=32G]"
 #BSUB -W 1440
-#BSUB -o juno_logs/urbadapt_nb09.%J.out
-#BSUB -e juno_logs/urbadapt_nb09.%J.err
+# %I is the array index (0 for a non-array job), preventing log collisions.
+#BSUB -o juno_logs/urbadapt_nb09.%J.%I.out
+#BSUB -e juno_logs/urbadapt_nb09.%J.%I.err
 
 set -euo pipefail
 WORKERS="${NB09_WORKERS:-1}"
@@ -92,21 +96,41 @@ fi
 export URBAN_HEAT_KERNEL="urbanheat"
 export NB09_BURKE_SENSITIVITY=0
 
-#### 4) frozen roster and optional smoke-test subset
+#### 4) frozen roster, optional subset, and LSF-array city selection
 mapfile -t ALL_CITIES < <(python scripts/run_agnostic_batch.py --list-cities)
 [[ "${#ALL_CITIES[@]}" -eq 40 ]] \
   || { echo "ERROR: expected 40 production cities, found ${#ALL_CITIES[@]}."; exit 1; }
-if [[ -n "${NB09_CITIES:-}" ]]; then
+if [[ -n "${NB09_ARRAY_CITIES:-}" ]]; then
+  city_text="${NB09_ARRAY_CITIES//,/ }"
+  read -r -a REQUESTED_CITIES <<< "$city_text"
+elif [[ -n "${NB09_CITIES:-}" ]]; then
   city_text="${NB09_CITIES//,/ }"
-  read -r -a CITIES <<< "$city_text"
-  [[ "${#CITIES[@]}" -gt 0 ]] || { echo "ERROR: NB09_CITIES is empty."; exit 1; }
-  for city in "${CITIES[@]}"; do
+  read -r -a REQUESTED_CITIES <<< "$city_text"
+else
+  REQUESTED_CITIES=("${ALL_CITIES[@]}")
+fi
+[[ "${#REQUESTED_CITIES[@]}" -gt 0 ]] || { echo "ERROR: requested city roster is empty."; exit 1; }
+for city in "${REQUESTED_CITIES[@]}"; do
+  [[ " ${ALL_CITIES[*]} " == *" ${city} "* ]] \
+    || { echo "ERROR: ${city} is not in the frozen 40-city roster."; exit 1; }
+done
+
+if [[ -n "${LSB_JOBINDEX:-}" ]]; then
+  [[ "$LSB_JOBINDEX" =~ ^[1-9][0-9]*$ ]] \
+    || { echo "ERROR: invalid LSF array index ${LSB_JOBINDEX}."; exit 1; }
+  array_offset=$((LSB_JOBINDEX - 1))
+  (( array_offset < ${#REQUESTED_CITIES[@]} )) \
+    || { echo "ERROR: array index ${LSB_JOBINDEX} exceeds the ${#REQUESTED_CITIES[@]}-city roster."; exit 1; }
+  CITIES=("${REQUESTED_CITIES[$array_offset]}")
+  echo "LSF array element ${LSB_JOBINDEX}/${#REQUESTED_CITIES[@]} selected city ${CITIES[0]}."
+else
+  CITIES=("${REQUESTED_CITIES[@]}")
+fi
+
+for city in "${CITIES[@]}"; do
     [[ " ${ALL_CITIES[*]} " == *" ${city} "* ]] \
       || { echo "ERROR: ${city} is not in the frozen 40-city roster."; exit 1; }
-  done
-else
-  CITIES=("${ALL_CITIES[@]}")
-fi
+done
 CITY_SET_KEY="$(printf '%s\n' "${CITIES[@]}" | sha256sum | awk '{print substr($1,1,12)}')"
 export URBAN_HEAT_SUMMARY_STEM="summary_${CITY_SET_KEY}"
 
@@ -115,18 +139,34 @@ PREFLIGHT_DIR="$REPO/runs/agnostic_nb09/central_preflight"
 PREFLIGHT_MARKER="$PREFLIGHT_DIR/${OUTPUT_SCHEMA_TAG}_${CURRENT_HEAD}.ok"
 mkdir -p "$PREFLIGHT_DIR"
 if [[ "$CENTRAL_ONLY" == "1" ]]; then
-  [[ "${#CITIES[@]}" -eq 40 ]] \
-    || { echo "ERROR: CENTRAL_ONLY=1 must cover all 40 cities; unset NB09_CITIES."; exit 1; }
-  echo "Running central NB01--NB08 parity preflight for all 40 cities..."
-  for city in "${ALL_CITIES[@]}"; do
+  echo "Running central NB01--NB08 parity preflight for ${#CITIES[@]} selected city/cities..."
+  CENTRAL_LOG_DIR="$PREFLIGHT_DIR/logs/${OUTPUT_SCHEMA_TAG}_${SHORT_HEAD}"
+  mkdir -p "$CENTRAL_LOG_DIR"
+  CENTRAL_FAILURES=()
+  for city in "${CITIES[@]}"; do
     echo "---- central parity: ${city} ----"
-    URBAN_HEAT_OUTPUT_VARIANT=masselot_main_agnostic \
-    IF_MAIN_FAMILY=masselot_tail \
-    HAZARD_TRACK=standard \
-    NB09_BURKE_SENSITIVITY=0 \
+    central_log="$CENTRAL_LOG_DIR/${city}.job_${LSB_JOBID:-local}_${LSB_JOBINDEX:-0}.log"
+    if URBAN_HEAT_OUTPUT_VARIANT=masselot_main_agnostic \
+      IF_MAIN_FAMILY=masselot_tail \
+      HAZARD_TRACK=standard \
+      NB09_BURKE_SENSITIVITY=0 \
       python -m cityheat.nb09_improved_fast_masselot_main \
-        --city "$city" --n "$NB09_N" --seed "$NB09_SEED" --central-check-only
+        --city "$city" --n "$NB09_N" --seed "$NB09_SEED" --central-check-only \
+        2>&1 | tee "$central_log"; then
+      echo "PASS: central parity ${city}"
+    else
+      CENTRAL_FAILURES+=("$city")
+      echo "FAIL: central parity ${city}; see ${central_log}" >&2
+    fi
   done
+  if (( ${#CENTRAL_FAILURES[@]} > 0 )); then
+    echo "ERROR: central parity failed for: ${CENTRAL_FAILURES[*]}" >&2
+    exit 1
+  fi
+  if [[ "${#CITIES[@]}" -ne 40 ]]; then
+    echo "Selected central parity checks passed. The all-city gate marker is unchanged."
+    exit 0
+  fi
   preflight_tmp="${PREFLIGHT_MARKER}.tmp.${LSB_JOBID:-$$}"
   printf '%s\n%s\n%s\n%s\n' \
     "$CURRENT_HEAD" "$OUTPUT_SCHEMA_TAG" "$NB09_CAMPAIGN_ID" "$(date -Iseconds)" \
