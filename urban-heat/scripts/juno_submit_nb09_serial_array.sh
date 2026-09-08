@@ -24,6 +24,14 @@ git diff --quiet -- . \
 git diff --cached --quiet -- . \
   || { echo "ERROR: staged but uncommitted changes under urban-heat; commit and sync first." >&2; exit 1; }
 
+# The Juno login-node default Python is older than the project requires.  Load
+# the same environment used by the workers before importing even the
+# standard-library-only batch roster module.
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)"
+micromamba activate urbanheat
+
 mapfile -t ALL_CITIES < <(python scripts/run_agnostic_batch.py --list-cities)
 [[ "${#ALL_CITIES[@]}" -eq 40 ]] \
   || { echo "ERROR: expected the frozen 40-city roster, found ${#ALL_CITIES[@]}." >&2; exit 1; }
