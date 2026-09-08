@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import argparse
 import copy
+import datetime as dt
+import hashlib
 import json
 import os
+import re
+import subprocess
+import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +26,8 @@ import pandas as pd
 import rasterio as rio
 import xarray as xr
 import yaml
+from rasterio.enums import Resampling
+from rasterio.vrt import WarpedVRT
 from SALib.analyze import pawn
 from cityheat.nbsetup import find_repo_root
 from cityheat.vulnerability_layer import (
@@ -39,7 +46,7 @@ from climada.engine import ImpactCalc
 from climada.entity import Exposures, ImpactFunc, ImpactFuncSet
 from climada.hazard import Centroids, Hazard
 from pyproj import Transformer
-from scipy import sparse
+from scipy import ndimage as ndi, sparse
 from scipy.stats import qmc
 
 
@@ -52,6 +59,21 @@ DAILY_QUANTILE_PCTS = [50, 80, 90, 95]  # percentiles of the DAILY heat-death di
 HORIZON_YEARS = 25
 DISCOUNT_RATE_DEFAULT = 0.03
 SEED_DEFAULT = 42
+OUTPUT_SCHEMA_VERSION = "3.0-explicit-policy-trajectories"
+OUTPUT_SCHEMA_TAG = "v3"
+INPUT_FULL_HASH_LIMIT_BYTES = 32 * 1024 * 1024
+INPUT_SAMPLE_HASH_WINDOWS = 3
+INPUT_SAMPLE_HASH_WINDOW_BYTES = 64 * 1024
+BRANCH_NAMES = (
+    "reference",
+    "ac_policy_gross",
+    "ac_policy_net",
+    "ac_policy_net_with_tree_feedback",
+    "tree_policy",
+    "ews_policy",
+    "ac_tree_policy_gross",
+    "ac_tree_policy_net",
+)
 
 
 def _resolve_root() -> Path:
@@ -68,6 +90,151 @@ def _ensure_runtime_dirs(root: Path) -> None:
 def _load_json(path: Path) -> dict[str, Any]:
     with open(path, "r") as f:
         return json.load(f)
+
+
+def _safe_run_id(value: str) -> str:
+    """Validate a user-visible campaign identifier before using it as a path."""
+    run_id = str(value).strip()
+    if not run_id or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", run_id):
+        raise ValueError(
+            "NB09_CAMPAIGN_ID must be 1--128 characters and contain only "
+            "letters, digits, '.', '_' or '-'."
+        )
+    return run_id
+
+
+def _headline_uncertainty_dir(tab_dir: Path) -> Path:
+    """Resolve the isolated production directory, with a legacy fallback."""
+    campaign_id = os.environ.get("NB09_CAMPAIGN_ID", "").strip()
+    if campaign_id:
+        return tab_dir / "uncertainty_runs" / _safe_run_id(campaign_id)
+    return tab_dir / "uncertainty_improved_fast"
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    temporary.write_text(text)
+    os.replace(temporary, path)
+
+
+def _atomic_write_json(path: Path, payload: Any) -> None:
+    _atomic_write_text(
+        path,
+        json.dumps(_json_ready(payload), indent=2, sort_keys=True, allow_nan=False) + "\n",
+    )
+
+
+def _atomic_write_csv(path: Path, frame: pd.DataFrame, *, index: bool = False) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+    frame.to_csv(temporary, index=index)
+    os.replace(temporary, path)
+
+
+def _sha256_file(path: Path, chunk_size: int = 8 * 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        while True:
+            block = handle.read(chunk_size)
+            if not block:
+                break
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _input_file_fingerprint(path: Path) -> dict[str, Any]:
+    """Return a reproducible input fingerprint without rereading huge rasters.
+
+    Small files receive a full SHA-256. For inputs above 32 MiB, the digest
+    covers the file size and three evenly spaced 64 KiB windows (start, middle,
+    and end). Size and nanosecond
+    modification time are also recorded. This is a scientific change detector,
+    not an adversarial integrity primitive; the sampling rule is declared in
+    the manifest so the provenance claim remains explicit.
+    """
+    stat = path.stat()
+    size = int(stat.st_size)
+    base = {
+        "size_bytes": size,
+        "mtime_ns": int(stat.st_mtime_ns),
+    }
+    if size <= INPUT_FULL_HASH_LIMIT_BYTES:
+        return {
+            **base,
+            "digest_algorithm": "sha256-full-v1",
+            "digest": _sha256_file(path),
+        }
+
+    window = min(INPUT_SAMPLE_HASH_WINDOW_BYTES, size)
+    max_offset = max(size - window, 0)
+    offsets = np.linspace(0, max_offset, num=INPUT_SAMPLE_HASH_WINDOWS, dtype=np.int64)
+    offsets = np.unique(offsets).astype(int).tolist()
+    digest = hashlib.sha256()
+    digest.update(b"urbadapt-input-sampled-v1\0")
+    digest.update(str(size).encode("ascii"))
+    with open(path, "rb") as handle:
+        for offset in offsets:
+            handle.seek(int(offset))
+            block = handle.read(window)
+            digest.update(int(offset).to_bytes(8, byteorder="big", signed=False))
+            digest.update(len(block).to_bytes(8, byteorder="big", signed=False))
+            digest.update(block)
+    return {
+        **base,
+        "digest_algorithm": f"sha256-sampled-{len(offsets)}x{int(window)}B-v1",
+        "digest": digest.hexdigest(),
+        "sample_offsets_bytes": offsets,
+        "sample_window_bytes": int(window),
+    }
+
+
+def _sha256_json(payload: Any) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _json_ready(value: Any) -> Any:
+    """Convert NumPy/Pandas containers into strict, checkpoint-safe JSON values."""
+    if isinstance(value, dict):
+        return {str(key): _json_ready(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_ready(item) for item in value]
+    if isinstance(value, np.ndarray):
+        return [_json_ready(item) for item in value.tolist()]
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating, float)):
+        number = float(value)
+        if np.isnan(number):
+            return {"__nonfinite_float__": "nan"}
+        if np.isposinf(number):
+            return {"__nonfinite_float__": "inf"}
+        if np.isneginf(number):
+            return {"__nonfinite_float__": "-inf"}
+        return number
+    if isinstance(value, (np.bool_, bool)):
+        return bool(value)
+    if isinstance(value, Path):
+        return str(value)
+    if pd.isna(value):
+        return None
+    return value
+
+
+def _json_restore(value: Any) -> Any:
+    """Restore strict-JSON non-finite sentinels used by sample checkpoints."""
+    if isinstance(value, dict):
+        if set(value) == {"__nonfinite_float__"}:
+            return {
+                "nan": np.nan,
+                "inf": np.inf,
+                "-inf": -np.inf,
+            }[str(value["__nonfinite_float__"])]
+        return {key: _json_restore(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_restore(item) for item in value]
+    return value
 
 
 def _mode_tag(mode: str) -> str:
@@ -292,6 +459,69 @@ def _daily_quantiles(daily_impacts: np.ndarray, pcts: list[int]) -> dict[str, fl
     return out
 
 
+def _translate_dlst_to_dt2m_quadratic(
+    t2m: np.ndarray,
+    dlst: np.ndarray,
+    lcz: np.ndarray,
+    gvi_0_1: np.ndarray,
+    scope: np.ndarray,
+    emulator: dict[str, Any],
+) -> np.ndarray:
+    """Translate an LST perturbation to T2M exactly as canonical Notebook 07.
+
+    The quadratic emulator is inverted at the *daily, cell-specific* baseline
+    temperature.  Invalid/non-positive local slopes and implausible roots use
+    Notebook 07's median-positive-slope fallback.  Values outside the physical
+    vegetation scope are zero.
+    """
+    t2m = np.asarray(t2m, dtype=np.float32)
+    dlst = np.asarray(dlst, dtype=np.float32)
+    lcz = np.asarray(lcz)
+    gvi_0_1 = np.asarray(gvi_0_1, dtype=np.float32)
+    scope = np.asarray(scope, dtype=bool)
+    if not (t2m.shape == dlst.shape == lcz.shape == gvi_0_1.shape == scope.shape):
+        raise ValueError("T2M, dLST, LCZ, GVI, and scope arrays must have identical shapes.")
+
+    lcz_int = np.nan_to_num(lcz, nan=-999).astype(int)
+    beta_lcz = np.zeros(t2m.shape, dtype=np.float32)
+    reference_lcz = int(emulator["reference_lcz"])
+    beta_lcz[lcz_int == reference_lcz] = 0.0
+    for key, value in (emulator.get("beta_t2m_c_lcz", {}) or {}).items():
+        beta_lcz[lcz_int == int(key)] = float(value)
+
+    beta2 = float(emulator["beta_t2m_c2"])
+    centered = t2m - float(emulator["t2m_center"])
+    slope = (
+        float(emulator["beta_t2m_c"])
+        + 2.0 * beta2 * centered
+        + float(emulator.get("beta_t2m_c_out_b", 0.0)) * gvi_0_1
+        + beta_lcz
+    ).astype(np.float32)
+
+    linear = np.full(dlst.shape, np.nan, dtype=np.float32)
+    good_linear = np.isfinite(slope) & (np.abs(slope) > 1e-8)
+    linear[good_linear] = dlst[good_linear] / slope[good_linear]
+    if abs(beta2) < 1e-12:
+        dt2m = linear.copy()
+    else:
+        discriminant = np.maximum(slope**2 + 4.0 * beta2 * dlst, 0.0)
+        sqrt_discriminant = np.sqrt(discriminant).astype(np.float32)
+        root1 = (-slope + sqrt_discriminant) / (2.0 * beta2)
+        root2 = (-slope - sqrt_discriminant) / (2.0 * beta2)
+        dt2m = np.where(np.abs(root1 - linear) <= np.abs(root2 - linear), root1, root2).astype(np.float32)
+
+    bad = (~np.isfinite(dt2m)) | (~np.isfinite(slope)) | (slope <= 0)
+    bad |= (dlst < 0) & (dt2m > 1e-6)
+    bad |= (dlst > 0) & (dt2m < -1e-6)
+    bad |= np.abs(dt2m) > 10
+    positive_slopes = slope[np.isfinite(slope) & (slope > 0)]
+    fallback = float(np.nanmedian(positive_slopes)) if positive_slopes.size else 1.5
+    if not np.isfinite(fallback) or fallback <= 0:
+        fallback = 1.5
+    dt2m[bad] = dlst[bad] / fallback
+    return np.where(scope, dt2m, 0.0).astype(np.float32)
+
+
 def _safe_ratio(num: float, den: float) -> float:
     return float(num) / float(den) if float(den) > 0 else np.inf
 
@@ -303,20 +533,30 @@ def _pv_capex_with_replacements(
     discount_rate: float,
 ) -> float:
     """Present value of cohort-based AC CAPEX with replacement cycles."""
+    stream = _capex_replacement_stream(new_users_t, capex_per_user, lifetime_years)
+    discount = (1.0 + float(discount_rate)) ** np.arange(1, stream.size + 1, dtype=float)
+    return float(np.sum(stream / discount))
+
+
+def _capex_replacement_stream(
+    new_users_t: np.ndarray,
+    capex_per_user: float,
+    lifetime_years: int,
+) -> np.ndarray:
+    """Nominal annual AC CAPEX stream, including cohort replacements."""
     new_users_t = np.asarray(new_users_t, dtype=float)
     horizon = int(new_users_t.size)
     life = max(int(lifetime_years), 1)
-    r = float(discount_rate)
-    pv = 0.0
+    stream = np.zeros(horizon, dtype=float)
     for start_idx, cohort in enumerate(new_users_t):
         cohort = float(cohort)
         if cohort <= 0:
             continue
         pay_idx = int(start_idx)
         while pay_idx < horizon:
-            pv += cohort * float(capex_per_user) / ((1.0 + r) ** float(pay_idx + 1))  # end-of-year (t=1..T) to match NB08
+            stream[pay_idx] += cohort * float(capex_per_user)
             pay_idx += life
-    return float(pv)
+    return stream
 
 
 def _cohort_rollout_maturity_factor(
@@ -345,15 +585,22 @@ def _npv_capex_linear(
     capex_per_index_pt: float,
 ) -> float:
     """Present value of tree CAPEX assuming linear annual rollout."""
+    stream = _tree_capex_linear_stream(delta_index_total, years, capex_per_index_pt)
+    discount = (1.0 + float(discount_rate)) ** np.arange(1, stream.size + 1, dtype=float)
+    return float(np.sum(stream / discount))
+
+
+def _tree_capex_linear_stream(
+    delta_index_total: float,
+    years: int,
+    capex_per_index_pt: float,
+) -> np.ndarray:
+    """Nominal annual tree CAPEX stream for a linear rollout."""
     years = int(years)
     if years <= 0:
-        return 0.0
-    inc = float(delta_index_total) / float(years)
-    r = float(discount_rate)
-    pv = 0.0
-    for t_idx in range(years):
-        pv += float(capex_per_index_pt) * inc / ((1.0 + r) ** float(t_idx + 1))  # end-of-year (t=1..T) to match NB08
-    return float(pv)
+        return np.zeros(0, dtype=float)
+    annual_increment = float(delta_index_total) / float(years)
+    return np.full(years, float(capex_per_index_pt) * annual_increment, dtype=float)
 
 
 def _npv_om_cohorts_scaled(
@@ -411,8 +658,9 @@ class NB09ImprovedFast:
         self.out = self.root / "outputs" / self.slug
         self.int_dir = self.out / "interim"
         self.tab_dir = self.out / "tables"
-        self.unc_dir = self.tab_dir / "uncertainty_improved_fast"
+        self.unc_dir = _headline_uncertainty_dir(self.tab_dir)
         self.unc_dir.mkdir(parents=True, exist_ok=True)
+        self._headline_unc_dir = self.unc_dir
 
         self.exp_cache: dict[str, Exposures] = {}
         self.exp_age_cache: dict[tuple[str, str], Exposures] = {}
@@ -703,10 +951,12 @@ class NB09ImprovedFast:
         gcm_table = self.base_dir / "T2MmeanDeltas/climate_change_provide_markups_gcm.csv"
 
         if bands_table.exists():
+            self.climate_delta_path = bands_table
             deltas_df = pd.read_csv(bands_table)
             if "pct_band" not in deltas_df.columns:
                 deltas_df["pct_band"] = "central"
         elif legacy_table.exists():
+            self.climate_delta_path = legacy_table
             deltas_df = pd.read_csv(legacy_table)
             deltas_df["pct_band"] = "central"
         else:
@@ -747,6 +997,7 @@ class NB09ImprovedFast:
 
         self.gcm_lookup: dict[tuple[str, str, int], np.ndarray] = {}
         self.gcm_options = ["__none__"]
+        self.climate_gcm_path = gcm_table if gcm_table.exists() else None
         if gcm_table.exists():
             gcm_df = pd.read_csv(gcm_table)
             gcm_df["city_low"] = gcm_df["city"].astype(str).str.lower()
@@ -822,6 +1073,7 @@ class NB09ImprovedFast:
         self.expo_manifest = _load_json(self.exp_manifest_path)
         self.direct_years = set(map(int, self.expo_manifest.get("worldpop_direct_years", []))) or {2020, 2030}
         self.exp_ssp_options = sorted(list(self.expo_manifest.get("scenarios", {}).keys()))
+        self.population_total_cache: dict[tuple[str | None, int], float] = {}
         self.exp_paths: dict[tuple[str | None, int], Path] = {}
         for y in self.years:
             if y in self.direct_years:
@@ -872,10 +1124,12 @@ class NB09ImprovedFast:
         self.ac_cfg = ac_cfg
         self.wh_cfg = ac_cfg.get("waste_heat", {})
         self.ac_ssp_options = [1, 2, 3, 5]
+        self.ac_ssp_base = int(ac_cfg.get("ssp", 2))
 
         pen_file = self.P(ac_cfg.get("penetration_file", ""))
         if not pen_file.exists():
             raise FileNotFoundError(f"Missing AC penetration file: {pen_file}")
+        self.ac_penetration_path = pen_file
         pen_df = pd.read_csv(pen_file)
         nuts_cols = ac_cfg.get("nuts_columns", {})
         col_id = nuts_cols.get("id", "NUTS_ID")
@@ -905,6 +1159,7 @@ class NB09ImprovedFast:
         kwh_file = self.P(ac_cfg.get("kwh_file", ""))
         if not kwh_file.exists():
             raise FileNotFoundError(f"Missing AC kWh file: {kwh_file}")
+        self.ac_kwh_path = kwh_file
         kwh_df = pd.read_csv(kwh_file)
         kwh_cols = ac_cfg.get("kwh_columns", {})
         kwh_col_id = kwh_cols.get("id", "NUTS_ID")
@@ -964,6 +1219,7 @@ class NB09ImprovedFast:
             self.int_dir / "ac_coverage_maps.npz",
         ]
         cov_path = self._find_first_existing(cov_candidates)
+        self.ac_coverage_path = cov_path
         cov_npz = np.load(cov_path)
         years_key = "YEARS_AC" if "YEARS_AC" in cov_npz.files else "years"
         if years_key not in cov_npz.files:
@@ -982,6 +1238,7 @@ class NB09ImprovedFast:
         else:
             cov_policy_3d = cov_base_3d.copy()
         self.coverage_years = cov_years
+        self.coverage_raw_by_mode_year: dict[str, dict[int, np.ndarray]] = {"base": {}, "policy": {}}
         self.coverage_pattern_by_mode_year: dict[str, dict[int, np.ndarray]] = {"base": {}, "policy": {}}
         self.coverage_mean_by_mode_year: dict[str, dict[int, float]] = {"base": {}, "policy": {}}
 
@@ -992,6 +1249,16 @@ class NB09ImprovedFast:
                 masked = row_vals[self.row_is_city]
                 finite = np.isfinite(masked)
                 mean_val = float(masked[finite].mean()) if np.any(finite) else 0.0
+                # Preserve NB05's missing municipal assignments in the
+                # canonical map.  The mortality calculation does not replace
+                # these with the finite-pixel mean: it first includes them as
+                # zero in a population-weighted city mean and only then fills
+                # the gaps with that diluted mean (see
+                # ``deaths_year_by_age`` in template Notebook 05 and
+                # ``daily_deaths_current_ac`` in template Notebook 06).
+                raw = np.full_like(row_vals, np.nan, dtype=np.float32)
+                raw_masked = np.where(finite, np.clip(masked, 0.0, 0.98), np.nan)
+                raw[self.row_is_city] = raw_masked.astype(np.float32)
                 if (not np.isfinite(mean_val)) or mean_val <= 0:
                     pattern = np.ones_like(row_vals, dtype=np.float32)
                 else:
@@ -1003,6 +1270,7 @@ class NB09ImprovedFast:
                     masked_clean = np.where(finite, masked, mean_val)
                     masked_clean = np.clip(masked_clean, 0.0, None)
                     pattern[self.row_is_city] = (masked_clean / mean_val).astype(np.float32)
+                self.coverage_raw_by_mode_year[mode][int(y)] = raw
                 self.coverage_pattern_by_mode_year[mode][int(y)] = pattern
                 self.coverage_mean_by_mode_year[mode][int(y)] = mean_val
 
@@ -1014,6 +1282,8 @@ class NB09ImprovedFast:
             [self.int_dir / f"ac_cost_params_{self.slug}.json", self.int_dir / f"ac_costs_{self.slug}.json"]
         )
         self.ac_cost_params = _load_json(self.ac_cost_params_path)
+        muni_cov_path = self.out / f"{self.slug}_muni_cov_yearly.csv"
+        self.ac_muni_cov_yearly = pd.read_csv(muni_cov_path) if muni_cov_path.exists() else None
 
         # AC CAPEX / maintenance: the city CONFIG is the canonical source (calibrated).
         # NB09 samples a MULTIPLIER on the configured per-user CAPEX; maintenance is
@@ -1033,14 +1303,25 @@ class NB09ImprovedFast:
 
         # AC electricity tariff uncertainty should be anchored to each city config.
         tariff_base = float(
-            self.ac_cost_params.get(
+            self.ac_cfg.get(
                 "tariff_eur_per_kwh",
-                self.ac_cost_params.get(
+                self.ac_cfg.get(
                     "tariff_eur_kwh",
-                    self.ac_cfg.get("tariff_eur_per_kwh", self.ac_cfg.get("tariff_eur_kwh", 0.25)),
+                    self.ac_cost_params.get(
+                        "tariff_eur_per_kwh",
+                        self.ac_cost_params.get("tariff_eur_kwh", 0.25),
+                    ),
                 ),
             )
         )
+        for _key in ("tariff_eur_per_kwh", "tariff_eur_kwh"):
+            _json_tariff = self.ac_cost_params.get(_key)
+            if _json_tariff is not None:
+                if not np.isclose(float(_json_tariff), tariff_base, rtol=1e-3, atol=1e-6):
+                    warnings.warn(
+                        f"[{self.slug}] AC tariff: config={tariff_base} != NB05 JSON={_json_tariff}; using config."
+                    )
+                break
         tariff_opts_cfg = self.ac_cfg.get("tariff_eur_per_kwh_options")
         if tariff_opts_cfg is None:
             tariff_opts_cfg = self.ac_cost_params.get("tariff_eur_per_kwh_options")
@@ -1129,8 +1410,8 @@ class NB09ImprovedFast:
             self.season_end_md = f"{end_month:02d}-{end_date.day:02d}"
 
         thr_candidates = [
-            self.int_dir / f"ews_threshold_deaths_{self.slug}_climate_only.json",
             self.int_dir / f"ews_threshold_deaths_{self.slug}.json",
+            self.int_dir / f"ews_threshold_deaths_{self.slug}_climate_only.json",
         ]
         thr_path = next((p for p in thr_candidates if p.exists()), None)
         self.threshold_meta_path = str(thr_path) if thr_path is not None else None
@@ -1148,6 +1429,7 @@ class NB09ImprovedFast:
             }
 
         warn_days_path = self.tab_dir / f"{self.slug}_ews_warning_days.csv"
+        self.ews_warning_days_path = warn_days_path if warn_days_path.exists() else None
         if warn_days_path.exists():
             self.warn_days_df = pd.read_csv(warn_days_path)
         else:
@@ -1161,12 +1443,102 @@ class NB09ImprovedFast:
         veg_path = self.int_dir / f"{self.slug}_veg_aux_arrays.npz"
         if not veg_path.exists():
             raise FileNotFoundError(f"Missing vegetation aux arrays from NB07: {veg_path}")
+        self.tree_veg_aux_path = veg_path
         veg = np.load(veg_path)
-        if "dT2M_month_ref_uniform_approx" not in veg.files:
-            raise KeyError(f"{veg_path} is missing dT2M_month_ref_uniform_approx")
-        tree_full = veg["dT2M_month_ref_uniform_approx"].reshape(12, -1).astype(np.float32)
-        self.tree_month_maps = tree_full[:, self.row_cols].astype(np.float32)
-        self.tree_month_maps[:, ~self.row_is_city] = 0.0
+        required = {"dLST_month_ref_uniform", "gvi_baseline", "SCOPE_PHYS"}
+        missing = sorted(required.difference(veg.files))
+        if missing:
+            raise KeyError(f"{veg_path} is missing canonical NB07 vegetation arrays: {missing}")
+        tree_dlst_full = veg["dLST_month_ref_uniform"].reshape(12, -1).astype(np.float32)
+        self.tree_dlst_month_maps = tree_dlst_full[:, self.row_cols].astype(np.float32)
+        self.tree_gvi_0_1 = (veg["gvi_baseline"].reshape(-1)[self.row_cols].astype(np.float32) / 100.0)
+        self.tree_scope = veg["SCOPE_PHYS"].reshape(-1)[self.row_cols].astype(bool)
+        self.tree_dlst_month_maps[:, ~self.tree_scope] = 0.0
+        # NB08 currently uses this NB07-exported city-mean approximation only
+        # for the second-order lambda_y waste-heat interaction.  Primary tree
+        # mortality branches below use the exact day-specific quadratic bridge.
+        self.tree_lambda_dt2m_monthly = None
+        if "dT2M_month_ref_uniform_approx" in veg.files:
+            lambda_maps = veg["dT2M_month_ref_uniform_approx"].reshape(12, -1)[:, self.row_cols]
+            self.tree_lambda_dt2m_monthly = np.array(
+                [float(np.nanmean(lambda_maps[m, self.tree_scope])) for m in range(12)],
+                dtype=float,
+            )
+
+        expected_shape = (self.hgt, self.wdt)
+        lcz_full = None
+        lcz_path = None
+        cached_candidates = [
+            self.int_dir / f"lcz_on_ref_{self.slug}.tif",
+            self.out / f"{self.slug}_lcz_on_ref.tif",
+        ]
+        for candidate in cached_candidates:
+            if not candidate.exists():
+                continue
+            with rio.open(candidate) as src:
+                if src.shape == expected_shape:
+                    lcz_full = src.read(1)
+                    lcz_path = candidate
+                    break
+
+        if lcz_full is None:
+            # NB07 does not always persist its in-memory aligned LCZ raster.
+            # Reproduce that notebook's nearest-neighbour reprojection from
+            # the active config instead of accepting a differently gridded
+            # reporting raster such as lcz_masked_fua.tif.
+            configured = [self.P(str(path)) for path in (self.cfg.get("files", {}).get("lcz_candidates", []) or [])]
+            raw_candidates = configured + [
+                self.P("LCZ/lcz_filter_v3.tif"),
+                self.P("LCZ/lcz_v3.tif"),
+            ]
+            lcz_path = next((path for path in raw_candidates if path.exists()), None)
+            if lcz_path is None:
+                raise FileNotFoundError(
+                    "Could not find the NB07 LCZ source raster:\n" + "\n".join(str(path) for path in raw_candidates)
+                )
+            with rio.open(lcz_path) as src:
+                src_nodata = src.nodata if src.nodata is not None else 0
+                with WarpedVRT(
+                    src,
+                    crs=self.ref_crs,
+                    transform=self.ref_transform,
+                    width=self.wdt,
+                    height=self.hgt,
+                    resampling=Resampling.nearest,
+                    src_nodata=src_nodata,
+                    nodata=np.nan,
+                ) as vrt:
+                    reproj = vrt.read(1, out_dtype="float32")
+            work = np.where(self.city_mask, reproj, np.nan)
+            missing_inside = np.isnan(work) & self.city_mask
+            if np.any(missing_inside):
+                valid = np.isfinite(work) & self.city_mask
+                if not np.any(valid):
+                    raise ValueError(f"LCZ reprojection from {lcz_path} has no valid city cells.")
+                _, (iy, ix) = ndi.distance_transform_edt(~valid, return_indices=True)
+                work[missing_inside] = work[iy[missing_inside], ix[missing_inside]]
+            lcz_full = np.where(self.city_mask, work, 0).astype(np.int16)
+
+        if lcz_full.shape != expected_shape:
+            raise ValueError(f"NB07 LCZ raster {lcz_path} has shape {lcz_full.shape}, expected {expected_shape}.")
+        self.tree_lcz_path = lcz_path
+        self.tree_lcz = lcz_full.reshape(-1)[self.row_cols]
+
+        emulator_rel = self.trees_cfg.get(
+            "veg_emulator_bundle",
+            f"emulator/bundles/emulator_bundle_{self.slug}_quadratic_holdout_safe.json",
+        )
+        emulator_path = self.out / str(emulator_rel)
+        if not emulator_path.exists():
+            candidates = sorted((self.out / "emulator" / "bundles").glob("emulator_bundle_*.json"))
+            if len(candidates) != 1:
+                raise FileNotFoundError(
+                    f"Configured NB07 emulator bundle is missing ({emulator_path}) and a unique fallback was not found."
+                )
+            emulator_path = candidates[0]
+            warnings.warn(f"[{self.slug}] Using sole emulator bundle fallback: {emulator_path.name}")
+        self.tree_emulator_path = emulator_path
+        self.tree_emulator = _load_json(emulator_path)
         self.tree_base_cap = float(self.trees_cfg.get("cap_uplift_0_1", 0.12))
         self.tree_ramp_base = int(self.trees_cfg.get("ramp_years", 12))
         self.tree_ramp_options = sorted(set([8, self.tree_ramp_base, 15]))
@@ -1201,12 +1573,6 @@ class NB09ImprovedFast:
                 id_col = "region_id" if "region_id" in dgvi_df.columns else dgvi_df.columns[0]
                 dgvi_col = "dGVI_points" if "dGVI_points" in dgvi_df.columns else "dGVI"
                 self.elec_fb_dgvi_by_region = dict(zip(dgvi_df[id_col].astype(int), dgvi_df[dgvi_col].astype(float)))
-
-        # Precompute city-mean monthly dT2M for lambda_y (tree-cooled AC utilization)
-        # tree_month_maps: (12, n_row_cols) — dT2M at each centroid for each month
-        self.tree_dT2M_citymean_monthly = np.array([
-            float(self.tree_month_maps[m][self.row_is_city].mean()) for m in range(12)
-        ], dtype=float)  # shape (12,), negative = cooling
 
         # Precompute pop-weighted mean dGVI for city-level reduction
         self.elec_fb_pw_dgvi = 0.0
@@ -1573,6 +1939,230 @@ class NB09ImprovedFast:
         x = np.column_stack(x_cols)
         return pd.DataFrame(cols), x
 
+    def _git_provenance(self) -> dict[str, Any]:
+        def run_git(*args: str) -> str | None:
+            completed = subprocess.run(
+                ["git", *args],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            return completed.stdout.strip() if completed.returncode == 0 else None
+
+        commit = run_git("rev-parse", "HEAD")
+        status = run_git("status", "--porcelain", "--untracked-files=no")
+        return {
+            "commit": commit,
+            "tracked_worktree_dirty": bool(status),
+            "tracked_worktree_status": status.splitlines() if status else [],
+        }
+
+    def _configured_existing_files(self) -> set[Path]:
+        """Find file-valued config entries relative to the city data/root paths."""
+        files: set[Path] = set()
+
+        def visit(value: Any) -> None:
+            if isinstance(value, dict):
+                for item in value.values():
+                    visit(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    visit(item)
+            elif isinstance(value, str) and value.strip():
+                raw = Path(value).expanduser()
+                candidates = [raw] if raw.is_absolute() else [self.base_dir / raw, self.root / raw]
+                for candidate in candidates:
+                    try:
+                        candidate = candidate.resolve()
+                    except OSError:
+                        continue
+                    if candidate.is_file():
+                        files.add(candidate)
+                        break
+
+        visit(self.cfg)
+        return files
+
+    def input_files(self) -> list[Path]:
+        """Return the concrete model inputs whose contents define this run."""
+        files: set[Path] = set(self._configured_existing_files())
+        direct_paths: list[Path | None] = [
+            self.cfg_path,
+            self.root / "data_manifests" / f"{self.slug}_gdrive.json",
+            self.template_tif,
+            self.city_mask_npz,
+            self.exp_manifest_path,
+            self.haz_events_csv,
+            getattr(self, "climate_delta_path", None),
+            getattr(self, "climate_gcm_path", None),
+            getattr(self, "ac_penetration_path", None),
+            getattr(self, "ac_kwh_path", None),
+            getattr(self, "ac_coverage_path", None),
+            self.ac_cost_params_path,
+            Path(self.threshold_meta_path) if self.threshold_meta_path else None,
+            getattr(self, "ews_warning_days_path", None),
+            self.ews_params_path,
+            getattr(self, "tree_veg_aux_path", None),
+            getattr(self, "tree_lcz_path", None),
+            self.tree_emulator_path,
+            self.tree_cost_params_path,
+            self.tab_dir / f"annual_heat_deaths_baseline_current_ac_{self.slug}.csv",
+            self.tab_dir / f"annual_heat_deaths_avoided_EWS_{self.slug}.csv",
+            self.tab_dir / f"trees_benefits_25y_{self.slug}.csv",
+            self.tab_dir / f"ews_benefits_25y_{self.slug}.csv",
+            self.tab_dir / f"{self.slug}_cba_summary.json",
+            self.root / "cityheat" / "nb09_improved_fast.py",
+            self.root / "cityheat" / "nb09_improved_fast_masselot_main.py",
+            self.root / "notebooks" / "city_agnostic" / "March2026_agnostic" / "template" / "09_uncertainty_0126_improved_fast.ipynb",
+            self.root / "scripts" / "run_agnostic_batch.py",
+            self.root / "scripts" / "juno_run_nb09.sh",
+        ]
+        files.update(path.resolve() for path in direct_paths if path is not None and path.is_file())
+        files.update(path.resolve() for path in self.if_jsons.values() if path.is_file())
+        files.update(path.resolve() for path in self.exp_paths.values() if path.is_file())
+        for mode in self.baseline_modes:
+            for year in self.years:
+                path = self.tagged_haz_path(int(year), mode)
+                if path.is_file():
+                    files.add(path.resolve())
+        # These generated arrays are direct inputs to the dynamic-vulnerability
+        # calculations even when their original sources are outside the city config.
+        files.update(path.resolve() for path in self.int_dir.glob("vulnerability_*.npz") if path.is_file())
+        files.update(path.resolve() for path in self.int_dir.glob("population_*.npz") if path.is_file())
+        return sorted(files, key=lambda path: str(path))
+
+    def input_fingerprints(
+        self,
+        previous: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        previous_by_path = {
+            str(item.get("path")): item
+            for item in (previous or [])
+            if isinstance(item, dict) and item.get("path")
+        }
+        fingerprints: list[dict[str, Any]] = []
+        for path in self.input_files():
+            stat = path.stat()
+            try:
+                logical_path = str(path.relative_to(self.root))
+            except ValueError:
+                logical_path = str(path)
+            prior = previous_by_path.get(logical_path)
+            if (
+                prior is not None
+                and int(prior.get("size_bytes", -1)) == int(stat.st_size)
+                and int(prior.get("mtime_ns", -1)) == int(stat.st_mtime_ns)
+                and (prior.get("digest") or prior.get("sha256"))
+            ):
+                fingerprints.append(prior)
+                continue
+            if os.environ.get("NB09_FINGERPRINT_PROGRESS", "0").strip() == "1":
+                print(f"[{self.slug}] fingerprinting input: {logical_path}", flush=True)
+            fingerprint = _input_file_fingerprint(path)
+            fingerprints.append(
+                {
+                    "path": logical_path,
+                    **fingerprint,
+                }
+            )
+        return fingerprints
+
+    def _param_spec_manifest(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "name": spec.name,
+                "kind": spec.kind,
+                "options": _json_ready(spec.options),
+                "low": spec.low,
+                "high": spec.high,
+            }
+            for spec in self.param_specs
+        ]
+
+    def prepare_campaign(
+        self,
+        raw_samples: pd.DataFrame,
+        *,
+        n: int,
+        seed: int,
+    ) -> dict[str, Any]:
+        """Freeze the LHS design and provenance before evaluating sample zero."""
+        self.unc_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = self.unc_dir / f"run_manifest_{self.slug}_improved_fast.json"
+        existing_manifest = _load_json(manifest_path) if manifest_path.exists() else None
+        design = raw_samples.copy()
+        design.insert(0, "sample_idx", np.arange(len(design), dtype=int))
+        design_path = self.unc_dir / f"lhs_design_{self.slug}_improved_fast.csv"
+        design_text = design.to_csv(index=False, float_format="%.17g", lineterminator="\n")
+        desired_hash = hashlib.sha256(design_text.encode("utf-8")).hexdigest()
+
+        if design_path.exists():
+            existing_hash = _sha256_file(design_path)
+            if existing_hash != desired_hash:
+                raise RuntimeError(
+                    f"[{self.slug}] Existing LHS design differs from N={n}, seed={seed}. "
+                    f"Use a new NB09_CAMPAIGN_ID; refusing to overwrite {design_path}."
+                )
+        else:
+            _atomic_write_text(design_path, design_text)
+
+        provenance = {
+            "output_schema_version": OUTPUT_SCHEMA_VERSION,
+            "campaign_id": os.environ.get("NB09_CAMPAIGN_ID", "legacy_unisolated"),
+            "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "city": self.city,
+            "slug": self.slug,
+            "n_samples": int(n),
+            "seed": int(seed),
+            "lhs_scope": getattr(self, "_lhs_scope", "full"),
+            "lhs_scope_family": getattr(self, "_lhs_scope_family", None),
+            "lhs_design_sha256": desired_hash,
+            "parameter_specs": self._param_spec_manifest(),
+            "git": self._git_provenance(),
+            "input_fingerprints": self.input_fingerprints(
+                existing_manifest.get("input_fingerprints", []) if existing_manifest else None
+            ),
+            "runtime": {
+                "python": sys.version,
+                "numpy": np.__version__,
+                "pandas": pd.__version__,
+            },
+        }
+        signature_payload = {
+            key: provenance[key]
+            for key in (
+                "output_schema_version",
+                "campaign_id",
+                "slug",
+                "n_samples",
+                "seed",
+                "lhs_scope",
+                "lhs_scope_family",
+                "lhs_design_sha256",
+                "parameter_specs",
+                "git",
+                "input_fingerprints",
+            )
+        }
+        provenance["campaign_signature"] = _sha256_json(signature_payload)
+        if existing_manifest is not None:
+            if existing_manifest.get("campaign_signature") != provenance["campaign_signature"]:
+                raise RuntimeError(
+                    f"[{self.slug}] Existing campaign provenance differs from the current code, inputs, "
+                    f"N or seed. Use a new NB09_CAMPAIGN_ID; refusing to mix runs in {self.unc_dir}."
+                )
+            provenance = existing_manifest
+        else:
+            _atomic_write_json(manifest_path, provenance)
+
+        self.run_provenance = provenance
+        self.lhs_design_path = design_path
+        self.run_manifest_path = manifest_path
+        self.checkpoint_dir = self.unc_dir / "checkpoints" / "samples"
+        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        return provenance
+
     def get_penetration(self, ssp: int, year: int) -> float:
         ssp = int(ssp)
         year = int(year)
@@ -1642,6 +2232,20 @@ class NB09ImprovedFast:
             out[idx] = np.interp(year, anchor_years, stack[:, idx])
         return out
 
+    def interpolate_coverage_raw(self, year: int, mode: str = "base") -> np.ndarray:
+        """Interpolate the canonical NB05 coverage maps without re-calibration."""
+        year = int(year)
+        mode_key = "policy" if str(mode).lower() == "policy" else "base"
+        raw_map = self.coverage_raw_by_mode_year[mode_key]
+        if year in raw_map:
+            return raw_map[year].copy()
+        anchor_years = np.array(sorted(raw_map), dtype=int)
+        stack = np.vstack([raw_map[y][None, :] for y in anchor_years]).astype(np.float32)
+        out = np.empty(stack.shape[1], dtype=np.float32)
+        for idx in range(stack.shape[1]):
+            out[idx] = np.interp(year, anchor_years, stack[:, idx])
+        return out
+
     def interpolate_coverage_mean(self, year: int, mode: str = "base") -> float:
         year = int(year)
         mode_key = "policy" if str(mode).lower() == "policy" else "base"
@@ -1666,9 +2270,99 @@ class NB09ImprovedFast:
         return float(np.clip(base_mean + float(delta_mean), 0.0, 0.98))
 
     def coverage_for_sample(self, year: int, ac_ssp: int, mode: str = "base") -> np.ndarray:
+        # NB05's stored maps are the canonical spatial allocation for the
+        # configured AC SSP.  Returning them unchanged is essential for the
+        # central NB09 point to reproduce the deterministic workflow.
+        if int(ac_ssp) == self.ac_ssp_base:
+            return self.interpolate_coverage_raw(year, mode=mode)
         pattern = self.interpolate_coverage_pattern(year, mode=mode)
         target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode=mode)
         return _scale_pattern_to_mean_masked(pattern, self.row_is_city, target_mean, upper=0.98)
+
+    def coverage_full_for_sample(self, year: int, ac_ssp: int, mode: str = "base") -> np.ndarray:
+        """Return raw coverage indexed by the full hazard-centroid numbering."""
+        full = np.full(self.hgt * self.wdt, np.nan, dtype=np.float32)
+        full[self.row_cols] = self.coverage_for_sample(year, ac_ssp, mode=mode)
+        return full
+
+    def coverage_full_for_exposure(
+        self,
+        path: Path,
+        year: int,
+        ac_ssp: int,
+        mode: str = "base",
+    ) -> np.ndarray:
+        """Return NB05-compatible coverage for mortality on an exposure grid.
+
+        For the configured AC SSP, this exactly reproduces the gap treatment
+        used by the deterministic Notebook 05/06 mortality calculations:
+        missing coverage cells contribute zero to the population-weighted
+        city mean, and are then filled with that (therefore diluted) mean.
+
+        For an alternative sampled AC SSP, the same canonical spatial pattern
+        and gap treatment are retained and the resulting populated-cell map is
+        rescaled to the sampled population-weighted penetration target.  This
+        keeps the sampled SSP interpretation tied to people rather than to an
+        unweighted raster-cell average.
+        """
+        exp = self.load_exposure_cached(path)
+        centroids = exp.gdf["centr_T2M"].to_numpy(dtype=int)
+        values = exp.gdf["value"].to_numpy(dtype=float)
+        n_full = self.hgt * self.wdt
+        if np.any((centroids < 0) | (centroids >= n_full)):
+            raise IndexError("Exposure-to-hazard centroid index is outside the AC coverage grid.")
+
+        pop_by_centroid = np.bincount(
+            centroids,
+            weights=np.nan_to_num(values, nan=0.0),
+            minlength=n_full,
+        ).astype(float)
+        populated = np.isfinite(pop_by_centroid) & (pop_by_centroid > 0)
+
+        # Begin with the canonical NB05 map even for alternative sampled SSPs;
+        # the latter are rescaled only after applying the deterministic gap
+        # rule below.
+        coverage = self.coverage_full_for_sample(year, self.ac_ssp_base, mode=mode).astype(float)
+        if np.any(populated & ~np.isfinite(coverage)):
+            numerator = float(
+                np.sum(np.nan_to_num(coverage[populated], nan=0.0) * pop_by_centroid[populated])
+            )
+            denominator = float(np.sum(pop_by_centroid[populated]))
+            fallback = numerator / denominator if denominator > 0 else 0.0
+            coverage[populated & ~np.isfinite(coverage)] = fallback
+
+        coverage[~np.isfinite(coverage)] = 0.0
+        coverage = np.clip(coverage, 0.0, 0.98)
+
+        if int(ac_ssp) != self.ac_ssp_base:
+            target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode=mode)
+            coverage = _scale_pattern_to_weighted_mean(
+                coverage,
+                pop_by_centroid,
+                target_mean,
+                upper=0.98,
+            ).astype(float)
+
+        return coverage.astype(np.float32)
+
+    def tree_dt2m_for_day(
+        self,
+        t2m_row: np.ndarray,
+        month: int,
+        tree_coeff_scale: float,
+        tree_cap_uplift: float,
+    ) -> np.ndarray:
+        """Canonical day-specific NB07 dGVI->dLST->dT2M bridge."""
+        cap_ratio = float(tree_cap_uplift) / max(self.tree_base_cap, 1e-6)
+        dlst = self.tree_dlst_month_maps[int(month) - 1] * float(tree_coeff_scale) * cap_ratio
+        return _translate_dlst_to_dt2m_quadratic(
+            t2m=np.asarray(t2m_row, dtype=np.float32),
+            dlst=dlst,
+            lcz=self.tree_lcz,
+            gvi_0_1=self.tree_gvi_0_1,
+            scope=self.tree_scope,
+            emulator=self.tree_emulator,
+        )
 
     def build_muni_ac_cost_frame(
         self,
@@ -1752,34 +2446,41 @@ class NB09ImprovedFast:
         for year in years_all:
             mask = cov_yearly["year"] == int(year)
             weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float)
+            if int(sample["ac_ssp"]) == self.ac_ssp_base:
+                # Exact NB08 central trajectories: interpolate the NB05
+                # municipality tables and do not recalibrate them to a second
+                # NUTS-level target.
+                cov_yearly.loc[mask, "base_share_t"] = cov_yearly.loc[mask, "base_share_raw"].to_numpy(float)
+                cov_yearly.loc[mask, "policy_share_t"] = cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float)
+                cov_yearly.loc[mask, "kwh_per_user_t"] = cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float)
+            else:
+                base_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="base")
+                policy_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="policy")
 
-            base_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="base")
-            policy_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="policy")
+                cov_yearly.loc[mask, "base_share_t"] = _scale_pattern_to_weighted_mean(
+                    cov_yearly.loc[mask, "base_share_raw"].to_numpy(float),
+                    weights,
+                    base_target,
+                    upper=0.98,
+                )
+                cov_yearly.loc[mask, "policy_share_t"] = _scale_pattern_to_weighted_mean(
+                    cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float),
+                    weights,
+                    policy_target,
+                    upper=0.98,
+                )
 
-            cov_yearly.loc[mask, "base_share_t"] = _scale_pattern_to_weighted_mean(
-                cov_yearly.loc[mask, "base_share_raw"].to_numpy(float),
-                weights,
-                base_target,
-                upper=0.98,
-            )
-            cov_yearly.loc[mask, "policy_share_t"] = _scale_pattern_to_weighted_mean(
-                cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float),
-                weights,
-                policy_target,
-                upper=0.98,
-            )
-
-            user_weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float) * np.maximum(
-                cov_yearly.loc[mask, "base_share_t"].to_numpy(float),
-                1e-9,
-            )
-            target_kwh = self.get_kwh_per_user(sample["ac_ssp"], int(year))
-            cov_yearly.loc[mask, "kwh_per_user_t"] = _scale_pattern_to_weighted_mean(
-                cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float),
-                user_weights,
-                target_kwh,
-                upper=None,
-            )
+                user_weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float) * np.maximum(
+                    cov_yearly.loc[mask, "base_share_t"].to_numpy(float),
+                    1e-9,
+                )
+                target_kwh = self.get_kwh_per_user(sample["ac_ssp"], int(year))
+                cov_yearly.loc[mask, "kwh_per_user_t"] = _scale_pattern_to_weighted_mean(
+                    cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float),
+                    user_weights,
+                    target_kwh,
+                    upper=None,
+                )
 
         cov_yearly["base_share_t"] = cov_yearly["base_share_t"].astype(float).clip(0.0, 0.98)
         cov_yearly["policy_share_t"] = cov_yearly["policy_share_t"].astype(float).clip(0.0, 0.98)
@@ -1823,6 +2524,100 @@ class NB09ImprovedFast:
         ssp = self.exp_ssp_options[int(exp_ssp_idx)]
         return self.exp_paths[(ssp, year)]
 
+    def _manifest_npz_path(self, value: Any) -> Path:
+        """Resolve an NB03 manifest NPZ after a repository/host move."""
+        path = Path(str(value))
+        candidates = [path, self.int_dir / path.name, self.out / path.name]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        raise FileNotFoundError(
+            f"Could not resolve population NPZ {value!r}; checked: "
+            + ", ".join(str(candidate) for candidate in candidates)
+        )
+
+    def population_total_for_year(self, year: int, exp_ssp_idx: int) -> float:
+        """Return the NB03 population-grid total used by NB06 for one anchor."""
+        year = int(year)
+        baseline = self.expo_manifest.get("baseline", {}) or {}
+        baseline_year = int(baseline.get("year", min(self.years)))
+        if year == baseline_year and baseline.get("pop_npz"):
+            scenario: str | None = None
+            record = baseline
+        elif year in self.direct_years:
+            scenario = None
+            record = (self.expo_manifest.get("direct_worldpop", {}) or {}).get(str(year))
+        else:
+            scenario = self.exp_ssp_options[int(exp_ssp_idx)]
+            record = (
+                (self.expo_manifest.get("scenarios", {}) or {})
+                .get(scenario, {})
+                .get(str(year))
+            )
+        if not isinstance(record, dict) or not record.get("pop_npz"):
+            raise KeyError(
+                f"No pop_npz manifest record for year={year}, scenario={scenario!r}."
+            )
+        key = (scenario, year)
+        if key not in self.population_total_cache:
+            pop_path = self._manifest_npz_path(record["pop_npz"])
+            self.population_total_cache[key] = float(np.nansum(np.load(pop_path)["pop"]))
+        return self.population_total_cache[key]
+
+    def ac_cba_population_series(self, years: np.ndarray, sample: dict[str, Any]) -> np.ndarray:
+        """Reproduce Notebook 08's population path for AC expenditure.
+
+        NB08 combines the 2020 direct/baseline population with the selected
+        SSP records and interpolates between those points.  In the current
+        NB03 manifests, SSP records begin in 2040, so the direct 2030
+        WorldPop observation is deliberately not inserted into this AC-cost
+        path.  NB06 uses all four modeled anchors instead; that separate path
+        remains in ``evaluate_branch_anchors`` for EWS.
+        """
+        target_years = np.asarray(years, dtype=int)
+        if target_years.size == 0:
+            return np.array([], dtype=float)
+
+        baseline = self.expo_manifest.get("baseline", {}) or {}
+        baseline_year = int(baseline.get("year", min(self.years)))
+        direct = self.expo_manifest.get("direct_worldpop", {}) or {}
+        baseline_record = baseline if baseline.get("pop_npz") else direct.get(str(baseline_year))
+        if not isinstance(baseline_record, dict) or not baseline_record.get("pop_npz"):
+            raise KeyError(f"No baseline/direct pop_npz record for AC CBA year {baseline_year}.")
+        baseline_key = (None, baseline_year)
+        if baseline_key not in self.population_total_cache:
+            self.population_total_cache[baseline_key] = float(
+                np.nansum(np.load(self._manifest_npz_path(baseline_record["pop_npz"]))["pop"])
+            )
+        baseline_total = self.population_total_cache[baseline_key]
+
+        scenario = self.exp_ssp_options[int(sample["EXP_SSP_IDX"])]
+        scenario_records = (
+            (self.expo_manifest.get("scenarios", {}) or {}).get(scenario, {}) or {}
+        )
+        scenario_years = sorted(
+            int(year)
+            for year, record in scenario_records.items()
+            if int(year) != baseline_year and isinstance(record, dict) and record.get("pop_npz")
+        )
+        anchor_years = [baseline_year]
+        anchor_totals = [baseline_total]
+        for year in scenario_years:
+            record = scenario_records[str(year)]
+            anchor_years.append(year)
+            key = (scenario, year)
+            if key not in self.population_total_cache:
+                self.population_total_cache[key] = float(
+                    np.nansum(np.load(self._manifest_npz_path(record["pop_npz"]))["pop"])
+                )
+            anchor_totals.append(self.population_total_cache[key])
+        scale = float(sample.get("EXP_TOTAL_SCALE", 1.0))
+        return scale * np.interp(
+            target_years.astype(float),
+            np.asarray(anchor_years, dtype=float),
+            np.asarray(anchor_totals, dtype=float),
+        )
+
     def load_if_block(self, family: str, year: int) -> dict[str, Any]:
         key = (family, int(year))
         if key not in self.if_block_cache:
@@ -1845,9 +2640,15 @@ class NB09ImprovedFast:
         ac_eff_scen: str,
         ac_mode: str = "base",
     ) -> ImpactFuncSet:
+        """Build the sampled IF set before spatial AC attenuation.
+
+        AC cannot be represented by multiplying a city-level IF by mean
+        coverage: NB05 applies ``1 - efficacy_age * coverage_cell`` at each
+        exposure cell.  The spatial attenuation is therefore applied to the
+        exposure values in :meth:`evaluate_year`; this method only applies the
+        non-spatial IF uncertainty dimensions.
+        """
         block = self.load_if_block(family, year)
-        pen = float(self.coverage_mean_for_mode(year, ac_ssp, mode=ac_mode))
-        ac_eff_map = self.cfg["efficacy_scenarios"][ac_eff_scen]
         funcs: list[ImpactFunc] = []
         for age in AGE_ORDER:
             rec = block[age]
@@ -1861,9 +2662,7 @@ class NB09ImprovedFast:
             paa = np.asarray(rec.get("paa", np.ones_like(mdd)), dtype=float)
             age_scale = {"<15": mdd_scale_lt15, "15-64": mdd_scale_15_64, "65+": mdd_scale_65p}[age]
             mdd = mdd * float(age_scale) * (1.0 - float(disp_frac))
-            ac_eff_age = float(ac_eff_map.get(age, ac_eff_map.get("default", 0.30)))
-            ac_residual = float(np.clip(1.0 - ac_eff_age * pen, 0.0, 1.0))
-            mdd = np.clip(mdd * ac_residual, 0.0, 1.0)
+            mdd = np.clip(mdd, 0.0, 1.0)
             paa = np.clip(paa * float(paa_scale), 0.0, 1.0)
             funcs.append(
                 ImpactFunc(
@@ -1899,6 +2698,7 @@ class NB09ImprovedFast:
         ac_mode: str = "base",
         wh_mode: str | None = None,
         tree_enabled: bool = True,
+        temperature_offset_c: float = 0.0,
         extreme_threshold_c: float | None = None,
         extreme_min_duration_days: int | None = None,
     ) -> Hazard:
@@ -1913,36 +2713,19 @@ class NB09ImprovedFast:
             clim_adj = self.clim_day_anom_gcm.get((str(clim_scen), str(gcm_model), year), np.zeros(n_days, dtype=np.float32))
         else:
             clim_adj = self.clim_day_anom_bands.get((str(clim_scen), str(clim_band).lower(), year), np.zeros(n_days, dtype=np.float32))
-        citymean_pre_wh = self.ref_citymean_by_year[year] + mode_adj + clim_adj
-        wh_activity_share = self.waste_heat_activity_share(citymean_pre_wh)
-
-        wh_mode_use = str(wh_mode or ac_mode)
-        coverage = self.coverage_for_sample(year, ac_ssp, mode=wh_mode_use)
-        pen = float(self.coverage_mean_for_mode(year, ac_ssp, mode=wh_mode_use))
-        dT_night = self.dT_night_from_penetration(pen, wh_case) if wh_enabled else 0.0
-        if wh_enabled and cop_enabled:
-            cop_sens = float(self.cop_sens.get(cop_case, self.cop_sens.get("central", 0.065)))
-            amp = self.cop_amplification_factor(dT_night, cop_sens)
-        else:
-            amp = 1.0
-        wh_city_scalar = float(wh_activity_share) * float(wh_ratio) * float(dT_night) * float(amp) if wh_enabled else 0.0
-        if wh_city_scalar != 0.0 and coverage.size:
-            coverage_mean = float(coverage[self.row_is_city].mean())
-            wh_pattern = coverage / max(coverage_mean, 1e-6)
-        else:
-            wh_pattern = np.zeros(len(self.row_cols), dtype=np.float32)
-
-        maturity = self.tree_maturity_factor(year, tree_ramp_years, tree_start_age)
-        cap_ratio = float(tree_cap_uplift) / max(self.tree_base_cap, 1e-6)
-        tree_scale = float(tree_coeff_scale) * cap_ratio * float(maturity) if tree_enabled else 0.0
-
         for row in range(n_days):
             a, b = indptr[row], indptr[row + 1]
-            data[a:b] += float(mode_adj[row] + clim_adj[row])
-            if wh_city_scalar != 0.0:
-                data[a:b] += (wh_city_scalar * wh_pattern).astype(np.float32)
-            if tree_scale != 0.0:
-                data[a:b] += (self.tree_month_maps[int(months[row]) - 1] * tree_scale).astype(np.float32)
+            data[a:b] += float(mode_adj[row] + clim_adj[row] + temperature_offset_c)
+            if tree_enabled:
+                # NB07 translates the monthly dLST map at each day's actual
+                # baseline T2M.  Tree maturity is applied later to the annual
+                # benefit stream through the cohort rollout convolution.
+                data[a:b] += self.tree_dt2m_for_day(
+                    data[a:b],
+                    int(months[row]),
+                    tree_coeff_scale,
+                    tree_cap_uplift,
+                )
 
         if self.use_extreme_track:
             tstar = float(self.extreme_tstar_c if extreme_threshold_c is None else extreme_threshold_c)
@@ -2032,11 +2815,91 @@ class NB09ImprovedFast:
         dt_years = max(int(year) - min(self.years), 0)
         if ews_ramp_years <= 0:
             return 1.0
-        return float(np.clip(self.ews_init + (1.0 - self.ews_init) * (dt_years / float(ews_ramp_years)), 0.0, 1.0))
+        # Canonical NB06 uses a step interpretation: initial efficacy for the
+        # first ``ramp_years`` policy years, then full configured efficacy.
+        return float(np.clip(self.ews_init if dt_years < int(ews_ramp_years) else 1.0, 0.0, 1.0))
 
     def pop_total_for_exposure(self, path: Path, scale: float) -> float:
         exp = self.load_exposure_cached(path)
         return float(exp.gdf["value"].astype(float).sum() * float(scale))
+
+    def coverage_mean_for_exposure(
+        self,
+        path: Path,
+        year: int,
+        ac_ssp: int,
+        ac_mode: str,
+    ) -> float:
+        """Population-weighted AC penetration on the modeled exposure cells."""
+        exp = self.load_exposure_cached(path)
+        coverage_full = self.coverage_full_for_exposure(path, year, ac_ssp, mode=ac_mode)
+        centroids = exp.gdf["centr_T2M"].to_numpy(dtype=int)
+        if np.any((centroids < 0) | (centroids >= coverage_full.size)):
+            raise IndexError("Exposure-to-hazard centroid index is outside the AC coverage grid.")
+        return _weighted_mean(coverage_full[centroids], exp.gdf["value"].to_numpy(float))
+
+    def coverage_mean_for_ews(self, year: int, ac_ssp: int, mode: str = "base") -> float:
+        """Return the unweighted city-pixel coverage mean used by NB06."""
+        coverage = self.coverage_for_sample(year, ac_ssp, mode=mode)
+        values = np.asarray(coverage, dtype=float)[self.row_is_city]
+        finite = values[np.isfinite(values)]
+        return float(finite.mean()) if finite.size else 0.0
+
+    def coverage_mean_for_waste_heat(self, year: int, ac_ssp: int, mode: str = "base") -> float:
+        """Return the population-weighted municipal penetration used by NB05."""
+        return float(
+            self.coverage_series_for_waste_heat(
+                np.asarray([int(year)], dtype=int),
+                ac_ssp,
+                mode=mode,
+            )[0]
+        )
+
+    def coverage_series_for_waste_heat(
+        self,
+        years: np.ndarray,
+        ac_ssp: int,
+        mode: str = "base",
+    ) -> np.ndarray:
+        """Return the NB05 citywide AC-penetration path.
+
+        Notebook 05 first interpolates municipal users and total population
+        from the anchor years and only then divides the two series.  Interpolating
+        anchor-year penetration ratios directly is close, but not algebraically
+        identical when population changes.  The distinction matters for the
+        central NB01--NB08 parity control.
+        """
+        target_years = np.asarray(years, dtype=float)
+        if int(ac_ssp) == self.ac_ssp_base and self.ac_muni_cov_yearly is not None:
+            df = self.ac_muni_cov_yearly
+            coverage_col = "ac_policy_muni" if str(mode).lower() == "policy" else "ac_base_muni"
+            users_anchors: dict[int, float] = {}
+            pop_anchors: dict[int, float] = {}
+            if coverage_col in df.columns and {"year", "pop_muni"}.issubset(df.columns):
+                for anchor_year, group in df.groupby("year"):
+                    pop = pd.to_numeric(group["pop_muni"], errors="coerce").to_numpy(float)
+                    cov = pd.to_numeric(group[coverage_col], errors="coerce").to_numpy(float)
+                    valid = np.isfinite(pop) & np.isfinite(cov) & (pop >= 0)
+                    if np.any(valid) and float(pop[valid].sum()) > 0:
+                        users_anchors[int(anchor_year)] = float(np.sum(pop[valid] * cov[valid]))
+                        pop_anchors[int(anchor_year)] = float(np.sum(pop[valid]))
+            common_years = sorted(set(users_anchors).intersection(pop_anchors))
+            if common_years:
+                anchor_years = np.asarray(common_years, dtype=float)
+                users = np.asarray([users_anchors[int(y)] for y in anchor_years], dtype=float)
+                population = np.asarray([pop_anchors[int(y)] for y in anchor_years], dtype=float)
+                users_t = np.interp(target_years, anchor_years, users)
+                population_t = np.interp(target_years, anchor_years, population)
+                return np.divide(
+                    users_t,
+                    population_t,
+                    out=np.zeros_like(users_t, dtype=float),
+                    where=population_t > 0,
+                )
+        return np.asarray(
+            [self.coverage_mean_for_mode(int(year), ac_ssp, mode=mode) for year in target_years],
+            dtype=float,
+        )
 
     def evaluate_year(
         self,
@@ -2049,6 +2912,7 @@ class NB09ImprovedFast:
         wh_mode: str | None = None,
         tree_enabled: bool = True,
         ews_enabled: bool = True,
+        temperature_offset_c: float = 0.0,
         extreme_threshold_c: float | None = None,
         extreme_min_duration_days: int | None = None,
     ) -> dict[str, Any]:
@@ -2074,6 +2938,7 @@ class NB09ImprovedFast:
             tree_start_age=sample["tree_start_age"],
             wh_mode=wh_mode,
             tree_enabled=tree_enabled,
+            temperature_offset_c=temperature_offset_c,
             extreme_threshold_c=extreme_threshold_c,
             extreme_min_duration_days=extreme_min_duration_days,
         )
@@ -2091,11 +2956,34 @@ class NB09ImprovedFast:
             ac_mode=ac_mode,
         )
 
+        # Canonical NB05 waste-heat activation is based on the masked daily
+        # city-mean hazard temperature, before mortality is evaluated.  Keep
+        # it with the branch result so aggregate feedback can be reconstructed
+        # without injecting waste heat into the spatial hazard itself.
+        mask_den = float(self.mask_vec.sum())
+        if mask_den <= 0:
+            raise RuntimeError("City mask has no active cells for city-mean hazard diagnostics.")
+        hazard_citymean_daily = np.asarray(
+            hazard.intensity.multiply(self.mask_vec.reshape(1, -1)).sum(axis=1)
+        ).ravel().astype(float) / mask_den
+
         age_impacts: dict[str, np.ndarray] = {}
         daily_total = np.zeros(len(self.dates_by_year[year]), dtype=float)
+        coverage_full = self.coverage_full_for_exposure(
+            exp_path,
+            year,
+            sample["ac_ssp"],
+            mode=ac_mode,
+        )
+        ac_eff_map = self.cfg["efficacy_scenarios"][sample["ac_eff_scenario"]]
         for age in AGE_ORDER:
             exp_age = copy.deepcopy(self.load_exposure_age(exp_path, age))
-            exp_age.gdf["value"] = exp_age.gdf["value"].astype(float) * scale
+            centroid_idx = exp_age.gdf["centr_T2M"].to_numpy(dtype=int)
+            if np.any((centroid_idx < 0) | (centroid_idx >= coverage_full.size)):
+                raise IndexError("Exposure-to-hazard centroid index is outside the AC coverage grid.")
+            ac_eff_age = float(ac_eff_map.get(age, ac_eff_map.get("default", 0.30)))
+            ac_residual = np.clip(1.0 - ac_eff_age * coverage_full[centroid_idx], 0.0, 1.0)
+            exp_age.gdf["value"] = exp_age.gdf["value"].astype(float) * scale * ac_residual
             imp = ImpactCalc(exp_age, ifs, hazard).impact(save_mat=False, assign_centroids=False)
             arr = np.asarray(imp.at_event, dtype=float)
             age_impacts[age] = arr
@@ -2105,7 +2993,7 @@ class NB09ImprovedFast:
         season_mask = _season_mask_by_md(dates, self.season_start_md, self.season_end_md)
         event_day_mask = np.diff(hazard.intensity.indptr) > 0 if self.use_extreme_track else np.zeros_like(daily_total, dtype=bool)
 
-        pen = float(self.coverage_mean_for_mode(year, sample["ac_ssp"], mode=ac_mode))
+        pen = self.coverage_mean_for_exposure(exp_path, year, sample["ac_ssp"], ac_mode)
         overlap = float(self.ews_overlap.get(sample["ews_overlap_level"], self.ews_overlap.get("central", 0.3)))
         ac_penalty = float(np.clip(1.0 - overlap * pen, 0.0, 1.0))
         ramp_factor = self.ramp_factor(year, sample["ews_ramp_years"])
@@ -2186,7 +3074,11 @@ class NB09ImprovedFast:
             "ac_penalty": ac_penalty,
             "ac_mode": str(ac_mode),
             "ramp_factor": ramp_factor,
-            "pop_total": self.pop_total_for_exposure(exp_path, scale),
+            "ac_coverage_mean": pen,
+            "hazard_citymean_daily": hazard_citymean_daily,
+            # NB06 population scaling is defined from NB03's population NPZs,
+            # not from the serialised exposure-table sum.
+            "pop_total": self.population_total_for_year(year, sample["EXP_SSP_IDX"]) * scale,
         }
 
     def _apply_ews_to_base_year(
@@ -2217,7 +3109,11 @@ class NB09ImprovedFast:
             threshold_year = self.threshold_for_year(year, threshold_ref, sample["ews_recalib_years"], pop_totals)
             warning_mask = season_mask & (daily_total >= threshold_year)
 
-        pen = float(self.coverage_mean_for_mode(year, sample["ac_ssp"], mode=ac_mode))
+        # NB06 defines the overlap term from the unweighted mean of the
+        # city-pixel coverage map.  Keep that exact convention here; it is
+        # distinct from NB05's population-weighted municipal penetration used
+        # for waste heat and from spatial coverage applied to mortality.
+        pen = self.coverage_mean_for_ews(year, sample["ac_ssp"], mode=ac_mode)
         overlap = float(self.ews_overlap.get(sample["ews_overlap_level"], self.ews_overlap.get("central", 0.3)))
         ac_penalty = float(np.clip(1.0 - overlap * pen, 0.0, 1.0))
         ramp_factor = self.ramp_factor(year, sample["ews_ramp_years"])
@@ -2285,6 +3181,8 @@ class NB09ImprovedFast:
             "ac_penalty": ac_penalty,
             "ac_mode": str(ac_mode),
             "ramp_factor": ramp_factor,
+            "ac_coverage_mean": pen,
+            "hazard_citymean_daily": np.asarray(base_res["hazard_citymean_daily"], dtype=float),
             "pop_total": float(base_res.get("pop_total", 0.0)),
         }
 
@@ -2298,6 +3196,14 @@ class NB09ImprovedFast:
     ) -> tuple[dict[int, dict[str, Any]], dict[int, float], float | None]:
         if self.ews_uses_event_mask_warning():
             threshold_ref = None
+        elif bool(sample.get("_central_control", False)):
+            threshold_key = str(self.ews_cfg.get("threshold_key", "threshold_deaths_per_day"))
+            if threshold_key not in self.threshold_meta:
+                raise KeyError(
+                    f"[{self.slug}] Central EWS parity requires {threshold_key!r} in "
+                    f"{self.threshold_meta_path}."
+                )
+            threshold_ref = float(self.threshold_meta[threshold_key])
         else:
             ref_year = self.ews_threshold_ref_year if self.ews_threshold_ref_year in self.years else min(self.years)
             ref_base = base_anchor_results[ref_year]
@@ -2327,6 +3233,7 @@ class NB09ImprovedFast:
         wh_mode: str | None = None,
         tree_enabled: bool = True,
         ews_enabled: bool = False,
+        temperature_offset_c: float = 0.0,
         extreme_threshold_c: float | None = None,
         extreme_min_duration_days: int | None = None,
         base_anchor_results: dict[int, dict[str, Any]] | None = None,
@@ -2356,6 +3263,7 @@ class NB09ImprovedFast:
                 wh_mode=wh_mode,
                 tree_enabled=tree_enabled,
                 ews_enabled=False,
+                temperature_offset_c=temperature_offset_c,
                 extreme_threshold_c=extreme_threshold_c,
                 extreme_min_duration_days=extreme_min_duration_days,
             )
@@ -2459,12 +3367,141 @@ class NB09ImprovedFast:
             out["extreme_min_duration_days"] = int(self.extreme_min_duration_days)
         return out
 
+    @staticmethod
+    def _index_or_default(options: list[Any], value: Any, default: int = 0) -> int:
+        """Return the exact option index, with case-insensitive string matching."""
+        for idx, option in enumerate(options):
+            if option == value:
+                return idx
+            if isinstance(option, str) and isinstance(value, str) and option.lower() == value.lower():
+                return idx
+        return int(np.clip(default, 0, max(len(options) - 1, 0)))
+
+    def central_parameter_row(self) -> pd.Series:
+        """Build the unsampled configuration that reproduces NB01--NB08.
+
+        This row is evaluated and exported separately from the LHS.  It is a
+        parity/control point only and is never included in PAWN or uncertainty
+        quantiles.
+        """
+        row: dict[str, float] = {}
+        for spec in self.param_specs:
+            if spec.kind == "choice":
+                row[spec.name] = float(len(spec.options or []) // 2)
+            else:
+                row[spec.name] = 0.5 * (float(spec.low) + float(spec.high))
+
+        exp_target = str(self.cfg.get("exp_scenario", "SSP2"))
+        trees_cfg = self.cfg.get("trees", {}) or {}
+        wh_cfg = self.wh_cfg or {}
+        cop_cfg = wh_cfg.get("cop_degradation", {}) or {}
+        dyn = (self.cfg.get("vulnerability", {}) or {}).get("dynamic", {}) or {}
+        thermal = dyn.get("thermal_projection", {}) or {}
+        fb = dyn.get("foreign_born_projection", {}) or {}
+        ue = dyn.get("unemployment_projection", {}) or {}
+        k_cfg = dyn.get("k", {}) or {}
+        phi_cfg = dyn.get("phi", {}) or {}
+
+        main_family = getattr(self, "if_main_family", None)
+        if main_family not in self.available_if_families:
+            main_family = "masselot_tail" if "masselot_tail" in self.available_if_families else self.available_if_families[0]
+
+        central_values = {
+            "YEAR_IDX": self._index_or_default(self.years, 2050, len(self.years) - 1),
+            "EXP_SSP_IDX": self._index_or_default(self.exp_ssp_options, exp_target, 0),
+            "EXP_TOTAL_SCALE": 1.0,
+            "BASELINE_MODE_IDX": self._index_or_default(self.baseline_modes, self.ref_mode, 0),
+            "CLIM_SCEN_IDX": self._index_or_default(self.clim_scens, self.ref_scen, 0),
+            "CLIM_BAND_IDX": self._index_or_default(self.clim_bands, self.ref_band, 0),
+            "CLIM_SOURCE_IDX": self._index_or_default(self.clim_source_options, "bands", 0),
+            "GCM_MODEL_IDX": self._index_or_default(self.gcm_options, "__none__", 0),
+            "AC_SSP_IDX": self._index_or_default(self.ac_ssp_options, self.ac_ssp_base, 0),
+            "WH_ENABLED_IDX": self._index_or_default(self.wh_enabled_options, self.wh_enabled_default, 0),
+            "WH_LUT_CASE_IDX": self._index_or_default(
+                self.wh_lut_options, wh_cfg.get("lut_case_default", "central"), 0
+            ),
+            "WH_RATIO": float(wh_cfg.get("dailymean_from_night_default", 0.5)),
+            "COP_ENABLED_IDX": self._index_or_default(self.cop_enabled_options, self.cop_enabled_default, 0),
+            "COP_CASE_IDX": self._index_or_default(self.cop_case_options, "central", 0),
+            "TREE_COEFF_SCALE": 1.0,
+            "TREE_CAP_UPLIFT": float(trees_cfg.get("cap_uplift_0_1", self.tree_base_cap)),
+            "TREE_RAMP_YEARS_IDX": self._index_or_default(
+                self.tree_ramp_options, int(trees_cfg.get("ramp_years", self.tree_ramp_base)), 0
+            ),
+            "TREE_START_AGE_IDX": self._index_or_default(
+                self.tree_start_age_options, int(trees_cfg.get("start_age_central_years", 5)), 0
+            ),
+            "IF_FAMILY_IDX": self._index_or_default(self.available_if_families, main_family, 0),
+            "IF_TREF_IDX": self._index_or_default(TREF_OPTIONS, TREF_BASE, 0),
+            "MDD_SCALE_LT15": 1.0,
+            "MDD_SCALE_15_64": 1.0,
+            "MDD_SCALE_65P": 1.0,
+            "DISP_FRAC": 0.0,
+            "PAA_SCALE": 1.0,
+            "AC_EFF_SCEN_IDX": self._index_or_default(self.efficacy_scenarios, "moderate", 0),
+            "EWS_INTERP_IDX": self._index_or_default(self.ews_interp_options, self.ews_interp_base, 0),
+            "EWS_CF_EFF_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_EFF_LT15_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_EFF_15_64_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_EFF_65P_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_OVERLAP_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_DISP_LT15_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_DISP_15_64_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_DISP_65P_LEVEL_IDX": self._index_or_default(self.level_options, "central", 0),
+            "EWS_RAMP_YEARS_IDX": self._index_or_default(self.ews_ramp_options, self.ews_ramp_base, 0),
+            "EWS_COST_MODEL_IDX": self._index_or_default(
+                self.ews_cost_model_options, self.ews_cfg.get("cost_model", "pavanello"), 0
+            ),
+            "DISCOUNT_RATE_IDX": self._index_or_default([0.02, 0.03, 0.05], 0.03, 1),
+            "AC_CAPEX_MULT_IDX": self._index_or_default([0.8, 1.0, 1.2], 1.0, 1),
+            "AC_TARIFF_EUR_PER_KWH_IDX": self._index_or_default(
+                self.ac_tariff_options,
+                round(float(self.ac_cfg.get("tariff_eur_per_kwh", self.ac_tariff_options[0])), 2),
+                0,
+            ),
+            "AC_LIFETIME_YEARS_IDX": self._index_or_default(
+                [9, 12, 16], int(self.ac_cfg.get("lifetime_years", 12)), 1
+            ),
+            "TREE_CAPEX_MULT_IDX": self._index_or_default([0.8, 1.0, 1.2], 1.0, 1),
+            "TREE_OM_MULT_IDX": self._index_or_default([1.0, 5.0], 1.0, 0),
+            "ELEC_FEEDBACK_ENABLED_IDX": self._index_or_default([0, 1], int(self.elec_fb_enabled), 0),
+            "ELEC_COEFF_SCALE": 1.0,
+            "VULN_K": float(k_cfg.get("default", 0.75)),
+            "VULN_PHI_2050": float(phi_cfg.get("default_2050", 0.70)),
+            "VULN_DRMKC_SCALE_FB": float(fb.get("drmkc_scale", 0.04)),
+            "VULN_DRMKC_SCALE_UE": float(ue.get("drmkc_scale", 0.08)),
+            "VULN_GVI_SCALE_FB": float(fb.get("gvi_scale", 0.35)),
+            "VULN_GVI_SCALE_UE": float(ue.get("gvi_scale", 0.50)),
+            "VULN_RETROFIT_RATE": float(thermal.get("retrofit_rate_per_year", 0.0138)),
+            "VULN_GROWTH_SENS": float(thermal.get("growth_sensitivity", 0.70)),
+            "VULN_GROWTH_CAP": float(thermal.get("growth_cap", 0.30)),
+            "VULN_NEW_BUILD": float(thermal.get("new_build_vulnerability", 0.15)),
+            "EWS_TARGET_DAYS_IDX": self._index_or_default(
+                self.ews_target_days_options, self.ews_target_base, 0
+            ),
+            "EWS_RECALIB_YEARS_IDX": self._index_or_default(
+                self.ews_recalib_options, self.ews_recalib_base, 0
+            ),
+            "EXTREME_THRESHOLD_PCT_IDX": self._index_or_default(
+                self.extreme_threshold_options, self.extreme_threshold_pct, 0
+            ),
+            "EXTREME_MIN_DURATION_IDX": self._index_or_default(
+                self.extreme_min_duration_options, self.extreme_min_duration_days, 0
+            ),
+        }
+        for name in row:
+            if name in central_values:
+                row[name] = float(central_values[name])
+        central = pd.Series(row, index=[spec.name for spec in self.param_specs], dtype=float)
+        central["_central_control"] = 1.0
+        return central
+
     def compute_ac_cost_metrics(
         self,
         sample: dict[str, Any],
         years_all: np.ndarray,
         pop_25y: np.ndarray,
-    ) -> dict[str, float]:
+    ) -> dict[str, Any]:
         r = float(sample["discount_rate"])
         t_index = np.arange(1, len(years_all) + 1, dtype=float)  # end-of-year (t=1..T) to match NB08 AC cost timing
         # Maintenance recomputed from the SAMPLED CAPEX at the configured rate (config
@@ -2571,19 +3608,26 @@ class NB09ImprovedFast:
         new_users_t[0] = added_users_t[0]
         new_users_t[1:] = np.maximum(added_users_t[1:] - added_users_t[:-1], 0.0)
 
-        pv_capex = _pv_capex_with_replacements(
+        capex_stream_t = _capex_replacement_stream(
             new_users_t,
             float(sample["ac_capex_per_user"]),
             int(sample["ac_lifetime_years"]),
-            r,
         )
-        pv_maint = float(np.sum((np.maximum(added_users_t, 0.0) * maint_per_user_yr) / discount_factors))
+        maint_stream_t = np.maximum(added_users_t, 0.0) * maint_per_user_yr
+        pv_capex_stream_t = capex_stream_t / discount_factors
+        pv_maint_stream_t = maint_stream_t / discount_factors
+        pv_capex = float(pv_capex_stream_t.sum())
+        pv_maint = float(pv_maint_stream_t.sum())
 
         kwh_inc_standalone_t = kwh_policy_t - kwh_base_t
         kwh_inc_with_trees_t = kwh_policy_with_trees_t - kwh_base_with_trees_t
 
-        pv_elec_standalone = float(np.sum((np.maximum(kwh_inc_standalone_t, 0.0) * tariff) / discount_factors))
-        pv_elec_with_trees = float(np.sum((np.maximum(kwh_inc_with_trees_t, 0.0) * tariff) / discount_factors))
+        elec_stream_t = np.maximum(kwh_inc_standalone_t, 0.0) * tariff
+        elec_with_trees_stream_t = np.maximum(kwh_inc_with_trees_t, 0.0) * tariff
+        pv_elec_stream_t = elec_stream_t / discount_factors
+        pv_elec_with_trees_stream_t = elec_with_trees_stream_t / discount_factors
+        pv_elec_standalone = float(pv_elec_stream_t.sum())
+        pv_elec_with_trees = float(pv_elec_with_trees_stream_t.sum())
         pv_total_standalone = pv_capex + pv_maint + pv_elec_standalone
         pv_total_with_trees = pv_capex + pv_maint + pv_elec_with_trees
 
@@ -2615,36 +3659,49 @@ class NB09ImprovedFast:
             "tree_elec_kwh_all_users_25y": cum_veg_kwh_all,
             "tree_elec_co2_base_users_t_25y": cum_veg_co2_base_t,
             "tree_elec_co2_all_users_t_25y": cum_veg_co2_all_t,
+            "_ac_cost_streams": {
+                "capex": capex_stream_t,
+                "maintenance": maint_stream_t,
+                "electricity": elec_stream_t,
+                "electricity_with_trees": elec_with_trees_stream_t,
+                "total": capex_stream_t + maint_stream_t + elec_stream_t,
+                "total_with_trees": capex_stream_t + maint_stream_t + elec_with_trees_stream_t,
+                "pv_capex": pv_capex_stream_t,
+                "pv_maintenance": pv_maint_stream_t,
+                "pv_electricity": pv_elec_stream_t,
+                "pv_electricity_with_trees": pv_elec_with_trees_stream_t,
+                "pv_total": pv_capex_stream_t + pv_maint_stream_t + pv_elec_stream_t,
+                "pv_total_with_trees": pv_capex_stream_t + pv_maint_stream_t + pv_elec_with_trees_stream_t,
+            },
         }
 
-    def compute_tree_cost_metrics(self, sample: dict[str, Any]) -> dict[str, float]:
+    def compute_tree_cost_metrics(self, sample: dict[str, Any]) -> dict[str, Any]:
         trees_cfg = self.cfg.get("trees", {})
         years = HORIZON_YEARS
         r = float(sample["discount_rate"])
 
+        # Active YAML config is canonical, exactly as in NB08.  The NB07 JSON
+        # supplies derived policy quantities and is only a fallback/validation
+        # source for calibrated unit costs.
         base_capex_per_tree = float(
-            self.tree_cost_params.get("capex_per_tree", trees_cfg.get("capex_per_tree_eur", 0.0))
+            trees_cfg.get("capex_per_tree_eur", self.tree_cost_params.get("capex_per_tree", 0.0))
         )
         base_capex_per_index = float(
-            self.tree_cost_params.get(
-                "capex_per_index_pt",
-                trees_cfg.get("capex_per_index_pt_eur", 0.0),
-            )
+            trees_cfg.get("capex_per_index_pt_eur", self.tree_cost_params.get("capex_per_index_pt", 0.0))
         )
         # UQ scales the CALIBRATED per-GVI-point CAPEX by a dimensionless multiplier (0.8/1.0/1.2).
         capex_scale = float(sample["tree_capex_mult"])
         capex_per_index = base_capex_per_index * capex_scale
 
         base_om_per_tree = float(
-            self.tree_cost_params.get("om_per_tree_yr", trees_cfg.get("om_per_tree_per_year_eur", 0.0))
+            trees_cfg.get("om_per_tree_per_year_eur", self.tree_cost_params.get("om_per_tree_yr", 0.0))
         )
-        # O&M per GVI-point: calibrated om_per_index_pt_yr if given, else the calibrated per-tree
-        # O&M/CAPEX ratio applied to the per-GVI-point CAPEX (0.0 if per-tree costs are absent).
+        # NB08 derives per-GVI-point O&M from the configured per-tree
+        # O&M/CAPEX ratio; it does not take an independently cached JSON value.
         base_om_per_index = float(
-            self.tree_cost_params.get(
-                "om_per_index_pt_yr",
-                (base_om_per_tree / base_capex_per_tree) * base_capex_per_index if (base_capex_per_tree > 0 and base_capex_per_index > 0) else 0.0,
-            )
+            (base_om_per_tree / base_capex_per_tree) * base_capex_per_index
+            if (base_capex_per_tree > 0 and base_capex_per_index > 0)
+            else 0.0
         )
         # UQ scales the CALIBRATED per-GVI-point O&M by a dimensionless multiplier (1.0/5.0).
         om_scale = float(sample["tree_om_mult"])
@@ -2656,9 +3713,12 @@ class NB09ImprovedFast:
                 self.tree_cost_params.get("delta_gvi_total", self.tree_cost_params.get("total_dGVI_points", 0.0)),
             )
         )
-        lifetime = int(self.tree_cost_params.get("lifetime_years", trees_cfg.get("lifetime_years", HORIZON_YEARS)))
-        pv_capex = _npv_capex_linear(delta_index_total, years, r, capex_per_index)
-        pv_om, _ = _npv_om_cohorts_scaled(
+        lifetime = int(trees_cfg.get("lifetime_years", self.tree_cost_params.get("lifetime_years", HORIZON_YEARS)))
+        capex_stream = _tree_capex_linear_stream(delta_index_total, years, capex_per_index)
+        discount = (1.0 + r) ** np.arange(1, years + 1, dtype=float)
+        pv_capex_stream = capex_stream / discount
+        pv_capex = float(pv_capex_stream.sum())
+        pv_om, om_stream = _npv_om_cohorts_scaled(
             delta_index_total,
             years,
             r,
@@ -2672,9 +3732,313 @@ class NB09ImprovedFast:
             "tree_pv_om_25y": pv_om,
             "tree_pv_cost_25y": pv_capex + pv_om,
             "tree_delta_index_total": delta_index_total,
+            "_tree_cost_streams": {
+                "capex": capex_stream,
+                "om": om_stream,
+                "total": capex_stream + om_stream,
+                "pv_capex": pv_capex_stream,
+                "pv_om": om_stream / discount,
+                "pv_total": pv_capex_stream + om_stream / discount,
+            },
         }
 
-    def validate_uq_sample_outputs(self, samples_df: pd.DataFrame) -> None:
+    def build_policy_trajectory_rows(
+        self,
+        sample_idx: int,
+        result: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Return the complete 25-year policy accounting in long format."""
+        years = np.asarray(result["_years_all"], dtype=int)
+        branches = result["_policy_branch_annuals"]
+        effects = result["_policy_branch_effects"]
+        ac_cost = result["_ac_cost_streams"]
+        tree_cost = result["_tree_cost_streams"]
+        ews_cost = result["_ews_cost_streams"]
+        zeros = np.zeros(years.size, dtype=float)
+
+        annual_costs = {
+            "reference": zeros,
+            "ac_policy_gross": np.asarray(ac_cost["total"], dtype=float),
+            "ac_policy_net": np.asarray(ac_cost["total"], dtype=float),
+            "ac_policy_net_with_tree_feedback": np.asarray(ac_cost["total_with_trees"], dtype=float),
+            "tree_policy": np.asarray(tree_cost["total"], dtype=float),
+            "ews_policy": np.asarray(ews_cost["total"], dtype=float),
+            "ac_tree_policy_gross": np.asarray(ac_cost["total_with_trees"], dtype=float)
+            + np.asarray(tree_cost["total"], dtype=float),
+            "ac_tree_policy_net": np.asarray(ac_cost["total_with_trees"], dtype=float)
+            + np.asarray(tree_cost["total"], dtype=float),
+        }
+        pv_costs = {
+            "reference": zeros,
+            "ac_policy_gross": np.asarray(ac_cost["pv_total"], dtype=float),
+            "ac_policy_net": np.asarray(ac_cost["pv_total"], dtype=float),
+            "ac_policy_net_with_tree_feedback": np.asarray(ac_cost["pv_total_with_trees"], dtype=float),
+            "tree_policy": np.asarray(tree_cost["pv_total"], dtype=float),
+            "ews_policy": np.asarray(ews_cost["pv_total"], dtype=float),
+            "ac_tree_policy_gross": np.asarray(ac_cost["pv_total_with_trees"], dtype=float)
+            + np.asarray(tree_cost["pv_total"], dtype=float),
+            "ac_tree_policy_net": np.asarray(ac_cost["pv_total_with_trees"], dtype=float)
+            + np.asarray(tree_cost["pv_total"], dtype=float),
+        }
+        waste_heat = {
+            "reference": zeros,
+            "ac_policy_gross": zeros,
+            "ac_policy_net": np.asarray(effects["ac_penalty_raw_25y"], dtype=float),
+            "ac_policy_net_with_tree_feedback": np.asarray(effects["ac_penalty_with_trees_25y"], dtype=float),
+            "tree_policy": zeros,
+            "ews_policy": zeros,
+            "ac_tree_policy_gross": zeros,
+            "ac_tree_policy_net": np.asarray(effects["ac_penalty_with_trees_25y"], dtype=float),
+        }
+        branch_types = {
+            "reference": "reference",
+            "ac_policy_gross": "standalone",
+            "ac_policy_net": "standalone",
+            "ac_policy_net_with_tree_feedback": "interaction",
+            "tree_policy": "standalone",
+            "ews_policy": "standalone",
+            "ac_tree_policy_gross": "combined",
+            "ac_tree_policy_net": "combined",
+        }
+        reference = np.asarray(branches["reference"], dtype=float)
+        maturity = np.asarray(effects["tree_maturity_25y"], dtype=float)
+        lambda_y = np.asarray(effects["lambda_y_25y"], dtype=float)
+        rows: list[dict[str, Any]] = []
+        for branch in BRANCH_NAMES:
+            deaths = np.asarray(branches[branch], dtype=float)
+            avoided = reference - deaths
+            for idx, year in enumerate(years):
+                rows.append(
+                    {
+                        "sample_idx": int(sample_idx),
+                        "year": int(year),
+                        "branch": branch,
+                        "branch_type": branch_types[branch],
+                        "annual_deaths": float(deaths[idx]),
+                        "avoided_deaths_vs_reference": float(avoided[idx]),
+                        "waste_heat_penalty_deaths": float(waste_heat[branch][idx]),
+                        "annual_cost_eur": float(annual_costs[branch][idx]),
+                        "pv_cost_eur": float(pv_costs[branch][idx]),
+                        "tree_maturity_factor": float(maturity[idx]),
+                        "ac_activity_multiplier_with_trees": float(lambda_y[idx]),
+                    }
+                )
+        return rows
+
+    def validate_sample_output(
+        self,
+        sample_idx: int,
+        sample: dict[str, Any],
+        result: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Fail-fast mathematical and provenance checks for one LHS draw."""
+        years = np.asarray(result["_years_all"], dtype=int)
+        expected_len = HORIZON_YEARS
+        rows: list[dict[str, Any]] = []
+        failures: list[str] = []
+
+        def add_status(metric: str, status: str, max_abs_error: float = 0.0) -> None:
+            rows.append(
+                {
+                    "sample_idx": int(sample_idx),
+                    "metric": metric,
+                    "max_abs_error": float(max_abs_error),
+                    "status": status,
+                }
+            )
+            if status != "pass":
+                failures.append(metric)
+
+        def check_array(metric: str, value: Any) -> np.ndarray:
+            arr = np.asarray(value, dtype=float)
+            length_ok = arr.ndim == 1 and arr.size == expected_len
+            finite_ok = length_ok and bool(np.all(np.isfinite(arr)))
+            add_status(f"array::{metric}", "pass" if finite_ok else "failed")
+            return arr
+
+        def check_identity(metric: str, left: Any, right: Any) -> None:
+            lhs = np.asarray(left, dtype=float)
+            rhs = np.asarray(right, dtype=float)
+            if lhs.shape != rhs.shape or lhs.size == 0:
+                add_status(metric, "failed", np.inf)
+                return
+            error = np.abs(lhs - rhs)
+            tolerance = 1e-7 + 1e-10 * np.maximum(np.abs(lhs), np.abs(rhs))
+            passed = bool(np.all(np.isfinite(lhs)) and np.all(np.isfinite(rhs)) and np.all(error <= tolerance))
+            add_status(metric, "pass" if passed else "failed", float(np.max(error)))
+
+        def check_nonnegative(metric: str, value: Any) -> None:
+            arr = np.asarray(value, dtype=float)
+            finite = bool(arr.size and np.all(np.isfinite(arr)))
+            minimum = float(np.min(arr)) if finite else -np.inf
+            add_status(metric, "pass" if finite and minimum >= -1e-7 else "failed", max(-minimum, 0.0))
+
+        add_status("years::25_consecutive", "pass" if (
+            years.size == expected_len and np.array_equal(np.diff(years), np.ones(expected_len - 1, dtype=int))
+        ) else "failed")
+
+        branches = {
+            name: check_array(f"branch::{name}", result["_policy_branch_annuals"][name])
+            for name in BRANCH_NAMES
+        }
+        effects = {
+            name: check_array(f"effect::{name}", value)
+            for name, value in result["_policy_branch_effects"].items()
+        }
+        for family in ("_ac_cost_streams", "_tree_cost_streams", "_ews_cost_streams"):
+            for name, value in result[family].items():
+                check_array(f"cost::{family[1:]}::{name}", value)
+
+        reference = branches["reference"]
+        check_identity("identity::ac_gross_avoided", effects["ac_gross_avoided_25y"], reference - branches["ac_policy_gross"])
+        check_identity("identity::ac_net_avoided", effects["ac_net_avoided_25y"], reference - branches["ac_policy_net"])
+        check_identity(
+            "identity::ac_net_equals_gross_minus_waste_heat",
+            effects["ac_net_avoided_25y"],
+            effects["ac_gross_avoided_25y"] - effects["ac_penalty_raw_25y"],
+        )
+        check_identity("identity::tree_avoided", effects["tree_avoided_25y"], reference - branches["tree_policy"])
+        check_identity(
+            "identity::ac_net_with_tree_feedback",
+            effects["ac_net_with_tree_feedback_25y"],
+            reference - branches["ac_policy_net_with_tree_feedback"],
+        )
+        check_identity(
+            "identity::ac_tree_feedback_net_equals_ac_gross_minus_waste_heat",
+            effects["ac_net_with_tree_feedback_25y"],
+            effects["ac_gross_avoided_25y"] - effects["ac_penalty_with_trees_25y"],
+        )
+        check_identity(
+            "identity::ews_standalone_provenance",
+            effects["ews_reference_avoided_25y"],
+            reference - branches["ews_policy"],
+        )
+        check_identity(
+            "identity::ac_tree_gross_avoided",
+            effects["ac_tree_gross_avoided_25y"],
+            reference - branches["ac_tree_policy_gross"],
+        )
+        check_identity(
+            "identity::ac_tree_net_avoided",
+            effects["ac_net_with_trees_25y"],
+            reference - branches["ac_tree_policy_net"],
+        )
+        check_identity(
+            "identity::ac_tree_net_equals_gross_minus_waste_heat",
+            effects["ac_net_with_trees_25y"],
+            effects["ac_tree_gross_avoided_25y"] - effects["ac_penalty_with_trees_25y"],
+        )
+        check_identity(
+            "identity::trees_on_top_of_ac",
+            effects["trees_on_top_25y"],
+            branches["ac_policy_gross"] - branches["ac_tree_policy_gross"],
+        )
+
+        scalar_identities = {
+            "reference_deaths_25y_cum": reference.sum(),
+            "ac_gross_branch_deaths_25y_cum": branches["ac_policy_gross"].sum(),
+            "ac_net_branch_deaths_25y_cum": branches["ac_policy_net"].sum(),
+            "ac_gross_avoided_deaths_25y_cum": effects["ac_gross_avoided_25y"].sum(),
+            "ac_net_avoided_deaths_25y_cum": effects["ac_net_avoided_25y"].sum(),
+            "ac_waste_heat_penalty_25y_cum": effects["ac_penalty_raw_25y"].sum(),
+            "tree_avoided_deaths_25y_cum": effects["tree_avoided_25y"].sum(),
+            "tree_on_top_of_ac_avoided_deaths_25y_cum": effects["trees_on_top_25y"].sum(),
+            "tree_branch_deaths_25y_cum": branches["tree_policy"].sum(),
+            "ews_net_avoided_deaths_25y_cum": effects["ews_reference_avoided_25y"].sum(),
+            "ews_branch_deaths_25y_cum": branches["ews_policy"].sum(),
+            "ac_with_trees_gross_avoided_deaths_25y_cum": effects["ac_gross_avoided_25y"].sum(),
+            "ac_with_trees_net_avoided_deaths_25y_cum": effects["ac_net_with_tree_feedback_25y"].sum(),
+            "ac_with_trees_gross_branch_deaths_25y_cum": branches["ac_policy_gross"].sum(),
+            "ac_with_trees_net_branch_deaths_25y_cum": branches["ac_policy_net_with_tree_feedback"].sum(),
+            "ac_with_trees_waste_heat_penalty_25y_cum": effects["ac_penalty_with_trees_25y"].sum(),
+            "combined_ac_tree_gross_avoided_deaths_25y_cum": effects["ac_tree_gross_avoided_25y"].sum(),
+            "combined_ac_tree_net_avoided_deaths_25y_cum": effects["ac_net_with_trees_25y"].sum(),
+            "combined_ac_tree_gross_branch_deaths_25y_cum": branches["ac_tree_policy_gross"].sum(),
+            "combined_ac_tree_net_branch_deaths_25y_cum": branches["ac_tree_policy_net"].sum(),
+        }
+        for name, expected in scalar_identities.items():
+            check_identity(f"identity::scalar::{name}", result[name], expected)
+
+        ac_cost = result["_ac_cost_streams"]
+        tree_cost = result["_tree_cost_streams"]
+        ews_cost = result["_ews_cost_streams"]
+        for family_name, streams in (
+            ("ac", ac_cost),
+            ("tree", tree_cost),
+            ("ews", ews_cost),
+        ):
+            for stream_name, stream in streams.items():
+                check_nonnegative(f"ordering::{family_name}_cost::{stream_name}", stream)
+        check_identity("identity::ac_annual_total", ac_cost["total"], ac_cost["capex"] + ac_cost["maintenance"] + ac_cost["electricity"])
+        check_identity("identity::ac_tree_annual_total", ac_cost["total_with_trees"], ac_cost["capex"] + ac_cost["maintenance"] + ac_cost["electricity_with_trees"])
+        check_identity("identity::tree_annual_total", tree_cost["total"], tree_cost["capex"] + tree_cost["om"])
+        check_identity("identity::ews_annual_total", ews_cost["total"], ews_cost["capex"] + ews_cost["opex_fixed"] + ews_cost["opex_variable"])
+        check_identity(
+            "identity::ac_pv_total",
+            ac_cost["pv_total"],
+            ac_cost["pv_capex"] + ac_cost["pv_maintenance"] + ac_cost["pv_electricity"],
+        )
+        check_identity(
+            "identity::ac_tree_pv_total",
+            ac_cost["pv_total_with_trees"],
+            ac_cost["pv_capex"] + ac_cost["pv_maintenance"] + ac_cost["pv_electricity_with_trees"],
+        )
+        check_identity(
+            "identity::tree_pv_total",
+            tree_cost["pv_total"],
+            tree_cost["pv_capex"] + tree_cost["pv_om"],
+        )
+        discount_rate = float(sample["discount_rate"])
+        end_of_year_discount = (1.0 + discount_rate) ** np.arange(1, expected_len + 1, dtype=float)
+        start_of_year_discount = (1.0 + discount_rate) ** np.arange(0, expected_len, dtype=float)
+        check_identity("timing::ac_pv", ac_cost["pv_total"], ac_cost["total"] / end_of_year_discount)
+        check_identity("timing::tree_pv", tree_cost["pv_total"], tree_cost["total"] / end_of_year_discount)
+        check_identity("timing::ews_pv", ews_cost["pv_total"], ews_cost["total"] / start_of_year_discount)
+        cost_scalars = {
+            "ac_pv_capex_25y": np.sum(ac_cost["pv_capex"]),
+            "ac_pv_maint_25y": np.sum(ac_cost["pv_maintenance"]),
+            "ac_pv_elec_25y": np.sum(ac_cost["pv_electricity"]),
+            "ac_pv_cost_25y": np.sum(ac_cost["pv_total"]),
+            "ac_pv_elec_with_trees_25y": np.sum(ac_cost["pv_electricity_with_trees"]),
+            "ac_pv_cost_with_trees_25y": np.sum(ac_cost["pv_total_with_trees"]),
+            "tree_pv_capex_25y": np.sum(tree_cost["pv_capex"]),
+            "tree_pv_om_25y": np.sum(tree_cost["pv_om"]),
+            "tree_pv_cost_25y": np.sum(tree_cost["pv_total"]),
+            "ews_pv_cost_25y": np.sum(ews_cost["pv_total"]),
+            "combined_ac_tree_pv_cost_25y": np.sum(ac_cost["pv_total_with_trees"])
+            + np.sum(tree_cost["pv_total"]),
+        }
+        for name, expected in cost_scalars.items():
+            check_identity(f"identity::cost_scalar::{name}", result[name], expected)
+
+        coverage_violation = 0.0
+        coverage_finite = True
+        for year in years:
+            base = np.asarray(self.coverage_for_sample(int(year), int(sample["ac_ssp"]), mode="base"), dtype=float)
+            policy = np.asarray(self.coverage_for_sample(int(year), int(sample["ac_ssp"]), mode="policy"), dtype=float)
+            valid = np.isfinite(base) & np.isfinite(policy)
+            if not np.any(valid):
+                coverage_finite = False
+                break
+            coverage_violation = max(coverage_violation, float(np.max(base[valid] - policy[valid])))
+        add_status(
+            "ordering::ac_policy_coverage_ge_reference",
+            "pass" if coverage_finite and coverage_violation <= 1e-7 else "failed",
+            max(coverage_violation, 0.0),
+        )
+
+        if failures:
+            raise RuntimeError(
+                f"[{self.slug}] sample {sample_idx} mathematical QA failed: {', '.join(failures)}"
+            )
+        return rows
+
+    def validate_uq_sample_outputs(
+        self,
+        samples_df: pd.DataFrame,
+        trajectories_df: pd.DataFrame | None = None,
+        sample_qa_df: pd.DataFrame | None = None,
+    ) -> None:
         critical_cols = [
             "aai_agg",
             "annual_deaths",
@@ -2711,11 +4075,123 @@ class NB09ImprovedFast:
                     "min": float(finite.min()) if not finite.empty else np.nan,
                     "median": float(finite.median()) if not finite.empty else np.nan,
                     "max": float(finite.max()) if not finite.empty else np.nan,
-                    "status": "ok" if not finite.empty else "no_finite_samples",
+                    "status": (
+                        "ok"
+                        if int(finite.size) == int(vals.size)
+                        else "no_finite_samples"
+                        if finite.empty
+                        else "nonfinite_samples"
+                    ),
                 }
             )
 
         qa_df = pd.DataFrame(qa_rows)
+
+        sample_index_ok = False
+        if "sample_idx" in samples_df.columns:
+            sample_indices = pd.to_numeric(samples_df["sample_idx"], errors="coerce")
+            sample_index_ok = bool(
+                sample_indices.notna().all()
+                and sample_indices.astype(int).is_unique
+                and np.array_equal(
+                    np.sort(sample_indices.astype(int).to_numpy()),
+                    np.arange(len(samples_df), dtype=int),
+                )
+            )
+        qa_df = pd.concat(
+            [
+                qa_df,
+                pd.DataFrame(
+                    [
+                        {
+                            "metric": "sample_index_contract",
+                            "n_total": int(len(samples_df)),
+                            "n_finite": int(len(samples_df)) if sample_index_ok else 0,
+                            "status": "ok" if sample_index_ok else "record_contract_failed",
+                        }
+                    ]
+                ),
+            ],
+            ignore_index=True,
+            sort=False,
+        )
+
+        trajectory_status = "ok"
+        trajectory_error = 0.0
+        expected_trajectory_rows = int(len(samples_df) * HORIZON_YEARS * len(BRANCH_NAMES))
+        required_trajectory_columns = {
+            "sample_idx",
+            "year",
+            "branch",
+            "annual_deaths",
+            "avoided_deaths_vs_reference",
+            "annual_cost_eur",
+            "pv_cost_eur",
+        }
+        if trajectories_df is None or not required_trajectory_columns.issubset(trajectories_df.columns):
+            trajectory_status = "record_contract_failed"
+        elif len(trajectories_df) != expected_trajectory_rows:
+            trajectory_status = "record_contract_failed"
+        else:
+            trajectory_keys = trajectories_df[["sample_idx", "year", "branch"]].copy()
+            if trajectory_keys.duplicated().any():
+                trajectory_status = "record_contract_failed"
+            expected_years = set(range(int(min(self.years)), int(min(self.years)) + HORIZON_YEARS))
+            expected_samples = set(range(len(samples_df)))
+            found_samples = set(pd.to_numeric(trajectory_keys["sample_idx"], errors="coerce").dropna().astype(int))
+            if found_samples != expected_samples:
+                trajectory_status = "record_contract_failed"
+            if trajectory_status == "ok":
+                for _, group in trajectories_df.groupby("sample_idx", sort=False):
+                    found_years = set(pd.to_numeric(group["year"], errors="coerce").dropna().astype(int))
+                    found_branches = set(group["branch"].astype(str))
+                    if found_years != expected_years or found_branches != set(BRANCH_NAMES):
+                        trajectory_status = "record_contract_failed"
+                        break
+            numeric_columns = [
+                "annual_deaths",
+                "avoided_deaths_vs_reference",
+                "annual_cost_eur",
+                "pv_cost_eur",
+            ]
+            if trajectory_status == "ok":
+                numeric = trajectories_df[numeric_columns].apply(pd.to_numeric, errors="coerce").to_numpy(float)
+                if not np.all(np.isfinite(numeric)):
+                    trajectory_status = "nonfinite_samples"
+            if trajectory_status == "ok":
+                reference = (
+                    trajectories_df.loc[trajectories_df["branch"] == "reference", ["sample_idx", "year", "annual_deaths"]]
+                    .rename(columns={"annual_deaths": "reference_deaths"})
+                )
+                merged = trajectories_df.merge(reference, on=["sample_idx", "year"], how="left", validate="many_to_one")
+                lhs = pd.to_numeric(merged["avoided_deaths_vs_reference"], errors="coerce").to_numpy(float)
+                rhs = (
+                    pd.to_numeric(merged["reference_deaths"], errors="coerce").to_numpy(float)
+                    - pd.to_numeric(merged["annual_deaths"], errors="coerce").to_numpy(float)
+                )
+                errors = np.abs(lhs - rhs)
+                tolerance = 1e-7 + 1e-10 * np.maximum(np.abs(lhs), np.abs(rhs))
+                trajectory_error = float(np.max(errors)) if errors.size else np.inf
+                if not np.all(np.isfinite(lhs) & np.isfinite(rhs) & (errors <= tolerance)):
+                    trajectory_status = "identity_failed"
+        qa_df = pd.concat(
+            [
+                qa_df,
+                pd.DataFrame(
+                    [
+                        {
+                            "metric": "trajectory_export_contract",
+                            "n_total": int(len(trajectories_df)) if trajectories_df is not None else 0,
+                            "n_finite": expected_trajectory_rows if trajectory_status == "ok" else 0,
+                            "max": trajectory_error,
+                            "status": trajectory_status,
+                        }
+                    ]
+                ),
+            ],
+            ignore_index=True,
+            sort=False,
+        )
         expected_ac_delta = any(
             self.interpolate_coverage_mean(int(y), "policy") - self.interpolate_coverage_mean(int(y), "base") > 1e-6
             for y in self.coverage_years
@@ -2726,57 +4202,658 @@ class NB09ImprovedFast:
             if finite_added.empty or float(finite_added.max()) <= 0.0:
                 qa_df.loc[qa_df["metric"] == "ac_added_users_final", "status"] = "unexpected_all_zero"
 
-        qa_path = self.unc_dir / f"uq_output_qa_{self.slug}_improved_fast.csv"
-        qa_df.to_csv(qa_path, index=False)
+        # Aggregate identities repeat the per-sample checks on the assembled
+        # data frame.  Specify them as named linear combinations so a missing
+        # column is reported cleanly instead of triggering a Python TypeError
+        # while constructing the right-hand side.
+        identities = {
+            "ac_net_equals_gross_minus_waste_heat": (
+                "ac_net_avoided_deaths_25y_cum",
+                ((1.0, "ac_gross_avoided_deaths_25y_cum"), (-1.0, "ac_waste_heat_penalty_25y_cum")),
+            ),
+            "ac_total_cost_equals_components": (
+                "ac_pv_cost_25y",
+                ((1.0, "ac_pv_capex_25y"), (1.0, "ac_pv_maint_25y"), (1.0, "ac_pv_elec_25y")),
+            ),
+            "tree_total_cost_equals_components": (
+                "tree_pv_cost_25y",
+                ((1.0, "tree_pv_capex_25y"), (1.0, "tree_pv_om_25y")),
+            ),
+            "ews_branch_equals_reference_minus_avoided": (
+                "ews_branch_deaths_25y_cum",
+                ((1.0, "reference_deaths_25y_cum"), (-1.0, "ews_net_avoided_deaths_25y_cum")),
+            ),
+            "tree_branch_equals_reference_minus_avoided": (
+                "tree_branch_deaths_25y_cum",
+                ((1.0, "reference_deaths_25y_cum"), (-1.0, "tree_avoided_deaths_25y_cum")),
+            ),
+            "ac_tree_feedback_net_equals_gross_minus_waste_heat": (
+                "ac_with_trees_net_avoided_deaths_25y_cum",
+                (
+                    (1.0, "ac_with_trees_gross_avoided_deaths_25y_cum"),
+                    (-1.0, "ac_with_trees_waste_heat_penalty_25y_cum"),
+                ),
+            ),
+            "combined_ac_tree_net_equals_gross_minus_waste_heat": (
+                "combined_ac_tree_net_avoided_deaths_25y_cum",
+                (
+                    (1.0, "combined_ac_tree_gross_avoided_deaths_25y_cum"),
+                    (-1.0, "ac_with_trees_waste_heat_penalty_25y_cum"),
+                ),
+            ),
+            "combined_ac_tree_cost_equals_ac_interaction_plus_tree": (
+                "combined_ac_tree_pv_cost_25y",
+                ((1.0, "ac_pv_cost_with_trees_25y"), (1.0, "tree_pv_cost_25y")),
+            ),
+        }
+        identity_rows: list[dict[str, Any]] = []
+        for metric, (left_name, right_terms) in identities.items():
+            required = [left_name, *(name for _, name in right_terms)]
+            if any(name not in samples_df.columns for name in required):
+                identity_rows.append({"metric": metric, "status": "missing_column"})
+                continue
+            lhs = pd.to_numeric(samples_df[left_name], errors="coerce").to_numpy(float)
+            rhs = np.zeros(len(samples_df), dtype=float)
+            for coefficient, name in right_terms:
+                rhs += float(coefficient) * pd.to_numeric(samples_df[name], errors="coerce").to_numpy(float)
+            err = np.abs(lhs - rhs)
+            tol = 1e-7 + 1e-10 * np.maximum(np.abs(lhs), np.abs(rhs))
+            ok = np.isfinite(lhs) & np.isfinite(rhs) & (err <= tol)
+            identity_rows.append(
+                {
+                    "metric": metric,
+                    "n_total": int(lhs.size),
+                    "n_finite": int(np.sum(np.isfinite(lhs) & np.isfinite(rhs))),
+                    "min": np.nan,
+                    "median": float(np.nanmedian(err)) if err.size else np.nan,
+                    "max": float(np.nanmax(err)) if err.size else np.nan,
+                    "status": "ok" if bool(np.all(ok)) else "identity_failed",
+                }
+            )
+        qa_df = pd.concat([qa_df, pd.DataFrame(identity_rows)], ignore_index=True, sort=False)
 
-        bad = qa_df[qa_df["status"].isin(["missing_column", "no_finite_samples", "unexpected_all_zero"])]
+        if sample_qa_df is not None:
+            if sample_qa_df.empty:
+                qa_df = pd.concat(
+                    [qa_df, pd.DataFrame([{"metric": "per_sample_mathematical_qa", "status": "no_rows"}])],
+                    ignore_index=True,
+                    sort=False,
+                )
+            else:
+                failed = sample_qa_df.loc[sample_qa_df["status"] != "pass"]
+                qa_df = pd.concat(
+                    [
+                        qa_df,
+                        pd.DataFrame(
+                            [
+                                {
+                                    "metric": "per_sample_mathematical_qa",
+                                    "n_total": int(len(sample_qa_df)),
+                                    "n_finite": int(len(sample_qa_df) - len(failed)),
+                                    "min": np.nan,
+                                    "median": np.nan,
+                                    "max": float(pd.to_numeric(sample_qa_df["max_abs_error"], errors="coerce").max()),
+                                    "status": "ok" if failed.empty else "identity_failed",
+                                }
+                            ]
+                        ),
+                    ],
+                    ignore_index=True,
+                    sort=False,
+                )
+
+        qa_path = self.unc_dir / f"uq_output_qa_{self.slug}_improved_fast.csv"
+        _atomic_write_csv(qa_path, qa_df, index=False)
+
+        bad = qa_df[
+            qa_df["status"].isin(
+                [
+                    "missing_column",
+                    "no_finite_samples",
+                    "nonfinite_samples",
+                    "unexpected_all_zero",
+                    "identity_failed",
+                    "no_rows",
+                    "record_contract_failed",
+                ]
+            )
+        ]
         if not bad.empty:
             details = ", ".join(f"{row.metric}={row.status}" for row in bad.itertuples())
             raise RuntimeError(f"[{self.slug}] Critical NB09 UQ output QA failed: {details}. See {qa_path}")
 
-    def compute_lambda_y(self, sample: dict[str, Any], years_all: np.ndarray) -> np.ndarray:
-        """Compute lambda_y: tree-cooled AC utilization scaling factor for waste heat.
+    def validate_central_against_deterministic(self, result: dict[str, Any]) -> Path:
+        """Validate the unsampled central point against NB05--NB08 artifacts.
 
-        lambda_y = s_tree(y) / s_base(y), where s = CDD-based activity share.
-        Trees cool the urban canopy → lower hazard → reduced AC utilization → less waste heat.
+        The core deterministic tables from NB06--NB08 are mandatory. Any
+        missing target, numerical disagreement, or artifact generated from
+        cost inputs that no longer match the active city config aborts the
+        production run before the LHS starts. Optional granular NB05/NB07
+        interim artifacts add checks when present but are not substitutes for
+        the mandatory published tables.
         """
-        T = len(years_all)
-        lambda_y = np.ones(T, dtype=float)
+        rows: list[dict[str, Any]] = []
 
-        ramp_years = int(sample["tree_ramp_years"])
-        start_age = int(sample["tree_start_age"])
-        tree_scale = float(sample.get("TREE_COEFF_SCALE", 1.0))
+        def record(metric: str, observed: Any, expected: Any, source: Path) -> None:
+            obs = float(observed)
+            exp = float(expected)
+            abs_error = abs(obs - exp)
+            rel_error = abs_error / max(abs(exp), 1e-12)
+            passed = bool(np.isfinite(obs) and np.isfinite(exp) and np.isclose(obs, exp, rtol=1e-4, atol=1e-5))
+            rows.append(
+                {
+                    "metric": metric,
+                    "central_nb09": obs,
+                    "deterministic_nb01_08": exp,
+                    "absolute_error": abs_error,
+                    "relative_error": rel_error,
+                    "status": "pass" if passed else "mismatch",
+                    "source": str(source),
+                }
+            )
 
-        dT2M_monthly = self.tree_dT2M_citymean_monthly * tree_scale  # scale by UQ coefficient
+        def record_input(metric: str, active: Any, artifact: Any, source: Path) -> None:
+            numeric = isinstance(active, (int, float, np.integer, np.floating)) and isinstance(
+                artifact, (int, float, np.integer, np.floating)
+            )
+            if numeric:
+                active_num = float(active)
+                artifact_num = float(artifact)
+                abs_error = abs(active_num - artifact_num)
+                rel_error = abs_error / max(abs(active_num), 1e-12)
+                passed = bool(
+                    np.isfinite(active_num)
+                    and np.isfinite(artifact_num)
+                    and np.isclose(active_num, artifact_num, rtol=1e-6, atol=1e-8)
+                )
+            else:
+                active_num = active
+                artifact_num = artifact
+                abs_error = np.nan
+                rel_error = np.nan
+                passed = str(active).strip().lower() == str(artifact).strip().lower()
+            rows.append(
+                {
+                    "metric": f"input::{metric}",
+                    "central_nb09": active_num,
+                    "deterministic_nb01_08": artifact_num,
+                    "absolute_error": abs_error,
+                    "relative_error": rel_error,
+                    "status": "pass" if passed else "stale_upstream_artifact",
+                    "source": str(source),
+                }
+            )
 
-        anchor_lambdas = {}
+        def record_missing(metric: str, source: Path, status: str) -> None:
+            rows.append(
+                {
+                    "metric": metric,
+                    "central_nb09": np.nan,
+                    "deterministic_nb01_08": np.nan,
+                    "absolute_error": np.nan,
+                    "relative_error": np.nan,
+                    "status": status,
+                    "source": str(source),
+                }
+            )
+
+        def record_schema(metric: str, passed: bool, source: Path) -> None:
+            rows.append(
+                {
+                    "metric": f"schema::{metric}",
+                    "central_nb09": np.nan,
+                    "deterministic_nb01_08": np.nan,
+                    "absolute_error": np.nan,
+                    "relative_error": np.nan,
+                    "status": "pass" if passed else "invalid_required_artifact",
+                    "source": str(source),
+                }
+            )
+
+        baseline_path = self.tab_dir / f"annual_heat_deaths_baseline_current_ac_{self.slug}.csv"
+        ews_anchor_path = self.tab_dir / f"annual_heat_deaths_avoided_EWS_{self.slug}.csv"
+        tree_path = self.tab_dir / f"trees_benefits_25y_{self.slug}.csv"
+        ews_path = self.tab_dir / f"ews_benefits_25y_{self.slug}.csv"
+        cba_path = self.tab_dir / f"{self.slug}_cba_summary.json"
+        required_artifacts = {
+            "baseline_anchor_table": baseline_path,
+            "ews_anchor_table": ews_anchor_path,
+            "tree_25y_table": tree_path,
+            "ews_25y_table": ews_path,
+            "cba_summary": cba_path,
+        }
+        for artifact_name, path in required_artifacts.items():
+            if not path.exists():
+                record_missing(f"artifact::{artifact_name}", path, "missing_required_artifact")
+
+        # Check the provenance of deterministic cost artifacts before using
+        # them as central-point targets.  NB09 is config-first; a mismatch here
+        # means NB05--NB08 must be regenerated, not that NB09 should reproduce
+        # obsolete inputs.
+        ac_params_path = self.int_dir / f"ac_cost_params_{self.slug}.json"
+        if ac_params_path.exists():
+            ac_params = _load_json(ac_params_path)
+            for key in ("capex_per_user", "maint_rate", "lifetime_years", "tariff_eur_per_kwh"):
+                if key in ac_params and key in self.ac_cfg:
+                    record_input(f"ac.{key}", self.ac_cfg[key], ac_params[key], ac_params_path)
+
+        tree_params_path = self.int_dir / f"tree_cost_params_{self.slug}.json"
+        if tree_params_path.exists():
+            tree_params = _load_json(tree_params_path)
+            tree_input_pairs = {
+                "trees.capex_per_index_pt_eur": (
+                    self.trees_cfg.get("capex_per_index_pt_eur"),
+                    tree_params.get("capex_per_index_pt"),
+                ),
+                "trees.capex_per_tree_eur": (
+                    self.trees_cfg.get("capex_per_tree_eur"),
+                    tree_params.get("capex_per_tree"),
+                ),
+                "trees.om_per_tree_per_year_eur": (
+                    self.trees_cfg.get("om_per_tree_per_year_eur"),
+                    tree_params.get("om_per_tree_yr"),
+                ),
+                "trees.lifetime_years": (
+                    self.trees_cfg.get("lifetime_years"),
+                    tree_params.get("lifetime_years"),
+                ),
+                "trees.ramp_years": (
+                    self.trees_cfg.get("ramp_years"),
+                    tree_params.get("ramp_years"),
+                ),
+                "trees.start_age_central_years": (
+                    self.trees_cfg.get("start_age_central_years", 5),
+                    tree_params.get("start_age_central"),
+                ),
+            }
+            for metric, (active, artifact) in tree_input_pairs.items():
+                if active is not None and artifact is not None:
+                    record_input(metric, active, artifact, tree_params_path)
+
+        if self.ews_params_path.exists():
+            ews_params = self.ews_params
+            ews_costs = ews_params.get("costs", {}) or {}
+            ews_input_pairs = {
+                "ews.interpretation": (
+                    self.ews_cfg.get("interpretation"),
+                    ews_params.get("interpretation"),
+                ),
+                "ews.cost_model": (
+                    self.ews_cfg.get("cost_model"),
+                    ews_costs.get("cost_model"),
+                ),
+                "ews.capex_setup": (
+                    self.ews_cfg.get("capex_setup", 0.0),
+                    ews_costs.get("capex_setup"),
+                ),
+                "ews.opex_annual_fixed": (
+                    self.ews_cfg.get("opex_annual_fixed", 0.0),
+                    ews_costs.get("opex_annual_fixed"),
+                ),
+                "ews.pavanello.usd_per_capita_per_day": (
+                    (self.ews_cfg.get("pavanello", {}) or {}).get("usd_per_capita_per_day"),
+                    (ews_costs.get("pavanello", {}) or {}).get("usd_per_capita_per_day"),
+                ),
+                "ews.pavanello.eur_usd_rate": (
+                    (self.ews_cfg.get("pavanello", {}) or {}).get("eur_usd_rate"),
+                    (ews_costs.get("pavanello", {}) or {}).get("eur_usd_rate"),
+                ),
+            }
+            for metric, (active, artifact) in ews_input_pairs.items():
+                if active is not None and artifact is not None:
+                    record_input(metric, active, artifact, self.ews_params_path)
+
+        if baseline_path.exists():
+            baseline = pd.read_csv(baseline_path)
+            value_col = (
+                "deaths_overall"
+                if "deaths_overall" in baseline.columns
+                else "deaths_annual"
+                if "deaths_annual" in baseline.columns
+                else None
+            )
+            if value_col is None or "year" not in baseline.columns:
+                record_missing("schema::baseline_anchor_table", baseline_path, "missing_required_metric")
+                baseline = pd.DataFrame()
+            else:
+                baseline_years = pd.to_numeric(baseline["year"], errors="coerce").dropna().astype(int)
+                record_schema(
+                    "baseline_anchor_years",
+                    len(baseline) == len(self.years)
+                    and baseline_years.is_unique
+                    and set(baseline_years.tolist()) == set(map(int, self.years)),
+                    baseline_path,
+                )
+            for item in baseline.itertuples(index=False):
+                year = int(getattr(item, "year"))
+                if f"reference_deaths_{year}" in result:
+                    record(
+                        f"reference_deaths_{year}",
+                        result[f"reference_deaths_{year}"],
+                        getattr(item, value_col),
+                        baseline_path,
+                    )
+
+        ac_gross_path = self.int_dir / f"annual_heat_deaths_climada_avoided_AC_{self.slug}.csv"
+        if ac_gross_path.exists():
+            ac_gross = pd.read_csv(ac_gross_path)
+            value_col = "overall" if "overall" in ac_gross.columns else ac_gross.columns[-1]
+            for item in ac_gross.itertuples(index=False):
+                year = int(getattr(item, "year"))
+                if f"gross_ac_avoided_deaths_{year}" in result:
+                    record(
+                        f"gross_ac_avoided_deaths_{year}",
+                        result[f"gross_ac_avoided_deaths_{year}"],
+                        getattr(item, value_col),
+                        ac_gross_path,
+                    )
+
+        tree_anchor_path = self.int_dir / f"avoided_deaths_trees_only_{self.slug}.csv"
+        if tree_anchor_path.exists():
+            tree_anchor = pd.read_csv(tree_anchor_path)
+            value_col = "overall" if "overall" in tree_anchor.columns else tree_anchor.columns[-1]
+            for item in tree_anchor.itertuples(index=False):
+                year = int(getattr(item, "year"))
+                key = f"full_maturity_tree_avoided_deaths_{year}"
+                if key in result:
+                    record(key, result[key], getattr(item, value_col), tree_anchor_path)
+
+        if ews_anchor_path.exists():
+            ews_anchor = pd.read_csv(ews_anchor_path)
+            if "scenario" in ews_anchor.columns:
+                ews_anchor = ews_anchor.loc[
+                    ews_anchor["scenario"].astype(str).str.lower() == "central"
+                ]
+            anchor_schema_ok = (
+                "year" in ews_anchor.columns
+                and "net_avoided_deaths" in ews_anchor.columns
+                and len(ews_anchor) == len(self.years)
+            )
+            if anchor_schema_ok:
+                anchor_years_found = pd.to_numeric(ews_anchor["year"], errors="coerce").dropna().astype(int)
+                anchor_schema_ok = (
+                    anchor_years_found.is_unique
+                    and set(anchor_years_found.tolist()) == set(map(int, self.years))
+                )
+            record_schema("ews_anchor_years", bool(anchor_schema_ok), ews_anchor_path)
+            if "net_avoided_deaths" in ews_anchor.columns:
+                for item in ews_anchor.itertuples(index=False):
+                    year = int(getattr(item, "year"))
+                    key = f"ews_avoided_deaths_{year}"
+                    if key in result:
+                        record(
+                            key,
+                            result[key],
+                            getattr(item, "net_avoided_deaths"),
+                            ews_anchor_path,
+                        )
+
+        wh_path = self.int_dir / f"ac_wasteheat_timeseries_{self.slug}.csv"
+        if wh_path.exists():
+            wh = pd.read_csv(wh_path)
+            wh = wh.loc[wh["year"].astype(int).between(min(self.years), min(self.years) + HORIZON_YEARS - 1)]
+            penalty_col = "penalty_incremental"
+            if penalty_col in wh.columns:
+                for item in wh.itertuples(index=False):
+                    year = int(getattr(item, "year"))
+                    wh_key = f"ac_waste_heat_penalty_deaths_{year}"
+                    gross_key = f"gross_ac_avoided_deaths_{year}"
+                    net_key = f"ac_net_avoided_deaths_{year}"
+                    if wh_key in result:
+                        penalty = getattr(item, penalty_col)
+                        record(wh_key, result[wh_key], penalty, wh_path)
+                        if gross_key in result and net_key in result:
+                            record(
+                                net_key,
+                                result[net_key],
+                                result[gross_key] - float(penalty),
+                                wh_path,
+                            )
+                record(
+                    "ac_waste_heat_penalty_25y_cum",
+                    result["ac_waste_heat_penalty_25y_cum"],
+                    pd.to_numeric(wh[penalty_col], errors="coerce").sum(),
+                    wh_path,
+                )
+
+        if tree_path.exists():
+            trees = pd.read_csv(tree_path)
+            expected_policy_years = set(range(int(min(self.years)), int(min(self.years)) + HORIZON_YEARS))
+            tree_schema_ok = "year" in trees.columns and "trees_only_dynamic" in trees.columns and len(trees) == HORIZON_YEARS
+            if tree_schema_ok:
+                tree_years = pd.to_numeric(trees["year"], errors="coerce").dropna().astype(int)
+                tree_schema_ok = tree_years.is_unique and set(tree_years.tolist()) == expected_policy_years
+            record_schema("tree_25y_years", bool(tree_schema_ok), tree_path)
+            if "trees_only_dynamic" in trees.columns:
+                record(
+                    "tree_avoided_deaths_25y_cum",
+                    result["tree_avoided_deaths_25y_cum"],
+                    pd.to_numeric(trees["trees_only_dynamic"], errors="coerce").sum(),
+                    tree_path,
+                )
+
+        if ews_path.exists():
+            ews = pd.read_csv(ews_path)
+            if "scenario" in ews.columns:
+                selected = ews.loc[ews["scenario"].astype(str).str.lower() == "central"]
+                if not selected.empty:
+                    ews = selected
+            benefit_col = "net_avoided_deaths" if "net_avoided_deaths" in ews.columns else "avoided_deaths"
+            expected_policy_years = set(range(int(min(self.years)), int(min(self.years)) + HORIZON_YEARS))
+            ews_schema_ok = "year" in ews.columns and benefit_col in ews.columns and len(ews) == HORIZON_YEARS
+            if ews_schema_ok:
+                ews_years = pd.to_numeric(ews["year"], errors="coerce").dropna().astype(int)
+                ews_schema_ok = ews_years.is_unique and set(ews_years.tolist()) == expected_policy_years
+            record_schema("ews_25y_years", bool(ews_schema_ok), ews_path)
+            if benefit_col in ews.columns:
+                record(
+                    "ews_net_avoided_deaths_25y_cum",
+                    result["ews_net_avoided_deaths_25y_cum"],
+                    pd.to_numeric(ews[benefit_col], errors="coerce").sum(),
+                    ews_path,
+                )
+            if "cost_pv" in ews.columns:
+                record(
+                    "ews_pv_cost_25y",
+                    result["ews_pv_cost_25y"],
+                    pd.to_numeric(ews["cost_pv"], errors="coerce").sum(),
+                    ews_path,
+                )
+
+        if cba_path.exists():
+            cba = _load_json(cba_path)
+            comparisons = {
+                "ac_pv_capex_25y": cba.get("costs", {}).get("ac", {}).get("pv_capex"),
+                "ac_pv_maint_25y": cba.get("costs", {}).get("ac", {}).get("pv_maint"),
+                "ac_pv_elec_25y": cba.get("costs", {}).get("ac", {}).get("pv_elec"),
+                "ac_pv_cost_25y": cba.get("costs", {}).get("ac", {}).get("pv_total"),
+                "ac_pv_capex_with_trees_25y": cba.get("costs", {}).get("ac_with_trees_interaction", {}).get("pv_capex"),
+                "ac_pv_maint_with_trees_25y": cba.get("costs", {}).get("ac_with_trees_interaction", {}).get("pv_maint"),
+                "ac_pv_elec_with_trees_25y": cba.get("costs", {}).get("ac_with_trees_interaction", {}).get("pv_elec"),
+                "ac_pv_cost_with_trees_25y": cba.get("costs", {}).get("ac_with_trees_interaction", {}).get("pv_total"),
+                "tree_pv_capex_25y": cba.get("costs", {}).get("trees", {}).get("pv_capex"),
+                "tree_pv_om_25y": cba.get("costs", {}).get("trees", {}).get("pv_om_base"),
+                "tree_pv_cost_25y": cba.get("costs", {}).get("trees", {}).get("pv_total_base"),
+                "ac_gross_avoided_deaths_25y_cum": cba.get("benefits", {}).get("ac", {}).get("gross_25y"),
+                "ac_net_avoided_deaths_25y_cum": cba.get("benefits", {}).get("ac", {}).get("net_25y"),
+                "ac_waste_heat_penalty_25y_cum_cba": cba.get("benefits", {}).get("ac", {}).get("waste_heat_penalty_25y"),
+                "ac_with_trees_gross_avoided_deaths_25y_cum": cba.get("benefits", {}).get("ac_with_trees_interaction", {}).get("gross_25y"),
+                "ac_with_trees_net_avoided_deaths_25y_cum": cba.get("benefits", {}).get("ac_with_trees_interaction", {}).get("net_25y"),
+                "ac_with_trees_waste_heat_penalty_25y_cum": cba.get("benefits", {}).get("ac_with_trees_interaction", {}).get("waste_heat_penalty_25y"),
+                "tree_avoided_deaths_25y_cum_cba": cba.get("benefits", {}).get("trees", {}).get("avoided_deaths_25y"),
+                "tree_on_top_of_ac_avoided_deaths_25y_cum": cba.get("benefits", {}).get("trees", {}).get("on_top_of_ac_25y"),
+                "ews_net_avoided_deaths_25y_cum_cba": cba.get("benefits", {}).get("ews", {}).get("avoided_deaths_25y"),
+            }
+            aliases = {
+                "ac_waste_heat_penalty_25y_cum_cba": "ac_waste_heat_penalty_25y_cum",
+                "tree_avoided_deaths_25y_cum_cba": "tree_avoided_deaths_25y_cum",
+                "ews_net_avoided_deaths_25y_cum_cba": "ews_net_avoided_deaths_25y_cum",
+                "ac_pv_capex_with_trees_25y": "ac_pv_capex_25y",
+                "ac_pv_maint_with_trees_25y": "ac_pv_maint_25y",
+            }
+            for metric, expected in comparisons.items():
+                result_key = aliases.get(metric, metric)
+                if expected is not None and result_key in result:
+                    record(metric, result[result_key], expected, cba_path)
+
+            tree_top = cba.get("benefits", {}).get("trees", {}).get("on_top_of_ac_25y")
+            ac_tree_net = cba.get("benefits", {}).get("ac_with_trees_interaction", {}).get("net_25y")
+            ac_tree_cost = cba.get("costs", {}).get("ac_with_trees_interaction", {}).get("pv_total")
+            tree_cost = cba.get("costs", {}).get("trees", {}).get("pv_total_base")
+            if tree_top is not None and ac_tree_net is not None:
+                record(
+                    "combined_ac_tree_net_avoided_deaths_25y_cum",
+                    result["combined_ac_tree_net_avoided_deaths_25y_cum"],
+                    float(ac_tree_net) + float(tree_top),
+                    cba_path,
+                )
+            if ac_tree_cost is not None and tree_cost is not None:
+                record(
+                    "combined_ac_tree_pv_cost_25y",
+                    result["combined_ac_tree_pv_cost_25y"],
+                    float(ac_tree_cost) + float(tree_cost),
+                    cba_path,
+                )
+
+        required_metrics = {
+            "schema::baseline_anchor_years",
+            "schema::ews_anchor_years",
+            "schema::tree_25y_years",
+            "schema::ews_25y_years",
+            *(f"reference_deaths_{year}" for year in self.years),
+            *(f"ews_avoided_deaths_{year}" for year in self.years),
+            "tree_avoided_deaths_25y_cum",
+            "ews_net_avoided_deaths_25y_cum",
+            "ews_pv_cost_25y",
+            "ac_pv_capex_25y",
+            "ac_pv_maint_25y",
+            "ac_pv_elec_25y",
+            "ac_pv_cost_25y",
+            "ac_pv_elec_with_trees_25y",
+            "ac_pv_cost_with_trees_25y",
+            "tree_pv_capex_25y",
+            "tree_pv_om_25y",
+            "tree_pv_cost_25y",
+            "ac_gross_avoided_deaths_25y_cum",
+            "ac_net_avoided_deaths_25y_cum",
+            "ac_waste_heat_penalty_25y_cum_cba",
+            "ac_with_trees_gross_avoided_deaths_25y_cum",
+            "ac_with_trees_net_avoided_deaths_25y_cum",
+            "ac_with_trees_waste_heat_penalty_25y_cum",
+            "tree_on_top_of_ac_avoided_deaths_25y_cum",
+            "combined_ac_tree_net_avoided_deaths_25y_cum",
+            "combined_ac_tree_pv_cost_25y",
+        }
+        recorded_metrics = {str(row["metric"]) for row in rows}
+        for metric in sorted(required_metrics - recorded_metrics):
+            record_missing(metric, self.out, "missing_required_metric")
+
+        parity_path = self.unc_dir / f"central_parity_{self.slug}_improved_fast.csv"
+        parity = pd.DataFrame(rows)
+        if parity.empty:
+            parity = pd.DataFrame(
+                [{"metric": "deterministic_artifacts", "status": "unavailable", "source": str(self.out)}]
+            )
+        _atomic_write_csv(parity_path, parity, index=False)
+        failures = parity.loc[
+            parity["status"].isin(
+                [
+                    "mismatch",
+                    "stale_upstream_artifact",
+                    "missing_required_artifact",
+                    "missing_required_metric",
+                    "invalid_required_artifact",
+                ]
+            )
+        ]
+        if not failures.empty:
+            stale = failures.loc[failures["status"] == "stale_upstream_artifact", "metric"].astype(str).tolist()
+            mismatch = failures.loc[failures["status"] == "mismatch", "metric"].astype(str).tolist()
+            missing = failures.loc[
+                failures["status"].isin(
+                    ["missing_required_artifact", "missing_required_metric", "invalid_required_artifact"]
+                ),
+                "metric",
+            ].astype(str).tolist()
+            detail_parts = []
+            if stale:
+                detail_parts.append("stale NB05--NB08 inputs: " + ", ".join(stale))
+            if mismatch:
+                detail_parts.append("central numerical mismatches: " + ", ".join(mismatch))
+            if missing:
+                detail_parts.append("missing required deterministic targets: " + ", ".join(missing))
+            raise RuntimeError(
+                f"[{self.slug}] Central NB09 parity failed ({'; '.join(detail_parts)}). "
+                f"See {parity_path}."
+            )
+        return parity_path
+
+    def waste_heat_dailymean_delta(self, penetration: np.ndarray, sample: dict[str, Any]) -> np.ndarray:
+        """Return NB05-equivalent daily-mean waste-heat warming for a coverage path."""
+        pen = np.asarray(penetration, dtype=float)
+        d_t_night = np.array(
+            [self.dT_night_from_penetration(float(value), sample["wh_case"]) for value in pen],
+            dtype=float,
+        )
+        if sample["cop_enabled"]:
+            cop_sens = float(self.cop_sens.get(sample["cop_case"], self.cop_sens.get("central", 0.065)))
+            amp = np.array(
+                [self.cop_amplification_factor(float(value), cop_sens) for value in d_t_night],
+                dtype=float,
+            )
+            d_t_night = d_t_night * amp
+        return np.maximum(float(sample["WH_RATIO"]) * d_t_night, 0.0)
+
+    def compute_lambda_y(
+        self,
+        sample: dict[str, Any],
+        reference_anchor_results: dict[int, dict[str, Any]],
+        years_all: np.ndarray,
+    ) -> np.ndarray:
+        """Compute the tree-induced AC-activity multiplier exactly as NB08.
+
+        NB08 uses the NB07-exported monthly city-mean translation diagnostic
+        for this second-order interaction and a simple tree-age maturity path.
+        Primary tree mortality benefits do *not* use this approximation.
+        """
+        if self.tree_lambda_dt2m_monthly is None:
+            warnings.warn(
+                f"[{self.slug}] NB07 lambda_y approximation is unavailable; using lambda_y=1."
+            )
+            return np.ones(len(years_all), dtype=float)
+
+        cap_ratio = float(sample["TREE_CAP_UPLIFT"]) / max(self.tree_base_cap, 1e-6)
+        monthly_delta = (
+            np.asarray(self.tree_lambda_dt2m_monthly, dtype=float)
+            * float(sample["TREE_COEFF_SCALE"])
+            * cap_ratio
+        )
+        anchor_ratios: list[float] = []
         for year in self.years:
-            citymean = self.ref_citymean_by_year.get(year)
-            if citymean is None:
-                continue
-            months = self.months_by_year.get(year)
-            if months is None:
-                continue
-
-            ys = year - int(years_all[0])
-            maturity = min(max((ys + start_age) / ramp_years, 0.0), 1.0)
-
-            # Apply monthly tree cooling scaled by maturity
-            dT_daily = np.array([dT2M_monthly[m - 1] * maturity for m in months], dtype=float)
-            T_tree = citymean.astype(float) + dT_daily  # cooling (negative dT)
-
-            s_base = self.waste_heat_activity_share(citymean)
-            s_tree = self.waste_heat_activity_share(T_tree)
-
-            anchor_lambdas[year] = np.clip(s_tree / max(s_base, 1e-9), 0.0, 1.0)
-
-        if anchor_lambdas:
-            anchor_yrs = np.array(sorted(anchor_lambdas.keys()), dtype=float)
-            anchor_vals = np.array([anchor_lambdas[int(y)] for y in anchor_yrs], dtype=float)
-            lambda_y = np.interp(years_all.astype(float), anchor_yrs, anchor_vals)
-            lambda_y = np.clip(lambda_y, 0.0, 1.0)
-
-        return lambda_y
+            base_t = np.asarray(reference_anchor_results[year]["hazard_citymean_daily"], dtype=float)
+            months = np.asarray(self.months_by_year[year], dtype=int)
+            years_since = int(year) - int(years_all[0])
+            maturity = float(
+                np.clip(
+                    (years_since + int(sample["tree_start_age"])) / max(int(sample["tree_ramp_years"]), 1),
+                    0.0,
+                    1.0,
+                )
+            )
+            tree_t = base_t + monthly_delta[months - 1] * maturity
+            s_base = self.waste_heat_activity_share(base_t)
+            s_tree = self.waste_heat_activity_share(tree_t)
+            ratio = 1.0 if s_base <= 1e-12 else s_tree / s_base
+            anchor_ratios.append(float(np.clip(ratio, 0.0, 1.0)))
+        return np.clip(
+            _interp_1d_years(
+                np.asarray(self.years, dtype=int),
+                np.asarray(anchor_ratios, dtype=float),
+                np.asarray(years_all, dtype=int),
+            ),
+            0.0,
+            1.0,
+        )
 
     def evaluate_sample(self, raw_row: pd.Series) -> dict[str, Any]:
         sample = self.sample_dict(raw_row)
@@ -2789,11 +4866,12 @@ class NB09ImprovedFast:
             )
             extreme_min_duration = int(sample["extreme_min_duration_days"])
 
-        # Compute each unique impact branch once (no-EWS), then apply EWS on cached branch impacts.
+        # Compute explicit, mutually interpretable policy branches.  Waste heat
+        # is an aggregate incremental mortality penalty in NB05/NB08, not a
+        # temperature field injected into either spatial branch.
         ref_anchor_results, ref_pop_totals, _ = self.evaluate_branch_anchors(
             sample,
             ac_mode="base",
-            wh_mode="base",
             tree_enabled=False,
             ews_enabled=False,
             extreme_threshold_c=extreme_threshold_c,
@@ -2802,16 +4880,6 @@ class NB09ImprovedFast:
         ac_gross_anchor_results, ac_gross_pop_totals, _ = self.evaluate_branch_anchors(
             sample,
             ac_mode="policy",
-            wh_mode="base",
-            tree_enabled=False,
-            ews_enabled=False,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-        )
-        ac_net_anchor_results, ac_net_pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="policy",
-            wh_mode="policy",
             tree_enabled=False,
             ews_enabled=False,
             extreme_threshold_c=extreme_threshold_c,
@@ -2820,16 +4888,48 @@ class NB09ImprovedFast:
         tree_anchor_results, tree_pop_totals, _ = self.evaluate_branch_anchors(
             sample,
             ac_mode="base",
-            wh_mode="base",
             tree_enabled=True,
             ews_enabled=False,
             extreme_threshold_c=extreme_threshold_c,
             extreme_min_duration_days=extreme_min_duration,
         )
+        ac_tree_anchor_results, ac_tree_pop_totals, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="policy",
+            tree_enabled=True,
+            ews_enabled=False,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+
+        # NB05 derives the marginal deaths per +1 C separately under current
+        # and policy AC.  These branches are required for the aggregate
+        # incremental waste-heat externality.
+        ref_plus1_anchor_results, _, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="base",
+            tree_enabled=False,
+            ews_enabled=False,
+            temperature_offset_c=1.0,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+        ac_plus1_anchor_results, _, _ = self.evaluate_branch_anchors(
+            sample,
+            ac_mode="policy",
+            tree_enabled=False,
+            ews_enabled=False,
+            temperature_offset_c=1.0,
+            extreme_threshold_c=extreme_threshold_c,
+            extreme_min_duration_days=extreme_min_duration,
+        )
+
+        # Standalone EWS is always evaluated against the common reference
+        # branch.  Combined-policy EWS outputs can be added explicitly later;
+        # they must never replace the standalone EWS headline.
         ews_policy_anchor_results, ews_policy_pop_totals, _ = self.evaluate_branch_anchors(
             sample,
             ac_mode="base",
-            wh_mode="base",
             tree_enabled=False,
             ews_enabled=True,
             extreme_threshold_c=extreme_threshold_c,
@@ -2837,44 +4937,99 @@ class NB09ImprovedFast:
             base_anchor_results=ref_anchor_results,
             base_pop_totals=ref_pop_totals,
         )
-        anchor_results, pop_totals, _ = self.evaluate_branch_anchors(
-            sample,
-            ac_mode="base",
-            wh_mode="base",
-            tree_enabled=True,
-            ews_enabled=True,
-            extreme_threshold_c=extreme_threshold_c,
-            extreme_min_duration_days=extreme_min_duration,
-            base_anchor_results=tree_anchor_results,
-            base_pop_totals=tree_pop_totals,
-        )
 
         sample_year = int(sample["year"])
-        year_res = anchor_results[sample_year]
-        residual_daily = year_res["daily_residual_total"]
-        impact_freq = _daily_quantiles(residual_daily, DAILY_QUANTILE_PCTS)
-        annual_deaths = float(residual_daily.sum())
-        aai_agg = annual_deaths  # deaths/yr (annual total); prior /days_in_year gave mean-daily, mismatching the "deaths/yr" label
+        ref_year_res = ref_anchor_results[sample_year]
+        ews_year_res = ews_policy_anchor_results[sample_year]
+        reference_daily = np.asarray(ref_year_res["daily_residual_total"], dtype=float)
+        impact_freq = _daily_quantiles(reference_daily, DAILY_QUANTILE_PCTS)
+        annual_deaths = float(reference_daily.sum())
+        aai_agg = annual_deaths
 
         anchor_years = np.array(self.years, dtype=int)
         years_all = np.arange(min(self.years), min(self.years) + HORIZON_YEARS, dtype=int)
         t_index = years_all - years_all[0]
 
-        warning_days_anchor = np.array([anchor_results[y]["warning_days"] for y in self.years], dtype=float)
-        deaths_warning_anchor = np.array([anchor_results[y]["deaths_on_warning_days"] for y in self.years], dtype=float)
-        gross_anchor = np.array([anchor_results[y]["gross_avoided"] for y in self.years], dtype=float)
-        net_anchor = np.array([anchor_results[y]["net_avoided"] for y in self.years], dtype=float)
-        lys_anchor = np.array([anchor_results[y]["life_years_saved"] for y in self.years], dtype=float)
-        pop_anchor = np.array([pop_totals[y] for y in self.years], dtype=float)
+        warning_days_anchor = np.array([ews_policy_anchor_results[y]["warning_days"] for y in self.years], dtype=float)
+        deaths_warning_anchor = np.array([ews_policy_anchor_results[y]["deaths_on_warning_days"] for y in self.years], dtype=float)
+        pop_anchor = np.array([ref_pop_totals[y] for y in self.years], dtype=float)
 
         warning_days_25y = _interp_1d_years(anchor_years, warning_days_anchor, years_all)
         deaths_warning_25y = _interp_1d_years(anchor_years, deaths_warning_anchor, years_all)
-        gross_25y = _interp_1d_years(anchor_years, gross_anchor, years_all)
-        net_25y = _interp_1d_years(anchor_years, net_anchor, years_all)
-        lys_25y = _interp_1d_years(anchor_years, lys_anchor, years_all)
         pop_25y = _interp_1d_years(anchor_years, pop_anchor, years_all)
 
+        # Reconstruct the annual EWS benefit exactly as NB06 does.  NB06
+        # interpolates the warning-day death burden by age and city-mean AC
+        # coverage separately, then reapplies efficacy, overlap, displacement
+        # and the step ramp for every policy year.  Directly interpolating the
+        # already-combined anchor-year benefit is not equivalent because the
+        # AC-overlap term multiplies the interpolated death burden.
         ramp_25y = np.array([self.ramp_factor(y, sample["ews_ramp_years"]) for y in years_all], dtype=float)
+        ews_ac_coverage_anchor = np.array(
+            [self.coverage_mean_for_ews(y, sample["ac_ssp"], mode="base") for y in self.years],
+            dtype=float,
+        )
+        ews_ac_coverage_25y = _interp_1d_years(anchor_years, ews_ac_coverage_anchor, years_all)
+        overlap = float(
+            self.ews_overlap.get(
+                sample["ews_overlap_level"],
+                self.ews_overlap.get("central", 0.3),
+            )
+        )
+        ews_ac_penalty_25y = np.clip(1.0 - overlap * ews_ac_coverage_25y, 0.0, 1.0)
+        gross_25y = np.zeros_like(years_all, dtype=float)
+        net_25y = np.zeros_like(years_all, dtype=float)
+        lys_25y = np.zeros_like(years_all, dtype=float)
+        for age in AGE_ORDER:
+            deaths_age_anchor = np.array(
+                [ews_policy_anchor_results[y]["deaths_warning_by_age"][age] for y in self.years],
+                dtype=float,
+            )
+            deaths_age_25y = _interp_1d_years(anchor_years, deaths_age_anchor, years_all)
+            interpretation = str(sample["ews_interpretation"]).lower()
+            if interpretation == "marginal":
+                level = sample[f"ews_eff_{self._age_key(age)}_level"]
+                efficacy = float(
+                    self.ews_marg.get(age, {}).get(
+                        level,
+                        self.ews_marg.get(age, {}).get("central", 0.0),
+                    )
+                )
+            elif interpretation == "intermediate":
+                level = sample[f"ews_eff_{self._age_key(age)}_level"]
+                efficacy_marginal = float(
+                    self.ews_marg.get(age, {}).get(
+                        level,
+                        self.ews_marg.get(age, {}).get("central", 0.0),
+                    )
+                )
+                efficacy_counterfactual = float(
+                    self.ews_cf.get(
+                        sample["ews_cf_eff_level"],
+                        self.ews_cf.get("central", 0.0),
+                    )
+                )
+                efficacy = 0.5 * efficacy_marginal + 0.5 * efficacy_counterfactual
+            else:
+                efficacy = float(
+                    self.ews_cf.get(
+                        sample["ews_cf_eff_level"],
+                        self.ews_cf.get("central", 0.0),
+                    )
+                )
+            displacement_level = sample[f"ews_disp_{self._age_key(age)}_level"]
+            displacement = float(
+                self.ews_disp.get(age, {}).get(
+                    displacement_level,
+                    self.ews_disp.get(age, {}).get("central", 0.0),
+                )
+            )
+            gross_age_25y = deaths_age_25y * efficacy * ramp_25y * ews_ac_penalty_25y
+            net_age_25y = gross_age_25y * (1.0 - displacement)
+            gross_25y += gross_age_25y
+            net_25y += net_age_25y
+            lys_25y += net_age_25y * float(self.ews_rly.get(age, 10))
+
         cost_ramp_25y = ramp_25y if bool(self.ews_cfg.get("cost_ramp_with_efficacy", False)) else np.ones_like(ramp_25y)
         pop_ref = float(np.interp(self.ews_threshold_ref_year, anchor_years.astype(float), pop_anchor))
         discount_rate = float(sample["discount_rate"])
@@ -2917,10 +5072,11 @@ class NB09ImprovedFast:
         result = {
             "aai_agg": aai_agg,
             "annual_deaths": annual_deaths,
+            "reference_annual_deaths": annual_deaths,
             **impact_freq,
-            "sample_warning_days": float(year_res["warning_days"]),
-            "sample_threshold_deaths_per_day": float(year_res["threshold"]),
-            "sample_deaths_on_warning_days": float(year_res["deaths_on_warning_days"]),
+            "sample_warning_days": float(ews_year_res["warning_days"]),
+            "sample_threshold_deaths_per_day": float(ews_year_res["threshold"]),
+            "sample_deaths_on_warning_days": float(ews_year_res["deaths_on_warning_days"]),
             "sample_extreme_threshold_pct": float(sample.get("extreme_threshold_pct", np.nan)),
             "sample_extreme_threshold_degC": float(extreme_threshold_c) if extreme_threshold_c is not None else np.nan,
             "sample_extreme_min_duration_days": float(extreme_min_duration) if extreme_min_duration is not None else np.nan,
@@ -2934,45 +5090,218 @@ class NB09ImprovedFast:
             "ews_cost_per_net_death_25y_pv": pv_cost_total / net_avoided_pv if net_avoided_pv > 0 else np.inf,
             "ews_cost_model": sample["ews_cost_model"],
         }
+        result["_ews_cost_streams"] = {
+            "capex": cost_capex_25y,
+            "opex_fixed": cost_opex_fixed_25y,
+            "opex_variable": cost_opex_var_25y,
+            "total": cost_total_25y,
+            "pv_total": cost_pv_25y,
+        }
 
         _, ref_annual_25y, ref_pop_25y, _ = self.interpolate_branch_annuals(ref_anchor_results, ref_pop_totals)
         _, ac_gross_annual_25y, _, _ = self.interpolate_branch_annuals(ac_gross_anchor_results, ac_gross_pop_totals)
-        _, ac_net_annual_25y, _, _ = self.interpolate_branch_annuals(ac_net_anchor_results, ac_net_pop_totals)
-        _, tree_annual_25y, _, _ = self.interpolate_branch_annuals(tree_anchor_results, tree_pop_totals)
-        _, ews_policy_annual_25y, _, _ = self.interpolate_branch_annuals(ews_policy_anchor_results, ews_policy_pop_totals)
+        _, tree_full_annual_25y, _, _ = self.interpolate_branch_annuals(tree_anchor_results, tree_pop_totals)
+        _, ac_tree_full_annual_25y, _, _ = self.interpolate_branch_annuals(ac_tree_anchor_results, ac_tree_pop_totals)
+        # Use the exact NB06 25-year reconstruction above for the annual EWS
+        # policy branch; anchor interpolation alone would lose the nonlinear
+        # death-burden x AC-overlap interaction.
+        ews_policy_annual_25y = ref_annual_25y - net_25y
+        _, ref_plus1_annual_25y, _, _ = self.interpolate_branch_annuals(ref_plus1_anchor_results, ref_pop_totals)
+        _, ac_plus1_annual_25y, _, _ = self.interpolate_branch_annuals(ac_plus1_anchor_results, ac_gross_pop_totals)
 
         ac_gross_avoided_25y = ref_annual_25y - ac_gross_annual_25y
-        ac_net_avoided_25y = ref_annual_25y - ac_net_annual_25y
-        ac_penalty_raw_25y = ac_gross_avoided_25y - ac_net_avoided_25y  # standalone AC (no trees)
-        tree_avoided_25y = ref_annual_25y - tree_annual_25y
+        tree_only_raw_25y = ref_annual_25y - tree_full_annual_25y
+        trees_on_top_raw_25y = ac_gross_annual_25y - ac_tree_full_annual_25y
+        tree_maturity_25y = _cohort_rollout_maturity_factor(
+            HORIZON_YEARS,
+            int(sample["tree_ramp_years"]),
+            start_age_years=int(sample["tree_start_age"]),
+            lifetime_years=int(self.cfg.get("trees", {}).get("lifetime_years", HORIZON_YEARS)),
+        )
+        tree_avoided_25y = tree_only_raw_25y * tree_maturity_25y
+        trees_on_top_25y = trees_on_top_raw_25y * tree_maturity_25y
+        tree_annual_25y = ref_annual_25y - tree_avoided_25y
+        ac_tree_gross_annual_25y = ac_gross_annual_25y - trees_on_top_25y
+        ac_tree_gross_avoided_25y = ref_annual_25y - ac_tree_gross_annual_25y
         ews_reference_avoided_25y = ref_annual_25y - ews_policy_annual_25y
 
-        # Lambda_y: tree-cooled waste-heat correction for the explicit AC+trees interaction branch.
-        lambda_y_25y = self.compute_lambda_y(sample, years_all)
+        # NB05 aggregate waste-heat accounting: activity-weighted marginal
+        # deaths under current and policy AC, multiplied by each branch's
+        # daily-mean warming.  The policy externality is the difference.
+        activity_anchor = np.array(
+            [self.waste_heat_activity_share(ref_anchor_results[y]["hazard_citymean_daily"]) for y in self.years],
+            dtype=float,
+        )
+        activity_25y = _interp_1d_years(anchor_years, activity_anchor, years_all)
+        marginal_current_25y = ref_plus1_annual_25y - ref_annual_25y
+        marginal_policy_25y = ac_plus1_annual_25y - ac_gross_annual_25y
+        pen_current_25y = self.coverage_series_for_waste_heat(
+            years_all, sample["ac_ssp"], mode="base"
+        )
+        pen_policy_25y = self.coverage_series_for_waste_heat(
+            years_all, sample["ac_ssp"], mode="policy"
+        )
+        d_t_current_25y = self.waste_heat_dailymean_delta(pen_current_25y, sample)
+        d_t_policy_25y = self.waste_heat_dailymean_delta(pen_policy_25y, sample)
+        if sample["wh_enabled"]:
+            wh_penalty_current_25y = activity_25y * marginal_current_25y * d_t_current_25y
+            wh_penalty_policy_25y = activity_25y * marginal_policy_25y * d_t_policy_25y
+            ac_penalty_raw_25y = wh_penalty_policy_25y - wh_penalty_current_25y
+        else:
+            wh_penalty_current_25y = np.zeros_like(ref_annual_25y)
+            wh_penalty_policy_25y = np.zeros_like(ref_annual_25y)
+            ac_penalty_raw_25y = np.zeros_like(ref_annual_25y)
+
+        ac_net_avoided_25y = ac_gross_avoided_25y - ac_penalty_raw_25y
+        ac_net_annual_25y = ref_annual_25y - ac_net_avoided_25y
+
+        # Lambda_y: tree-cooled AC utilization scaling for the explicit
+        # AC+trees interaction branch.
+        lambda_y_25y = self.compute_lambda_y(
+            sample,
+            ref_anchor_results,
+            years_all,
+        )
         ac_penalty_with_trees_25y = ac_penalty_raw_25y * lambda_y_25y
-        ac_net_with_trees_25y = ac_gross_avoided_25y - ac_penalty_with_trees_25y
+        ac_feedback_with_trees_net_avoided_25y = ac_gross_avoided_25y - ac_penalty_with_trees_25y
+        ac_feedback_with_trees_net_annual_25y = ref_annual_25y - ac_feedback_with_trees_net_avoided_25y
+        ac_tree_net_avoided_25y = ac_tree_gross_avoided_25y - ac_penalty_with_trees_25y
+        ac_tree_net_annual_25y = ref_annual_25y - ac_tree_net_avoided_25y
 
         # AC costs: standalone AC plus explicit AC+trees interaction on electricity costs.
-        ac_costs = self.compute_ac_cost_metrics(sample, years_all, ref_pop_25y)
+        # AC expenditure follows Notebook 08's distinct population path
+        # (2020 direct/baseline + selected SSP anchors).  It intentionally
+        # differs from NB06's four-anchor population interpolation above.
+        ac_cost_pop_25y = self.ac_cba_population_series(years_all, sample)
+        ac_costs = self.compute_ac_cost_metrics(sample, years_all, ac_cost_pop_25y)
         tree_costs = self.compute_tree_cost_metrics(sample)
         ac_gross_avoided_cum = float(ac_gross_avoided_25y.sum())
         ac_net_avoided_cum = float(ac_net_avoided_25y.sum())
-        ac_net_with_trees_cum = float(ac_net_with_trees_25y.sum())
+        ac_net_with_trees_cum = float(ac_feedback_with_trees_net_avoided_25y.sum())
+        combined_ac_tree_net_cum = float(ac_tree_net_avoided_25y.sum())
         tree_avoided_cum = float(tree_avoided_25y.sum())
+
+        sample_ref_annual = float(np.asarray(ref_anchor_results[sample_year]["daily_residual_total"]).sum())
+        sample_ac_gross_annual = float(np.asarray(ac_gross_anchor_results[sample_year]["daily_residual_total"]).sum())
+        sample_tree_full_annual = float(np.asarray(tree_anchor_results[sample_year]["daily_residual_total"]).sum())
+        sample_ac_tree_full_annual = float(np.asarray(ac_tree_anchor_results[sample_year]["daily_residual_total"]).sum())
+        sample_ews_annual = float(np.asarray(ews_policy_anchor_results[sample_year]["daily_residual_total"]).sum())
+        sample_marginal_current = (
+            float(np.asarray(ref_plus1_anchor_results[sample_year]["daily_residual_total"]).sum())
+            - sample_ref_annual
+        )
+        sample_marginal_policy = (
+            float(np.asarray(ac_plus1_anchor_results[sample_year]["daily_residual_total"]).sum())
+            - sample_ac_gross_annual
+        )
+        sample_activity = self.waste_heat_activity_share(
+            ref_anchor_results[sample_year]["hazard_citymean_daily"]
+        )
+        sample_d_t_current = float(
+            self.waste_heat_dailymean_delta(
+                np.array([self.coverage_mean_for_waste_heat(sample_year, sample["ac_ssp"], mode="base")]), sample
+            )[0]
+        )
+        sample_d_t_policy = float(
+            self.waste_heat_dailymean_delta(
+                np.array([self.coverage_mean_for_waste_heat(sample_year, sample["ac_ssp"], mode="policy")]), sample
+            )[0]
+        )
+        sample_wh_penalty = 0.0
+        if sample["wh_enabled"]:
+            sample_wh_penalty = sample_activity * (
+                sample_marginal_policy * sample_d_t_policy
+                - sample_marginal_current * sample_d_t_current
+            )
+        result.update(
+            {
+                "ac_gross_annual_deaths": sample_ac_gross_annual,
+                "ac_net_annual_deaths": sample_ac_gross_annual + sample_wh_penalty,
+                "tree_full_maturity_annual_deaths": sample_tree_full_annual,
+                "ews_annual_deaths": sample_ews_annual,
+                "ac_tree_full_maturity_gross_annual_deaths": sample_ac_tree_full_annual,
+                "sample_ac_waste_heat_penalty_deaths": sample_wh_penalty,
+            }
+        )
+        # Direct anchor-year outputs remain available even when an anchor lies
+        # outside the 2020--2044 CBA horizon (notably 2050).
+        for year in self.years:
+            ref_a = float(np.asarray(ref_anchor_results[year]["daily_residual_total"], dtype=float).sum())
+            ac_a = float(np.asarray(ac_gross_anchor_results[year]["daily_residual_total"], dtype=float).sum())
+            tree_full_a = float(np.asarray(tree_anchor_results[year]["daily_residual_total"], dtype=float).sum())
+            ews_a = float(np.asarray(ews_policy_anchor_results[year]["daily_residual_total"], dtype=float).sum())
+            ref_plus1_a = float(
+                np.asarray(ref_plus1_anchor_results[year]["daily_residual_total"], dtype=float).sum()
+            )
+            ac_plus1_a = float(
+                np.asarray(ac_plus1_anchor_results[year]["daily_residual_total"], dtype=float).sum()
+            )
+            wh_penalty_a = 0.0
+            if sample["wh_enabled"]:
+                activity_a = self.waste_heat_activity_share(
+                    ref_anchor_results[year]["hazard_citymean_daily"]
+                )
+                d_t_current_a = float(
+                    self.waste_heat_dailymean_delta(
+                        np.asarray(
+                            [self.coverage_mean_for_waste_heat(year, sample["ac_ssp"], mode="base")]
+                        ),
+                        sample,
+                    )[0]
+                )
+                d_t_policy_a = float(
+                    self.waste_heat_dailymean_delta(
+                        np.asarray(
+                            [self.coverage_mean_for_waste_heat(year, sample["ac_ssp"], mode="policy")]
+                        ),
+                        sample,
+                    )[0]
+                )
+                wh_penalty_a = activity_a * (
+                    (ac_plus1_a - ac_a) * d_t_policy_a
+                    - (ref_plus1_a - ref_a) * d_t_current_a
+                )
+            result[f"reference_deaths_{year}"] = ref_a
+            result[f"ac_gross_deaths_{year}"] = ac_a
+            result[f"ac_net_deaths_{year}"] = ac_a + wh_penalty_a
+            result[f"tree_full_maturity_deaths_{year}"] = tree_full_a
+            result[f"ews_deaths_{year}"] = ews_a
+            result[f"gross_ac_avoided_deaths_{year}"] = ref_a - ac_a
+            result[f"ac_waste_heat_penalty_deaths_{year}"] = wh_penalty_a
+            result[f"ac_net_avoided_deaths_{year}"] = ref_a - ac_a - wh_penalty_a
+            result[f"full_maturity_tree_avoided_deaths_{year}"] = ref_a - tree_full_a
+            result[f"ews_avoided_deaths_{year}"] = ref_a - ews_a
 
         result.update(ac_costs)
         result.update(
             {
+                "reference_deaths_25y_cum": float(ref_annual_25y.sum()),
+                "ac_gross_branch_deaths_25y_cum": float(ac_gross_annual_25y.sum()),
+                "ac_net_branch_deaths_25y_cum": float(ac_net_annual_25y.sum()),
                 "ac_gross_avoided_deaths_25y_cum": ac_gross_avoided_cum,
                 "ac_net_avoided_deaths_25y_cum": ac_net_avoided_cum,
                 "ac_waste_heat_penalty_25y_cum": float(ac_penalty_raw_25y.sum()),
                 "ac_waste_heat_penalty_raw_25y_cum": float(ac_penalty_raw_25y.sum()),
+                "ac_waste_heat_current_deaths_25y_cum": float(wh_penalty_current_25y.sum()),
+                "ac_waste_heat_policy_deaths_25y_cum": float(wh_penalty_policy_25y.sum()),
                 "ac_cost_per_gross_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_25y"], ac_gross_avoided_cum),
                 "ac_cost_per_net_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_25y"], ac_net_avoided_cum),
                 "ac_with_trees_net_avoided_deaths_25y_cum": ac_net_with_trees_cum,
+                "ac_with_trees_gross_avoided_deaths_25y_cum": ac_gross_avoided_cum,
+                "ac_with_trees_gross_branch_deaths_25y_cum": float(ac_gross_annual_25y.sum()),
+                "ac_with_trees_net_branch_deaths_25y_cum": float(ac_feedback_with_trees_net_annual_25y.sum()),
                 "ac_with_trees_waste_heat_penalty_25y_cum": float(ac_penalty_with_trees_25y.sum()),
                 "ac_with_trees_cost_per_gross_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_with_trees_25y"], ac_gross_avoided_cum),
                 "ac_with_trees_cost_per_net_death_25y_cum": _safe_ratio(ac_costs["ac_pv_cost_with_trees_25y"], ac_net_with_trees_cum),
+                "combined_ac_tree_gross_avoided_deaths_25y_cum": float(ac_tree_gross_avoided_25y.sum()),
+                "combined_ac_tree_net_avoided_deaths_25y_cum": combined_ac_tree_net_cum,
+                "combined_ac_tree_gross_branch_deaths_25y_cum": float(ac_tree_gross_annual_25y.sum()),
+                "combined_ac_tree_net_branch_deaths_25y_cum": float(ac_tree_net_annual_25y.sum()),
+                "combined_ac_tree_pv_cost_25y": float(ac_costs["ac_pv_cost_with_trees_25y"] + tree_costs["tree_pv_cost_25y"]),
+                "combined_ac_tree_cost_per_net_death_25y_cum": _safe_ratio(
+                    ac_costs["ac_pv_cost_with_trees_25y"] + tree_costs["tree_pv_cost_25y"],
+                    combined_ac_tree_net_cum,
+                ),
                 "lambda_y_mean": float(lambda_y_25y.mean()),
             }
         )
@@ -2980,9 +5309,14 @@ class NB09ImprovedFast:
         result.update(
             {
                 "tree_avoided_deaths_25y_cum": tree_avoided_cum,
+                "tree_raw_full_maturity_avoided_deaths_25y_cum": float(tree_only_raw_25y.sum()),
+                "tree_on_top_of_ac_avoided_deaths_25y_cum": float(trees_on_top_25y.sum()),
+                "tree_on_top_of_ac_raw_full_maturity_avoided_deaths_25y_cum": float(trees_on_top_raw_25y.sum()),
+                "tree_branch_deaths_25y_cum": float(tree_annual_25y.sum()),
                 "tree_cost_per_death_25y_cum": _safe_ratio(tree_costs["tree_pv_cost_25y"], tree_avoided_cum),
             }
         )
+        result["ews_branch_deaths_25y_cum"] = float(ews_policy_annual_25y.sum())
 
         # Vegetation-electricity outputs are reported as explicit tree co-benefits, not netted into tree CBA by default.
         result["tree_elec_cost_coverage_base_users_pct"] = (
@@ -2998,17 +5332,27 @@ class NB09ImprovedFast:
             "reference": ref_annual_25y,
             "ac_policy_gross": ac_gross_annual_25y,
             "ac_policy_net": ac_net_annual_25y,
+            "ac_policy_net_with_tree_feedback": ac_feedback_with_trees_net_annual_25y,
             "tree_policy": tree_annual_25y,
             "ews_policy": ews_policy_annual_25y,
+            "ac_tree_policy_gross": ac_tree_gross_annual_25y,
+            "ac_tree_policy_net": ac_tree_net_annual_25y,
         }
         result["_policy_branch_effects"] = {
             "ac_gross_avoided_25y": ac_gross_avoided_25y,
             "ac_net_avoided_25y": ac_net_avoided_25y,
-            "ac_net_with_trees_25y": ac_net_with_trees_25y,
+            "ac_net_with_tree_feedback_25y": ac_feedback_with_trees_net_avoided_25y,
+            "ac_tree_gross_avoided_25y": ac_tree_gross_avoided_25y,
+            "ac_net_with_trees_25y": ac_tree_net_avoided_25y,
             "ac_penalty_raw_25y": ac_penalty_raw_25y,
             "ac_penalty_with_trees_25y": ac_penalty_with_trees_25y,
+            "tree_only_raw_25y": tree_only_raw_25y,
+            "trees_on_top_raw_25y": trees_on_top_raw_25y,
+            "tree_maturity_25y": tree_maturity_25y,
             "tree_avoided_25y": tree_avoided_25y,
+            "trees_on_top_25y": trees_on_top_25y,
             "ews_reference_avoided_25y": ews_reference_avoided_25y,
+            "lambda_y_25y": lambda_y_25y,
         }
 
         # ── Vulnerability output metrics (Level A: does not affect mortality) ──
@@ -3034,7 +5378,8 @@ class NB09ImprovedFast:
             result[f"vuln_2050_{k}"] = v
 
         result["_anchor_years"] = anchor_years
-        result["_anchor_results"] = anchor_results
+        result["_anchor_results"] = ref_anchor_results
+        result["_anchor_results_ews"] = ews_policy_anchor_results
         result["_years_all"] = years_all
         result["_warning_days_25y"] = warning_days_25y
         result["_deaths_warning_25y"] = deaths_warning_25y
@@ -3042,100 +5387,352 @@ class NB09ImprovedFast:
         result["_cost_pv_25y"] = cost_pv_25y
         return result
 
+    def run_central_control(self) -> dict[str, Path | None]:
+        """Evaluate and validate the unsampled canonical NB01--NB08 point."""
+        central_path = self.unc_dir / f"central_configuration_{self.slug}_improved_fast.csv"
+        central_qa_path = self.unc_dir / f"central_mathematical_qa_{self.slug}_improved_fast.csv"
+        parity_path = self.unc_dir / f"central_parity_{self.slug}_improved_fast.csv"
+        marker_path = self.unc_dir / "CENTRAL_CONTROL_COMPLETE.json"
+        campaign_signature = self.run_provenance["campaign_signature"]
+
+        if marker_path.exists():
+            marker = _load_json(marker_path)
+            expected_paths: dict[str, Path] = {
+                "central": central_path,
+                "central_mathematical_qa": central_qa_path,
+            }
+            if getattr(self, "_lhs_scope", None) != "burke_sensitivity":
+                expected_paths["central_parity"] = parity_path
+            expected_hashes = marker.get("output_sha256", {})
+            reusable = bool(
+                marker.get("output_schema_version") == OUTPUT_SCHEMA_VERSION
+                and marker.get("campaign_signature") == campaign_signature
+                and all(
+                    path.is_file() and expected_hashes.get(key) == _sha256_file(path)
+                    for key, path in expected_paths.items()
+                )
+            )
+            if not reusable:
+                raise RuntimeError(
+                    f"[{self.slug}] Existing central-control marker is inconsistent with its outputs: "
+                    f"{marker_path}. Use a new NB09_CAMPAIGN_ID rather than mixing controls."
+                )
+            self.central_df = pd.read_csv(central_path)
+            self.central_parity_path = expected_paths.get("central_parity")
+            print(f"[{self.slug}] reusing verified central NB01--NB08 parity control")
+            return {
+                "central": central_path,
+                "central_mathematical_qa": central_qa_path,
+                "central_parity": self.central_parity_path,
+                "central_control_completion": marker_path,
+            }
+
+        central_raw = self.central_parameter_row()
+        central_out = self.evaluate_sample(central_raw)
+        central_decoded = self.sample_dict(central_raw)
+        central_qa = self.validate_sample_output(-1, central_decoded, central_out)
+        central_record = {
+            **central_raw.to_dict(),
+            **{k: v for k, v in central_decoded.items() if k not in central_raw.index},
+            **{k: v for k, v in central_out.items() if not str(k).startswith("_")},
+        }
+        self.central_df = pd.DataFrame([central_record])
+        _atomic_write_csv(central_path, self.central_df, index=False)
+        _atomic_write_csv(central_qa_path, pd.DataFrame(central_qa), index=False)
+        self.central_parity_path = None
+        if getattr(self, "_lhs_scope", None) != "burke_sensitivity":
+            self.central_parity_path = self.validate_central_against_deterministic(central_out)
+        control_paths = {
+            "central": central_path,
+            "central_mathematical_qa": central_qa_path,
+        }
+        if self.central_parity_path is not None:
+            control_paths["central_parity"] = self.central_parity_path
+        _atomic_write_json(
+            marker_path,
+            {
+                "output_schema_version": OUTPUT_SCHEMA_VERSION,
+                "campaign_id": self.run_provenance["campaign_id"],
+                "campaign_signature": campaign_signature,
+                "city": self.city,
+                "slug": self.slug,
+                "completed_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+                "output_sha256": {
+                    key: _sha256_file(path)
+                    for key, path in control_paths.items()
+                },
+            },
+        )
+        return {
+            "central": central_path,
+            "central_mathematical_qa": central_qa_path,
+            "central_parity": self.central_parity_path,
+            "central_control_completion": marker_path,
+        }
+
+    def _records_for_sample(
+        self,
+        sample_idx: int,
+        raw_row: pd.Series,
+        out: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Build every persisted record for one evaluated LHS row."""
+        raw = raw_row.to_dict()
+        decoded = self.sample_dict(raw_row)
+        sample_row = {
+            "sample_idx": int(sample_idx),
+            **raw,
+            **{key: value for key, value in decoded.items() if key not in raw},
+            **{key: value for key, value in out.items() if not str(key).startswith("_")},
+        }
+        impact = {
+            "sample_idx": int(sample_idx),
+            "aai_agg": out["aai_agg"],
+            "annual_deaths": out["annual_deaths"],
+            "reference_annual_deaths": out["reference_annual_deaths"],
+            "ac_gross_annual_deaths": out["ac_gross_annual_deaths"],
+            "ac_net_annual_deaths": out["ac_net_annual_deaths"],
+            "tree_full_maturity_annual_deaths": out["tree_full_maturity_annual_deaths"],
+            "ews_annual_deaths": out["ews_annual_deaths"],
+            **{
+                key: value
+                for key, value in out.items()
+                if any(
+                    key.startswith(prefix)
+                    for prefix in (
+                        "reference_deaths_",
+                        "ac_gross_deaths_",
+                        "ac_net_deaths_",
+                        "tree_full_maturity_deaths_",
+                        "ews_deaths_",
+                        "gross_ac_avoided_deaths_",
+                        "ac_net_avoided_deaths_",
+                        "ac_waste_heat_penalty_deaths_",
+                        "full_maturity_tree_avoided_deaths_",
+                        "ews_avoided_deaths_",
+                    )
+                )
+            },
+            **{f"daily_p{p}": out[f"daily_p{p}"] for p in DAILY_QUANTILE_PCTS},
+        }
+        cba_ews = {
+            "sample_idx": int(sample_idx),
+            "reference_deaths_25y_cum": out["reference_deaths_25y_cum"],
+            "ews_branch_deaths_25y_cum": out["ews_branch_deaths_25y_cum"],
+            "ews_pv_cost_25y": out["ews_pv_cost_25y"],
+            "ews_net_avoided_deaths_25y_cum": out["ews_net_avoided_deaths_25y_cum"],
+            "ews_net_avoided_deaths_25y_pv": out["ews_net_avoided_deaths_25y_pv"],
+            "ews_cost_per_net_death_25y_cum": out["ews_cost_per_net_death_25y_cum"],
+            "ews_cost_per_net_death_25y_pv": out["ews_cost_per_net_death_25y_pv"],
+            "ews_life_years_saved_25y_cum": out["ews_life_years_saved_25y_cum"],
+        }
+        cba_ac = {
+            "sample_idx": int(sample_idx),
+            **{
+                key: out[key]
+                for key in (
+                    "reference_deaths_25y_cum",
+                    "ac_gross_branch_deaths_25y_cum",
+                    "ac_net_branch_deaths_25y_cum",
+                    "ac_pv_capex_25y",
+                    "ac_pv_maint_25y",
+                    "ac_pv_elec_25y",
+                    "ac_pv_elec_with_trees_25y",
+                    "ac_pv_cost_25y",
+                    "ac_pv_cost_with_trees_25y",
+                    "ac_added_users_final",
+                    "ac_gross_avoided_deaths_25y_cum",
+                    "ac_net_avoided_deaths_25y_cum",
+                    "ac_waste_heat_penalty_25y_cum",
+                    "ac_waste_heat_current_deaths_25y_cum",
+                    "ac_waste_heat_policy_deaths_25y_cum",
+                    "ac_cost_per_gross_death_25y_cum",
+                    "ac_cost_per_net_death_25y_cum",
+                    "ac_with_trees_gross_branch_deaths_25y_cum",
+                    "ac_with_trees_net_branch_deaths_25y_cum",
+                    "ac_with_trees_gross_avoided_deaths_25y_cum",
+                    "ac_with_trees_net_avoided_deaths_25y_cum",
+                    "ac_with_trees_waste_heat_penalty_25y_cum",
+                    "ac_with_trees_cost_per_gross_death_25y_cum",
+                    "ac_with_trees_cost_per_net_death_25y_cum",
+                    "combined_ac_tree_gross_branch_deaths_25y_cum",
+                    "combined_ac_tree_net_branch_deaths_25y_cum",
+                    "combined_ac_tree_gross_avoided_deaths_25y_cum",
+                    "combined_ac_tree_net_avoided_deaths_25y_cum",
+                    "combined_ac_tree_pv_cost_25y",
+                    "combined_ac_tree_cost_per_net_death_25y_cum",
+                )
+            },
+        }
+        cba_trees = {
+            "sample_idx": int(sample_idx),
+            **{
+                key: out[key]
+                for key in (
+                    "reference_deaths_25y_cum",
+                    "tree_branch_deaths_25y_cum",
+                    "tree_pv_capex_25y",
+                    "tree_pv_om_25y",
+                    "tree_pv_cost_25y",
+                    "tree_avoided_deaths_25y_cum",
+                    "tree_raw_full_maturity_avoided_deaths_25y_cum",
+                    "tree_on_top_of_ac_avoided_deaths_25y_cum",
+                    "tree_cost_per_death_25y_cum",
+                    "tree_elec_pv_savings_base_users",
+                    "tree_elec_pv_savings_all_users",
+                    "tree_elec_kwh_base_users_25y",
+                    "tree_elec_kwh_all_users_25y",
+                    "tree_elec_co2_base_users_t_25y",
+                    "tree_elec_co2_all_users_t_25y",
+                    "tree_elec_cost_coverage_base_users_pct",
+                    "tree_elec_cost_coverage_all_users_pct",
+                    "elec_feedback_enabled",
+                    "elec_coeff_scale",
+                )
+            },
+        }
+        vulnerability = {
+            "sample_idx": int(sample_idx),
+            "year": decoded["year"],
+            "exp_ssp": self.exp_ssp_options[int(raw_row["EXP_SSP_IDX"])] if self.exp_ssp_options else None,
+            **{
+                key: float(raw_row[key])
+                for key in (
+                    "VULN_K",
+                    "VULN_PHI_2050",
+                    "VULN_DRMKC_SCALE_FB",
+                    "VULN_DRMKC_SCALE_UE",
+                    "VULN_GVI_SCALE_FB",
+                    "VULN_GVI_SCALE_UE",
+                    "VULN_RETROFIT_RATE",
+                    "VULN_GROWTH_SENS",
+                    "VULN_GROWTH_CAP",
+                    "VULN_NEW_BUILD",
+                )
+            },
+            **{key: value for key, value in out.items() if str(key).startswith("vuln_")},
+        }
+        return {
+            "sample": sample_row,
+            "impact": impact,
+            "cba_ews": cba_ews,
+            "cba_ac": cba_ac,
+            "cba_trees": cba_trees,
+            "vulnerability": vulnerability,
+            "trajectories": self.build_policy_trajectory_rows(sample_idx, out),
+            "qa": self.validate_sample_output(sample_idx, decoded, out),
+        }
+
+    def _load_or_evaluate_sample(
+        self,
+        sample_idx: int,
+        raw_row: pd.Series,
+    ) -> tuple[dict[str, Any], bool]:
+        """Resume an exact sample checkpoint or atomically create one."""
+        checkpoint_path = self.checkpoint_dir / f"sample_{sample_idx:05d}.json"
+        raw_parameters = _json_ready(raw_row.to_dict())
+        raw_hash = _sha256_json(raw_parameters)
+        signature = self.run_provenance["campaign_signature"]
+        if checkpoint_path.exists():
+            payload = _load_json(checkpoint_path)
+            if (
+                payload.get("output_schema_version") != OUTPUT_SCHEMA_VERSION
+                or payload.get("campaign_signature") != signature
+                or payload.get("raw_parameters_sha256") != raw_hash
+                or int(payload.get("sample_idx", -999999)) != int(sample_idx)
+            ):
+                raise RuntimeError(
+                    f"[{self.slug}] checkpoint provenance mismatch at sample {sample_idx}; "
+                    f"refusing to reuse {checkpoint_path}."
+                )
+            records_encoded = payload.get("records")
+            if not isinstance(records_encoded, dict):
+                raise RuntimeError(f"[{self.slug}] invalid checkpoint payload: {checkpoint_path}")
+            if payload.get("records_sha256") != _sha256_json(records_encoded):
+                raise RuntimeError(f"[{self.slug}] checkpoint integrity failure: {checkpoint_path}")
+            records = _json_restore(records_encoded)
+            qa = records.get("qa", [])
+            if not qa or any(row.get("status") != "pass" for row in qa):
+                raise RuntimeError(f"[{self.slug}] checkpoint contains failed or missing QA: {checkpoint_path}")
+            if int(records.get("sample", {}).get("sample_idx", -999999)) != int(sample_idx):
+                raise RuntimeError(f"[{self.slug}] checkpoint has the wrong sample record: {checkpoint_path}")
+            trajectories = records.get("trajectories", [])
+            if len(trajectories) != HORIZON_YEARS * len(BRANCH_NAMES):
+                raise RuntimeError(f"[{self.slug}] checkpoint has incomplete trajectories: {checkpoint_path}")
+            expected_years = range(int(min(self.years)), int(min(self.years)) + HORIZON_YEARS)
+            expected_keys = {(int(year), branch) for year in expected_years for branch in BRANCH_NAMES}
+            found_keys = {
+                (int(row.get("year", -999999)), str(row.get("branch", "")))
+                for row in trajectories
+                if int(row.get("sample_idx", -999999)) == int(sample_idx)
+            }
+            if found_keys != expected_keys:
+                raise RuntimeError(f"[{self.slug}] checkpoint has invalid trajectory keys: {checkpoint_path}")
+            return records, True
+
+        out = self.evaluate_sample(raw_row)
+        records = self._records_for_sample(sample_idx, raw_row, out)
+        records_encoded = _json_ready(records)
+        payload = {
+            "output_schema_version": OUTPUT_SCHEMA_VERSION,
+            "campaign_signature": signature,
+            "sample_idx": int(sample_idx),
+            "raw_parameters": raw_parameters,
+            "raw_parameters_sha256": raw_hash,
+            "records": records_encoded,
+            "records_sha256": _sha256_json(records_encoded),
+        }
+        _atomic_write_json(checkpoint_path, payload)
+        return records, False
+
     def run(self, n: int, seed: int = SEED_DEFAULT, make_figures: bool = False) -> dict[str, Path]:
-        raw_samples, x = self.sample_parameters(n, seed)
-        sample_rows: list[dict[str, Any]] = []
-        impact_rows: list[dict[str, Any]] = []
-        cba_ews_rows: list[dict[str, Any]] = []
-        cba_ac_rows: list[dict[str, Any]] = []
-        cba_tree_rows: list[dict[str, Any]] = []
-        vuln_rows: list[dict[str, Any]] = []
+        if int(n) <= 0:
+            raise ValueError("N must be a positive integer.")
+        raw_samples, x = self.sample_parameters(int(n), int(seed))
+        self.prepare_campaign(raw_samples, n=int(n), seed=int(seed))
+
+        # The canonical point is an integration/parity control only. It is
+        # deliberately excluded from the LHS, uncertainty ranges and PAWN.
+        central_paths = self.run_central_control()
+        print(f"[{self.slug}] central NB01--NB08 parity control passed; starting N={n} LHS")
+
+        records_by_kind: dict[str, list[Any]] = {
+            "sample": [],
+            "impact": [],
+            "cba_ews": [],
+            "cba_ac": [],
+            "cba_trees": [],
+            "vulnerability": [],
+            "trajectories": [],
+            "qa": [],
+        }
 
         for idx, raw_row in raw_samples.iterrows():
-            out = self.evaluate_sample(raw_row)
-            decoded = self.sample_dict(raw_row)
-            sample_row = {**raw_row.to_dict(), **{k: v for k, v in decoded.items() if k not in raw_row.to_dict()}, **{k: v for k, v in out.items() if not str(k).startswith("_")}}
-            sample_rows.append(sample_row)
-            impact_rows.append(
-                {
-                    "aai_agg": out["aai_agg"],
-                    "annual_deaths": out["annual_deaths"],
-                    **{f"daily_p{p}": out[f"daily_p{p}"] for p in DAILY_QUANTILE_PCTS},
-                }
+            records, resumed = self._load_or_evaluate_sample(int(idx), raw_row)
+            for kind in ("sample", "impact", "cba_ews", "cba_ac", "cba_trees", "vulnerability"):
+                records_by_kind[kind].append(records[kind])
+            records_by_kind["trajectories"].extend(records["trajectories"])
+            records_by_kind["qa"].extend(records["qa"])
+            sample_record = records["sample"]
+            action = "resumed" if resumed else "evaluated"
+            print(
+                f"[{self.slug}] sample {idx + 1}/{n} {action}: "
+                f"year={sample_record['year']} aai={float(sample_record['aai_agg']):.3f}"
             )
-            cba_ews_rows.append(
-                {
-                    "ews_pv_cost_25y": out["ews_pv_cost_25y"],
-                    "ews_net_avoided_deaths_25y_cum": out["ews_net_avoided_deaths_25y_cum"],
-                    "ews_net_avoided_deaths_25y_pv": out["ews_net_avoided_deaths_25y_pv"],
-                    "ews_cost_per_net_death_25y_cum": out["ews_cost_per_net_death_25y_cum"],
-                    "ews_cost_per_net_death_25y_pv": out["ews_cost_per_net_death_25y_pv"],
-                    "ews_life_years_saved_25y_cum": out["ews_life_years_saved_25y_cum"],
-                }
-            )
-            cba_ac_rows.append(
-                {
-                    "ac_pv_capex_25y": out["ac_pv_capex_25y"],
-                    "ac_pv_maint_25y": out["ac_pv_maint_25y"],
-                    "ac_pv_elec_25y": out["ac_pv_elec_25y"],
-                    "ac_pv_elec_with_trees_25y": out["ac_pv_elec_with_trees_25y"],
-                    "ac_pv_cost_25y": out["ac_pv_cost_25y"],
-                    "ac_pv_cost_with_trees_25y": out["ac_pv_cost_with_trees_25y"],
-                    "ac_added_users_final": out["ac_added_users_final"],
-                    "ac_gross_avoided_deaths_25y_cum": out["ac_gross_avoided_deaths_25y_cum"],
-                    "ac_net_avoided_deaths_25y_cum": out["ac_net_avoided_deaths_25y_cum"],
-                    "ac_waste_heat_penalty_25y_cum": out["ac_waste_heat_penalty_25y_cum"],
-                    "ac_cost_per_gross_death_25y_cum": out["ac_cost_per_gross_death_25y_cum"],
-                    "ac_cost_per_net_death_25y_cum": out["ac_cost_per_net_death_25y_cum"],
-                    "ac_with_trees_net_avoided_deaths_25y_cum": out["ac_with_trees_net_avoided_deaths_25y_cum"],
-                    "ac_with_trees_waste_heat_penalty_25y_cum": out["ac_with_trees_waste_heat_penalty_25y_cum"],
-                    "ac_with_trees_cost_per_net_death_25y_cum": out["ac_with_trees_cost_per_net_death_25y_cum"],
-                }
-            )
-            cba_tree_rows.append(
-                {
-                    "tree_pv_capex_25y": out["tree_pv_capex_25y"],
-                    "tree_pv_om_25y": out["tree_pv_om_25y"],
-                    "tree_pv_cost_25y": out["tree_pv_cost_25y"],
-                    "tree_avoided_deaths_25y_cum": out["tree_avoided_deaths_25y_cum"],
-                    "tree_cost_per_death_25y_cum": out["tree_cost_per_death_25y_cum"],
-                    "tree_elec_pv_savings_base_users": out["tree_elec_pv_savings_base_users"],
-                    "tree_elec_pv_savings_all_users": out["tree_elec_pv_savings_all_users"],
-                    "tree_elec_kwh_base_users_25y": out["tree_elec_kwh_base_users_25y"],
-                    "tree_elec_kwh_all_users_25y": out["tree_elec_kwh_all_users_25y"],
-                    "tree_elec_co2_base_users_t_25y": out["tree_elec_co2_base_users_t_25y"],
-                    "tree_elec_co2_all_users_t_25y": out["tree_elec_co2_all_users_t_25y"],
-                    "tree_elec_cost_coverage_base_users_pct": out["tree_elec_cost_coverage_base_users_pct"],
-                    "tree_elec_cost_coverage_all_users_pct": out["tree_elec_cost_coverage_all_users_pct"],
-                    "elec_feedback_enabled": out["elec_feedback_enabled"],
-                    "elec_coeff_scale": out["elec_coeff_scale"],
-                }
-            )
-            vuln_rows.append({
-                "sample_idx": idx,
-                "year": decoded["year"],
-                "exp_ssp": self.exp_ssp_options[int(raw_row["EXP_SSP_IDX"])] if self.exp_ssp_options else None,
-                "VULN_K": float(raw_row["VULN_K"]),
-                "VULN_PHI_2050": float(raw_row["VULN_PHI_2050"]),
-                "VULN_DRMKC_SCALE_FB": float(raw_row["VULN_DRMKC_SCALE_FB"]),
-                "VULN_DRMKC_SCALE_UE": float(raw_row["VULN_DRMKC_SCALE_UE"]),
-                "VULN_GVI_SCALE_FB": float(raw_row["VULN_GVI_SCALE_FB"]),
-                "VULN_GVI_SCALE_UE": float(raw_row["VULN_GVI_SCALE_UE"]),
-                "VULN_RETROFIT_RATE": float(raw_row["VULN_RETROFIT_RATE"]),
-                "VULN_GROWTH_SENS": float(raw_row["VULN_GROWTH_SENS"]),
-                "VULN_GROWTH_CAP": float(raw_row["VULN_GROWTH_CAP"]),
-                "VULN_NEW_BUILD": float(raw_row["VULN_NEW_BUILD"]),
-                **{k: v for k, v in out.items() if str(k).startswith("vuln_")},
-            })
-            print(f"[{self.slug}] sample {idx + 1}/{n}: year={sample_row['year']} aai={out['aai_agg']:.3f}")
 
-        samples_df = pd.DataFrame(sample_rows)
-        impact_df = pd.DataFrame(impact_rows)
-        cba_ews_df = pd.DataFrame(cba_ews_rows)
-        cba_ac_df = pd.DataFrame(cba_ac_rows)
-        cba_tree_df = pd.DataFrame(cba_tree_rows)
-        vuln_df = pd.DataFrame(vuln_rows)
-        self.validate_uq_sample_outputs(samples_df)
+        samples_df = pd.DataFrame(records_by_kind["sample"]).sort_values("sample_idx").reset_index(drop=True)
+        impact_df = pd.DataFrame(records_by_kind["impact"]).sort_values("sample_idx").reset_index(drop=True)
+        cba_ews_df = pd.DataFrame(records_by_kind["cba_ews"]).sort_values("sample_idx").reset_index(drop=True)
+        cba_ac_df = pd.DataFrame(records_by_kind["cba_ac"]).sort_values("sample_idx").reset_index(drop=True)
+        cba_tree_df = pd.DataFrame(records_by_kind["cba_trees"]).sort_values("sample_idx").reset_index(drop=True)
+        vuln_df = pd.DataFrame(records_by_kind["vulnerability"]).sort_values("sample_idx").reset_index(drop=True)
+        trajectories_df = pd.DataFrame(records_by_kind["trajectories"]).sort_values(
+            ["sample_idx", "year", "branch"]
+        ).reset_index(drop=True)
+        sample_qa_df = pd.DataFrame(records_by_kind["qa"]).sort_values(
+            ["sample_idx", "metric"]
+        ).reset_index(drop=True)
+        self.validate_uq_sample_outputs(samples_df, trajectories_df, sample_qa_df)
 
         sens_aai_df = _pawn_table(self.problem, x, {"aai_agg": samples_df["aai_agg"].to_numpy(float)})
         sens_freq_df = _pawn_table(
@@ -3200,9 +5797,13 @@ class NB09ImprovedFast:
             sens_cba_ac_df,
             sens_cba_tree_df,
             sens_vuln_df,
+            trajectories_df,
+            sample_qa_df,
         )
+        paths.update({key: value for key, value in central_paths.items() if value is not None})
         if make_figures:
             self.make_figures(samples_df, sens_aai_df, sens_cba_df, sens_vuln_df)
+        self.write_completion_marker(paths, n_samples=len(samples_df))
         return paths
 
     def save_outputs(
@@ -3219,6 +5820,8 @@ class NB09ImprovedFast:
         sens_cba_ac_df: pd.DataFrame,
         sens_cba_tree_df: pd.DataFrame,
         sens_vuln_df: pd.DataFrame,
+        trajectories_df: pd.DataFrame,
+        sample_qa_df: pd.DataFrame,
     ) -> dict[str, Path]:
         if self.ews_uses_event_mask_warning():
             ews_note = (
@@ -3246,6 +5849,9 @@ class NB09ImprovedFast:
             "cba_ac": self.unc_dir / f"unc_cba_ac_{self.slug}_improved_fast.csv",
             "cba_trees": self.unc_dir / f"unc_cba_trees_{self.slug}_improved_fast.csv",
             "vuln": self.unc_dir / f"unc_vulnerability_{self.slug}_improved_fast.csv",
+            "trajectories": self.unc_dir / f"unc_policy_trajectories_25y_{self.slug}_improved_fast.csv",
+            "sample_qa": self.unc_dir / f"sample_mathematical_qa_{self.slug}_improved_fast.csv",
+            "aggregate_qa": self.unc_dir / f"uq_output_qa_{self.slug}_improved_fast.csv",
             "sens_aai": self.unc_dir / f"sens_aai_agg_{self.slug}_improved_fast.csv",
             "sens_freq": self.unc_dir / f"sens_freq_curve_{self.slug}_improved_fast.csv",
             "sens_cba": self.unc_dir / f"sens_cba_ews_{self.slug}_improved_fast.csv",
@@ -3255,23 +5861,37 @@ class NB09ImprovedFast:
             "meta": self.unc_dir / f"uq_dimensions_{self.slug}_improved_fast.json",
             "bundle": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved_fast.h5",
             "bundle_sens": self.unc_dir / f"unc_impact_{self.slug}_march2026_improved_fast_with_sensitivity.h5",
+            "lhs_design": self.lhs_design_path,
+            "run_manifest": self.run_manifest_path,
+            "completion": self.unc_dir / "CAMPAIGN_COMPLETE.json",
         }
-        samples_df.to_csv(paths["samples"], index=False)
-        impact_df.to_csv(paths["impact"], index=False)
-        impact_df[[f"daily_p{p}" for p in DAILY_QUANTILE_PCTS]].to_csv(paths["freq"], index=False)
-        cba_ews_df.to_csv(paths["cba"], index=False)
-        cba_ac_df.to_csv(paths["cba_ac"], index=False)
-        cba_tree_df.to_csv(paths["cba_trees"], index=False)
-        vuln_df.to_csv(paths["vuln"], index=False)
-        sens_aai_df.to_csv(paths["sens_aai"], index=False)
-        sens_freq_df.to_csv(paths["sens_freq"], index=False)
-        sens_cba_df.to_csv(paths["sens_cba"], index=False)
-        sens_cba_ac_df.to_csv(paths["sens_cba_ac"], index=False)
-        sens_cba_tree_df.to_csv(paths["sens_cba_trees"], index=False)
+        _atomic_write_csv(paths["samples"], samples_df, index=False)
+        _atomic_write_csv(paths["impact"], impact_df, index=False)
+        _atomic_write_csv(
+            paths["freq"],
+            impact_df[["sample_idx", *[f"daily_p{p}" for p in DAILY_QUANTILE_PCTS]]],
+            index=False,
+        )
+        _atomic_write_csv(paths["cba"], cba_ews_df, index=False)
+        _atomic_write_csv(paths["cba_ac"], cba_ac_df, index=False)
+        _atomic_write_csv(paths["cba_trees"], cba_tree_df, index=False)
+        _atomic_write_csv(paths["vuln"], vuln_df, index=False)
+        _atomic_write_csv(paths["trajectories"], trajectories_df, index=False)
+        _atomic_write_csv(paths["sample_qa"], sample_qa_df, index=False)
+        _atomic_write_csv(paths["sens_aai"], sens_aai_df, index=False)
+        _atomic_write_csv(paths["sens_freq"], sens_freq_df, index=False)
+        _atomic_write_csv(paths["sens_cba"], sens_cba_df, index=False)
+        _atomic_write_csv(paths["sens_cba_ac"], sens_cba_ac_df, index=False)
+        _atomic_write_csv(paths["sens_cba_trees"], sens_cba_tree_df, index=False)
         if not sens_vuln_df.empty:
-            sens_vuln_df.to_csv(paths["sens_vuln"], index=False)
+            _atomic_write_csv(paths["sens_vuln"], sens_vuln_df, index=False)
 
         meta = {
+            "output_schema_version": OUTPUT_SCHEMA_VERSION,
+            "run_provenance": self.run_provenance,
+            "n_samples": int(self.run_provenance["n_samples"]),
+            "seed": int(self.run_provenance["seed"]),
+            "git_commit": self.run_provenance.get("git", {}).get("commit"),
             "city": self.city,
             "slug": self.slug,
             "hazard_track": self.hazard_track,
@@ -3315,6 +5935,31 @@ class NB09ImprovedFast:
                 "tree_capex_mult": [0.8, 1.0, 1.2],
                 "tree_om_mult": [1.0, 5.0],
             },
+            "policy_branches": {
+                "reference": "Mortality with autonomous/current AC and no additional policy.",
+                "ac_policy_gross": "AC-policy mortality before the outdoor waste-heat penalty.",
+                "ac_policy_net": "AC-policy mortality after its incremental outdoor waste-heat penalty.",
+                "ac_policy_net_with_tree_feedback": (
+                    "NB08-compatible AC-with-trees interaction: the gross AC mortality benefit is unchanged, "
+                    "while trees reduce AC electricity use and the AC waste-heat penalty; direct tree mortality "
+                    "benefits and tree costs are excluded."
+                ),
+                "tree_policy": "Standalone dynamic tree-policy mortality relative to the reference branch.",
+                "ews_policy": "Standalone EWS mortality relative to the same reference branch, including AC overlap.",
+                "ac_tree_policy_gross": (
+                    "Full combined AC-plus-tree mortality before the tree-adjusted AC waste-heat penalty."
+                ),
+                "ac_tree_policy_net": (
+                    "Full combined AC-plus-tree mortality after the tree-adjusted AC waste-heat penalty."
+                ),
+            },
+            "trajectory_export": {
+                "years": [int(min(self.years)), int(min(self.years)) + HORIZON_YEARS - 1],
+                "rows_per_sample": HORIZON_YEARS * len(BRANCH_NAMES),
+                "avoided_deaths_definition": "reference annual deaths minus policy-branch annual deaths within the same sample and year",
+                "annual_cost_eur": "undiscounted end-of-policy-year cash flow, except EWS setup CAPEX at policy-year t=0 as in NB06/NB08",
+                "pv_cost_eur": "the corresponding annual contribution to present value",
+            },
             "vuln_param_ranges": {
                 "VULN_K": [0.55, 0.95],
                 "VULN_PHI_2050": [0.50, 0.90],
@@ -3329,7 +5974,10 @@ class NB09ImprovedFast:
             },
             "notes": [
                 "Future T2M bands are sampled from across-GCM band tables, while tas uses avg(pct45,pct55) within each model upstream.",
-                "Hazard structural modifiers are applied as spatially explicit daily raster adjustments for trees and waste heat.",
+                "AC protection is applied spatially to each exposure cell as 1 - efficacy_age * coverage_cell.",
+                "The vegetation dLST-to-dT2M bridge is evaluated day by day at each cell's actual daily T2M, matching NB07.",
+                "Waste heat follows NB05/NB08 aggregate accounting: the reported policy penalty is policy-AC feedback minus current-AC feedback; it is not injected into the spatial hazard.",
+                "aai_agg and annual_deaths denote standalone reference annual heat deaths for the sampled year; explicit policy-branch annual and 25-year outputs are exported separately.",
                 ews_note,
                 recalib_note,
                 trigger_note,
@@ -3337,27 +5985,38 @@ class NB09ImprovedFast:
                 "CBA uncertainty now samples discounting plus AC/tree cost parameters in the same global sample as the impact-chain uncertainty.",
                 "AC CBA is evaluated as policy AC versus current/autonomous AC under the same sampled hazard, exposure, IF and vulnerability settings.",
                 "Tree CBA is evaluated as tree policy versus the same sampled no-tree reference branch.",
+                "Each LHS row is a complete plausible model configuration in an exploratory multi-dimensional uncertainty ensemble; reported ranges are not confidence intervals.",
+                "Every policy outcome is paired with the reference branch from the same LHS row. The central configuration is evaluated separately, outside the LHS and PAWN, solely as an NB01--NB08 integration/parity control.",
+                "PAWN indices are screening-oriented marginal distribution-based sensitivity diagnostics.",
                 "Vulnerability projection uncertainty (Level A): 10 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
-                "Original March2026/NB09 outputs remain untouched; all fast artifacts are saved in tables/uncertainty_improved_fast.",
+                f"All production artifacts are isolated under {self.unc_dir}.",
             ],
         }
-        with open(paths["meta"], "w") as f:
-            json.dump(meta, f, indent=2)
+        _atomic_write_json(paths["meta"], meta)
 
-        with pd.HDFStore(str(paths["bundle"]), mode="w") as store:
+        bundle_tmp = paths["bundle"].with_name(f".{paths['bundle'].name}.tmp.{os.getpid()}")
+        with pd.HDFStore(str(bundle_tmp), mode="w") as store:
             store["samples"] = samples_df
             store["impact"] = impact_df
             store["cba_ews"] = cba_ews_df
             store["cba_ac"] = cba_ac_df
             store["cba_trees"] = cba_tree_df
             store["vulnerability"] = vuln_df
-        with pd.HDFStore(str(paths["bundle_sens"]), mode="w") as store:
+            store["trajectories"] = trajectories_df
+            store["sample_qa"] = sample_qa_df
+        os.replace(bundle_tmp, paths["bundle"])
+        bundle_sens_tmp = paths["bundle_sens"].with_name(
+            f".{paths['bundle_sens'].name}.tmp.{os.getpid()}"
+        )
+        with pd.HDFStore(str(bundle_sens_tmp), mode="w") as store:
             store["samples"] = samples_df
             store["impact"] = impact_df
             store["cba_ews"] = cba_ews_df
             store["cba_ac"] = cba_ac_df
             store["cba_trees"] = cba_tree_df
             store["vulnerability"] = vuln_df
+            store["trajectories"] = trajectories_df
+            store["sample_qa"] = sample_qa_df
             store["sens_aai"] = sens_aai_df
             store["sens_freq"] = sens_freq_df
             store["sens_cba"] = sens_cba_df
@@ -3365,7 +6024,59 @@ class NB09ImprovedFast:
             store["sens_cba_trees"] = sens_cba_tree_df
             if not sens_vuln_df.empty:
                 store["sens_vuln"] = sens_vuln_df
+        os.replace(bundle_sens_tmp, paths["bundle_sens"])
         return paths
+
+    def write_completion_marker(self, paths: dict[str, Path], *, n_samples: int | None = None) -> Path:
+        """Write the final marker only after all campaign outputs are durable."""
+        completion = paths.get("completion", self.unc_dir / "CAMPAIGN_COMPLETE.json")
+        hash_keys = (
+            "samples",
+            "impact",
+            "cba",
+            "cba_ac",
+            "cba_trees",
+            "vuln",
+            "trajectories",
+            "sample_qa",
+            "aggregate_qa",
+            "meta",
+            "lhs_design",
+            "run_manifest",
+            "central",
+            "central_mathematical_qa",
+            "central_parity",
+            "central_control_completion",
+            "freq",
+            "sens_aai",
+            "sens_freq",
+            "sens_cba",
+            "sens_cba_ac",
+            "sens_cba_trees",
+            "sens_vuln",
+            "bundle",
+            "bundle_sens",
+        )
+        output_hashes = {
+            key: _sha256_file(paths[key])
+            for key in hash_keys
+            if key in paths and paths[key].is_file()
+        }
+        if n_samples is None:
+            samples_path = paths.get("samples")
+            n_samples = len(pd.read_csv(samples_path)) if samples_path is not None and samples_path.exists() else None
+        marker = {
+            "output_schema_version": OUTPUT_SCHEMA_VERSION,
+            "campaign_id": self.run_provenance["campaign_id"],
+            "campaign_signature": self.run_provenance["campaign_signature"],
+            "city": self.city,
+            "slug": self.slug,
+            "n_samples": int(n_samples) if n_samples is not None else None,
+            "completed_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+            "output_sha256": output_hashes,
+        }
+        _atomic_write_json(completion, marker)
+        return completion
 
     def make_figures(self, samples_df: pd.DataFrame, sens_aai_df: pd.DataFrame, sens_cba_df: pd.DataFrame, sens_vuln_df: pd.DataFrame | None = None) -> None:
         import matplotlib.pyplot as plt
@@ -3560,7 +6271,7 @@ def run_nb09_improved_fast(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Improved-fast March2026 NB09 uncertainty workflow.")
-    parser.add_argument("--city", default=os.environ.get("CITY", "rome"), help="City slug: rome, athens, lisbon, copenhagen")
+    parser.add_argument("--city", default=os.environ.get("CITY", "rome"), help="Configured city slug")
     parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 128)), help="Latin hypercube sample size")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("NB09_SEED", SEED_DEFAULT)), help="Sampling seed")
     parser.add_argument("--figures-only", action="store_true", help="Regenerate saved figures from existing improved-fast outputs")

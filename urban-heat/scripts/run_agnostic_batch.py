@@ -12,7 +12,7 @@ inspection); the template notebooks are never modified. A live ``summary.json`` 
 ``summary.md`` are updated after every city.
 
 Env/config prerequisites (already set up 2026-07-09):
-  - configs/<slug>.yml present for every city (preview_configs copied in).
+  - configs/<slug>.yml present for every production city.
   - data_manifests/<slug>_gdrive.json present (NB01 gdown sync).
   - urbanheat jupyter kernel installed.
 
@@ -30,6 +30,7 @@ import datetime as dt
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -40,7 +41,25 @@ ROOT = Path(__file__).resolve().parent.parent  # urban-heat
 TEMPLATE = ROOT / "notebooks" / "city_agnostic" / "March2026_agnostic" / "template"
 RUNS = Path(os.environ.get("URBAN_HEAT_RUNS_DIR", str(ROOT / "runs" / "agnostic_batch")))
 KERNEL = os.environ.get("URBAN_HEAT_KERNEL", "urbanheat")  # override on HPC (e.g. python3)
+SUMMARY_STEM = os.environ.get("URBAN_HEAT_SUMMARY_STEM", "summary").strip()
+if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", SUMMARY_STEM):
+    raise ValueError(f"Invalid URBAN_HEAT_SUMMARY_STEM={SUMMARY_STEM!r}")
 ALL_NB = ["01", "02", "03", "04", "05", "06", "07", "08"]
+
+# Frozen production roster for the 40-city PROVIDE application.  Do not infer
+# this from calibration/preview_configs: those are calibration snapshots, not
+# runtime configuration or study-sample authority.  Additional configured
+# cities can still be run explicitly with ``--cities``.
+PROVIDE_CITIES = (
+    "amsterdam", "athens", "barcelona", "berlin", "bologna",
+    "bratislava", "brussels", "bucharest", "budapest", "cologne",
+    "copenhagen", "dublin", "hamburg", "helsinki", "lisbon",
+    "ljubljana", "lyon", "madrid", "marseille", "milan", "munich",
+    "nantes", "naples", "palermo", "paris", "porto", "prague",
+    "riga", "rome", "rotterdam", "sevilla", "sofia", "stockholm",
+    "tallinn", "thessaloniki", "varna", "vienna", "vilnius",
+    "warsaw", "zagreb",
+)
 
 
 def nb_path(nn: str) -> Path | None:
@@ -49,7 +68,7 @@ def nb_path(nn: str) -> Path | None:
 
 
 def all_cities() -> list[str]:
-    return sorted(os.path.basename(f)[:-4] for f in glob.glob(str(ROOT / "calibration" / "preview_configs" / "*.yml")))
+    return list(PROVIDE_CITIES)
 
 
 def first_error(nb_out: Path) -> str:
@@ -97,14 +116,20 @@ def run_nb(city: str, nn: str, timeout: int) -> tuple[bool, str]:
 def write_summary(summary: list[dict], requested_notebooks: list[str]) -> None:
     final_nb = requested_notebooks[-1]
     run_label = f"NB{requested_notebooks[0]}--{final_nb}" if len(requested_notebooks) > 1 else f"NB{final_nb}"
-    (RUNS / "summary.json").write_text(json.dumps(summary, indent=2))
+    json_path = RUNS / f"{SUMMARY_STEM}.json"
+    markdown_path = RUNS / f"{SUMMARY_STEM}.md"
+    json_tmp = json_path.with_name(f".{json_path.name}.tmp.{os.getpid()}")
+    markdown_tmp = markdown_path.with_name(f".{markdown_path.name}.tmp.{os.getpid()}")
+    json_tmp.write_text(json.dumps(summary, indent=2))
     lines = ["# Agnostic batch run summary", "", f"_updated {dt.datetime.now().isoformat(timespec='seconds')}_", "",
              "| city | reached | status | failing NB | error |", "|---|---|---|---|---|"]
     for s in summary:
         status = f"DONE ({run_label})" if s["failed_nb"] is None and s["last_ok"] == final_nb else (
             "partial" if s["failed_nb"] else "in-progress")
         lines.append(f"| {s['city']} | {s['last_ok'] or '-'} | {status} | {s['failed_nb'] or '-'} | {s['error'][:120].replace('|','/')} |")
-    (RUNS / "summary.md").write_text("\n".join(lines) + "\n")
+    markdown_tmp.write_text("\n".join(lines) + "\n")
+    os.replace(json_tmp, json_path)
+    os.replace(markdown_tmp, markdown_path)
 
 
 def main() -> int:
@@ -115,9 +140,13 @@ def main() -> int:
     ap.add_argument("--skip-completed", action="store_true", help="skip cities with a DONE marker")
     ap.add_argument("--workers", type=int, default=1, help="number of cities to run concurrently")
     ap.add_argument("--dry-run", action="store_true", help="validate setup without executing")
+    ap.add_argument("--list-cities", action="store_true", help="print the frozen 40-city production roster and exit")
     args = ap.parse_args()
 
     cities = args.cities or all_cities()
+    if args.list_cities:
+        print("\n".join(cities))
+        return 0
     RUNS.mkdir(parents=True, exist_ok=True)
 
     if args.dry_run:
@@ -188,8 +217,9 @@ def main() -> int:
                 record(fut.result())
 
     done = sum(1 for s in summary if s["failed_nb"] is None)
-    print(f"\nBatch complete: {done}/{len(summary)} reached NB{args.notebooks[-1]}. See {RUNS/'summary.md'}")
-    return 0
+    summary_path = RUNS / f"{SUMMARY_STEM}.md"
+    print(f"\nBatch complete: {done}/{len(summary)} reached NB{args.notebooks[-1]}. See {summary_path}")
+    return 0 if done == len(summary) else 1
 
 
 if __name__ == "__main__":

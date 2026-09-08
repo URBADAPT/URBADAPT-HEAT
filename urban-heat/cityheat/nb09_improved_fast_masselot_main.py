@@ -42,6 +42,25 @@ IF_FAMILY_ORDER_BY_MAIN = {
 }
 
 
+def _ensure_default_campaign_id(n: int, seed: int) -> str:
+    """Give direct notebook/CLI runs the same isolated identity as Juno."""
+    existing = os.environ.get("NB09_CAMPAIGN_ID", "").strip()
+    if existing:
+        return existing
+    root = find_repo_root(Path(__file__).resolve())
+    completed = _base.subprocess.run(
+        ["git", "rev-parse", "--short=12", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    revision = completed.stdout.strip() if completed.returncode == 0 else "nogit"
+    campaign_id = f"n{int(n)}_seed{int(seed)}_{_base.OUTPUT_SCHEMA_TAG}_{revision}"
+    os.environ["NB09_CAMPAIGN_ID"] = campaign_id
+    return campaign_id
+
+
 def _ensure_runtime_dirs(root: Path) -> None:
     output_root = resolve_outputs_root(root)
     os.environ.setdefault("MPLCONFIGDIR", str(output_root / ".mpl"))
@@ -88,8 +107,9 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
         self.out = resolve_city_output(self.root, self.slug, self.output_variant)
         self.int_dir = self.out / "interim"
         self.tab_dir = self.out / "tables"
-        self.unc_dir = self.tab_dir / "uncertainty_improved_fast"
+        self.unc_dir = _base._headline_uncertainty_dir(self.tab_dir)
         self.unc_dir.mkdir(parents=True, exist_ok=True)
+        self._headline_unc_dir = self.unc_dir
 
         self.exp_cache: dict[str, _base.Exposures] = {}
         self.exp_age_cache: dict[tuple[str, str], _base.Exposures] = {}
@@ -154,7 +174,7 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
         """
         if scope == "full":
             families = list(self._full_available_if_families)
-            sub = "uncertainty_improved_fast"
+            target_dir = self._headline_unc_dir
         elif scope == "masselot_headline":
             families = [f for f in self._full_available_if_families if f.startswith("masselot")]
             if not families:
@@ -174,7 +194,7 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
                         f"variants, or pass require_both_masselot=False (env "
                         f"NB09_REQUIRE_BOTH_MASSELOT=0) to proceed with what is available."
                     )
-            sub = "uncertainty_improved_fast"
+            target_dir = self._headline_unc_dir
         elif scope == "burke_sensitivity":
             if family not in {"burke_polynomial", "burke_powerlaw"}:
                 raise ValueError(
@@ -187,7 +207,11 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
                     f"have {self._full_available_if_families!r}."
                 )
             families = [family]
-            sub = f"uncertainty_burke_sensitivity/{family}"
+            campaign_id = os.environ.get("NB09_CAMPAIGN_ID", "").strip()
+            if campaign_id:
+                target_dir = self._headline_unc_dir / "burke_sensitivity" / family
+            else:
+                target_dir = self.tab_dir / "uncertainty_burke_sensitivity" / family
         else:
             raise ValueError(
                 f"Unknown LHS scope {scope!r}; expected 'masselot_headline', "
@@ -195,7 +219,7 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
             )
 
         self.available_if_families = list(families)
-        self.unc_dir = self.tab_dir / sub
+        self.unc_dir = target_dir
         self.unc_dir.mkdir(parents=True, exist_ok=True)
         # Rebuild param_specs + problem so the LHS sampler sees the new family
         # count via IF_FAMILY_IDX.
@@ -342,8 +366,7 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
             )
             if "masselot_tail" in self.available_if_families:
                 meta["masselot_tail_extrapolation"] = "loglinear_tail"
-            with open(meta_path, "w") as f:
-                json.dump(meta, f, indent=2)
+            _base._atomic_write_json(meta_path, meta)
         return paths
 
 
@@ -360,6 +383,28 @@ def regenerate_saved_figures(city: str) -> Path:
     return runner.unc_dir
 
 
+def validate_central_parity(
+    city: str,
+    *,
+    n: int = 128,
+    seed: int = _base.SEED_DEFAULT,
+    require_both_masselot: bool = True,
+) -> dict[str, Path | None]:
+    """Freeze campaign provenance, then run only the central parity control."""
+    slug = city.strip().lower()
+    _ensure_default_campaign_id(int(n), int(seed))
+    runner = NB09ImprovedFastMasselotMain(slug)
+    runner.set_lhs_scope(
+        "masselot_headline",
+        require_both_masselot=require_both_masselot,
+    )
+    raw_samples, _ = runner.sample_parameters(int(n), int(seed))
+    runner.prepare_campaign(raw_samples, n=int(n), seed=int(seed))
+    paths = runner.run_central_control()
+    print(f"[{slug}] central NB01--NB08 parity control passed")
+    return paths
+
+
 def run_nb09_improved_fast(
     city: str | None = None,
     n: int | None = None,
@@ -374,8 +419,8 @@ def run_nb09_improved_fast(
     ``masselot``), keeping the Masselot extrapolation bracket inside the
     headline uncertainty. Burke families are NOT part of the headline LHS.
 
-    If ``burke_sensitivity`` is True (default; can be disabled via the
-    ``NB09_BURKE_SENSITIVITY=0`` env var or the ``burke_sensitivity=False``
+    If ``burke_sensitivity`` is True (opt-in; via the
+    ``NB09_BURKE_SENSITIVITY=1`` env var or the ``burke_sensitivity=True``
     kwarg), two additional NB09 runs are performed with IF_FAMILY pinned to
     ``burke_polynomial`` and ``burke_powerlaw`` respectively. These are
     **IF-conditional LHS runs**, not deterministic point estimates: all other
@@ -400,11 +445,12 @@ def run_nb09_improved_fast(
     seed_use = int(seed if seed is not None else os.environ.get("NB09_SEED", _base.SEED_DEFAULT))
     make_figures_env = os.environ.get("NB09_MAKE_FIGURES", "0").strip().lower() in {"1", "true", "yes", "y"}
     make_figures_use = make_figures_env if make_figures is None else bool(make_figures)
-    burke_sens_env = os.environ.get("NB09_BURKE_SENSITIVITY", "1").strip().lower() in {"1", "true", "yes", "y"}
+    burke_sens_env = os.environ.get("NB09_BURKE_SENSITIVITY", "0").strip().lower() in {"1", "true", "yes", "y"}
     burke_sens_use = burke_sens_env if burke_sensitivity is None else bool(burke_sensitivity)
     require_both_env = os.environ.get("NB09_REQUIRE_BOTH_MASSELOT", "1").strip().lower() in {"1", "true", "yes", "y"}
     require_both_use = require_both_env if require_both_masselot is None else bool(require_both_masselot)
 
+    _ensure_default_campaign_id(n_use, seed_use)
     runner = NB09ImprovedFastMasselotMain(slug)
 
     # 1. Headline: Masselot-only LHS, headline output dir.
@@ -424,7 +470,7 @@ def run_nb09_improved_fast(
         # unprefixed name.
         paths.setdefault(key, p)
 
-    # 2 & 3. Burke-conditional LHS sensitivity bands (optional, on by default).
+    # 2 & 3. Burke-conditional LHS sensitivity bands (optional and opt-in).
     # Each is a full LHS run with IF_FAMILY pinned to one Burke family; all
     # other uncertainty dimensions are sampled normally. The outputs are bands,
     # not deterministic point comparisons vs the Masselot headline.
@@ -456,13 +502,22 @@ def main() -> None:
     parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 128)), help="Latin hypercube sample size")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("NB09_SEED", _base.SEED_DEFAULT)), help="Sampling seed")
     parser.add_argument("--figures-only", action="store_true", help="Regenerate saved figures from existing outputs")
+    parser.add_argument(
+        "--central-check-only",
+        action="store_true",
+        help="Validate the unsampled NB01--NB08 central point and exit before the LHS.",
+    )
     parser.add_argument("--make-figures", action="store_true", help="Generate figures during the uncertainty run")
+    parser.add_argument(
+        "--burke-sensitivity",
+        action="store_true",
+        help="Run the two optional Burke IF-conditional LHS sensitivity bands.",
+    )
     parser.add_argument(
         "--no-burke-sensitivity",
         action="store_true",
         help=(
-            "Skip the two Burke IF-conditional LHS sensitivity runs "
-            "(headline Masselot-only run only)."
+            "Deprecated compatibility flag; Burke runs are already disabled by default."
         ),
     )
     parser.add_argument(
@@ -475,7 +530,18 @@ def main() -> None:
         ),
     )
     args = parser.parse_args()
-    if args.figures_only:
+    if args.central_check_only:
+        paths = validate_central_parity(
+            args.city,
+            n=args.n,
+            seed=args.seed,
+            require_both_masselot=not args.no_require_both_masselot,
+        )
+        print("Saved central-control outputs in:")
+        for key, path in paths.items():
+            if path is not None:
+                print(f"  {key}: {path}")
+    elif args.figures_only:
         out_dir = regenerate_saved_figures(args.city)
         print(f"Regenerated improved figures in: {out_dir}")
     else:
@@ -484,7 +550,7 @@ def main() -> None:
             n=args.n,
             seed=args.seed,
             make_figures=args.make_figures,
-            burke_sensitivity=not args.no_burke_sensitivity,
+            burke_sensitivity=bool(args.burke_sensitivity and not args.no_burke_sensitivity),
             require_both_masselot=not args.no_require_both_masselot,
         )
         print("Saved Masselot-main improved-fast uncertainty outputs in:")
