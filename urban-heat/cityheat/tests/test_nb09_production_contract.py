@@ -205,6 +205,23 @@ def test_cost_stream_helpers_preserve_end_of_year_discounting():
     assert np.isclose(nb09._pv_capex_with_replacements(new_users, 100.0, 2, 0.03), expected)
 
 
+def test_electricity_feedback_uses_notebook08_maturity_path():
+    """The AC-electricity co-benefit must use NB08's direct age ramp."""
+    actual = nb09._nb08_electricity_feedback_maturity_factor(
+        10,
+        12,
+        start_age_years=5,
+    )
+    expected = np.clip((np.arange(10, dtype=float) + 5.0) / 12.0, 0.0, 1.0)
+    np.testing.assert_allclose(actual, expected)
+    assert np.isclose(actual[0], 5.0 / 12.0)
+
+    # This branch is deliberately not the cohort convolution used by tree
+    # mortality benefits and O&M.
+    cohort = nb09._cohort_rollout_maturity_factor(10, 12, start_age_years=5)
+    assert not np.allclose(actual, cohort)
+
+
 def test_campaign_design_and_sample_checkpoint_resume():
     with tempfile.TemporaryDirectory() as directory:
         runner = object.__new__(nb09.NB09ImprovedFast)
@@ -329,6 +346,7 @@ if __name__ == "__main__":
     test_campaign_path_isolation_and_nonfinite_checkpoint_roundtrip()
     test_declared_large_input_fingerprint_and_manifest_reuse()
     test_cost_stream_helpers_preserve_end_of_year_discounting()
+    test_electricity_feedback_uses_notebook08_maturity_path()
     test_campaign_design_and_sample_checkpoint_resume()
     test_central_parity_reports_missing_inputs_without_helper_failure()
     test_assembled_trajectory_and_aggregate_qa_contract()

@@ -578,6 +578,31 @@ def _cohort_rollout_maturity_factor(
     return np.convolve(plant_share, maturity)[:years]
 
 
+def _nb08_electricity_feedback_maturity_factor(
+    years: int,
+    ramp_years: int,
+    *,
+    start_age_years: int = 0,
+) -> np.ndarray:
+    """Reproduce NB08's maturity path for the trees--AC electricity feedback.
+
+    Notebook 08 applies the configured target ``dGVI`` in every municipality
+    and scales its electricity effect with the age of that policy vegetation:
+    ``clip((year - start_year + start_age) / ramp_years, 0, 1)``.  This is
+    intentionally distinct from the cohort-rollout convolution used for tree
+    mortality benefits and O&M.
+    """
+    years = int(years)
+    if years <= 0:
+        return np.zeros(0, dtype=float)
+    elapsed = np.arange(years, dtype=float)
+    return np.clip(
+        (elapsed + float(start_age_years)) / max(float(ramp_years), 1.0),
+        0.0,
+        1.0,
+    )
+
+
 def _npv_capex_linear(
     delta_index_total: float,
     years: int,
@@ -3527,7 +3552,11 @@ class NB09ImprovedFast:
 
             ramp_years = int(sample["tree_ramp_years"])
             start_age = int(sample["tree_start_age"])
-            maturity_t = _cohort_rollout_maturity_factor(len(years_all), ramp_years, start_age_years=start_age)
+            maturity_t = _nb08_electricity_feedback_maturity_factor(
+                len(years_all),
+                ramp_years,
+                start_age_years=start_age,
+            )
             veg_reduction_t = np.zeros(len(years_all), dtype=float)
             if sample.get("elec_feedback_enabled", False) and self.elec_fb_pw_dgvi > 0:
                 pct_per_pt = self.elec_fb_pct_per_point * float(sample.get("elec_coeff_scale", 1.0))
@@ -3542,7 +3571,11 @@ class NB09ImprovedFast:
         else:
             ramp_years = int(sample["tree_ramp_years"])
             start_age = int(sample["tree_start_age"])
-            maturity_t = _cohort_rollout_maturity_factor(len(years_all), ramp_years, start_age_years=start_age)
+            maturity_t = _nb08_electricity_feedback_maturity_factor(
+                len(years_all),
+                ramp_years,
+                start_age_years=start_age,
+            )
             maturity_map = {int(year): float(mat) for year, mat in zip(years_all, maturity_t)}
 
             cost_frame = cost_frame.copy()
