@@ -257,6 +257,111 @@ def test_interpolated_coverage_pattern_preserves_shared_row_index_width():
         raise AssertionError("Masked coverage scaling accepted misaligned arrays.")
 
 
+def test_alternative_ssp_ac_policy_preserves_notebook05_floor_rule():
+    """Alternative AC SSPs may change baseline, never the policy definition."""
+    baseline = np.array([0.20, 0.75, 0.40, np.nan], dtype=np.float32)
+    targeted = np.array([True, True, False, True])
+    policy = nb09._apply_ac_policy_floor(baseline, targeted, 0.70)
+    np.testing.assert_allclose(policy[:3], [0.70, 0.75, 0.40])
+    assert np.isnan(policy[3])
+    assert np.all(policy[np.isfinite(policy)] >= baseline[np.isfinite(baseline)] - 1e-7)
+
+    runner = object.__new__(nb09.NB09ImprovedFast)
+    runner.ac_ssp_base = 2
+    runner.row_is_city = np.array([True, True, True, False])
+    runner.ac_policy_target_mask_rows = np.array([True, False, True, False])
+    runner.ac_policy_target_level = 0.70
+    runner.coverage_pattern_by_mode_year = {
+        "base": {
+            2020: np.array([1.0, 2.0, 0.5, 0.0], dtype=np.float32),
+            2030: np.array([1.2, 2.2, 0.7, 0.0], dtype=np.float32),
+        },
+        "policy": {},
+    }
+    runner.coverage_raw_by_mode_year = {
+        "base": {2020: np.array([0.1, 0.2, 0.3, np.nan], dtype=np.float32)},
+        "policy": {2020: np.array([0.7, 0.2, 0.7, np.nan], dtype=np.float32)},
+    }
+    runner.coverage_mean_for_mode = lambda year, ac_ssp, mode="base": 0.40
+
+    alternative_base = runner.coverage_for_sample(2025, 3, mode="base")
+    alternative_policy = runner.coverage_for_sample(2025, 3, mode="policy")
+    valid = np.isfinite(alternative_base) & np.isfinite(alternative_policy)
+    assert np.all(alternative_policy[valid] >= alternative_base[valid] - 1e-7)
+    np.testing.assert_allclose(alternative_policy[~runner.ac_policy_target_mask_rows], alternative_base[~runner.ac_policy_target_mask_rows])
+    assert np.all(alternative_policy[runner.ac_policy_target_mask_rows] >= 0.70 - 1e-7)
+
+    # The configured SSP remains the immutable deterministic NB05 control.
+    np.testing.assert_allclose(
+        runner.coverage_for_sample(2020, 2, mode="policy"),
+        runner.coverage_raw_by_mode_year["policy"][2020],
+        equal_nan=True,
+    )
+
+    try:
+        nb09._apply_ac_policy_floor(np.ones(2), np.ones(3, dtype=bool), 0.70)
+    except ValueError as exc:
+        assert "target-mask shapes must match" in str(exc)
+    else:
+        raise AssertionError("AC policy floor accepted a misaligned target mask.")
+
+
+def test_alternative_ssp_cost_and_waste_heat_match_spatial_coverage_totals():
+    runner = object.__new__(nb09.NB09ImprovedFast)
+    coverage = pd.DataFrame(
+        {
+            "muni_id": [1, 1, 2, 2],
+            "year": [2020, 2030, 2020, 2030],
+            "pop_muni": [100.0, 110.0, 200.0, 220.0],
+            "ac_base_muni": [0.20, 0.30, 0.50, 0.60],
+            "ac_policy_muni": [0.70, 0.70, 0.50, 0.60],
+        }
+    )
+    runner.ac_muni_cov_yearly = coverage
+    runner.elec_fb_cov_yearly = coverage
+    runner.elec_fb_ac_summary = pd.DataFrame(
+        {
+            "muni_id": [1, 1, 2, 2],
+            "year": [2020, 2030, 2020, 2030],
+            "kwh_per_user_muni": [100.0, 110.0, 200.0, 210.0],
+        }
+    )
+    runner.elec_fb_dgvi_by_region = {}
+    runner.ac_ssp_base = 2
+    runner.ac_ssp_options = [1, 2, 3, 5]
+    runner.years = [2020, 2030]
+    runner._coverage_series_cache = {}
+    runner.coverage_mean_for_mode = lambda year, ac_ssp, mode="base": 0.40
+    runner.get_kwh_per_user = lambda ac_ssp, year: 150.0
+    runner.exposure_path_for_year = lambda year, exp_ssp_idx: Path(f"exposure_{year}_{exp_ssp_idx}")
+    runner.coverage_mean_for_exposure = (
+        lambda path, year, ac_ssp, mode: 0.65 if mode == "policy" else 0.40
+    )
+    runner.pop_total_for_exposure = lambda path, scale: 300.0
+
+    base_path = runner.coverage_series_for_waste_heat(
+        np.array([2020, 2025, 2030]), 3, mode="base", exp_ssp_idx=0
+    )
+    policy_path = runner.coverage_series_for_waste_heat(
+        np.array([2020, 2025, 2030]), 3, mode="policy", exp_ssp_idx=0
+    )
+    np.testing.assert_allclose(base_path, 0.40)
+    np.testing.assert_allclose(policy_path, 0.65)
+    assert np.all(policy_path >= base_path)
+
+    frame = runner.build_muni_ac_cost_frame(
+        {"ac_ssp": 3, "EXP_SSP_IDX": 0},
+        np.array([2020, 2021]),
+        np.array([300.0, 303.0]),
+    )
+    assert frame is not None
+    assert np.all(frame["policy_share_t"] >= frame["base_share_t"] - 1e-7)
+    for _, group in frame.groupby("year"):
+        weights = group["pop_muni"].to_numpy(float)
+        assert np.isclose(np.average(group["base_share_t"], weights=weights), 0.40, atol=1e-6)
+        assert np.isclose(np.average(group["policy_share_t"], weights=weights), 0.65, atol=1e-6)
+
+
 def test_campaign_design_and_sample_checkpoint_resume():
     with tempfile.TemporaryDirectory() as directory:
         runner = object.__new__(nb09.NB09ImprovedFast)
@@ -383,6 +488,8 @@ if __name__ == "__main__":
     test_cost_stream_helpers_preserve_end_of_year_discounting()
     test_electricity_feedback_uses_notebook08_maturity_path()
     test_interpolated_coverage_pattern_preserves_shared_row_index_width()
+    test_alternative_ssp_ac_policy_preserves_notebook05_floor_rule()
+    test_alternative_ssp_cost_and_waste_heat_match_spatial_coverage_totals()
     test_campaign_design_and_sample_checkpoint_resume()
     test_central_parity_reports_missing_inputs_without_helper_failure()
     test_assembled_trajectory_and_aggregate_qa_contract()

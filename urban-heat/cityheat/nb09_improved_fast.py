@@ -402,6 +402,95 @@ def _scale_pattern_to_weighted_mean(
     return out.astype(np.float32)
 
 
+def _apply_ac_policy_floor(
+    baseline: np.ndarray,
+    target_mask: np.ndarray,
+    target_level: float,
+    upper: float = 0.98,
+) -> np.ndarray:
+    """Apply Notebook 05's income-targeted AC policy without reducing coverage.
+
+    Notebook 05 leaves non-targeted locations unchanged and raises targeted
+    locations to at least ``target_level``. Alternative sampled AC SSPs must
+    preserve that intervention rule after their baseline map is rescaled;
+    independently rescaling a second policy pattern can otherwise make policy
+    coverage lower than its own reference in some locations.
+    """
+    base = np.asarray(baseline, dtype=np.float32)
+    targeted = np.asarray(target_mask, dtype=bool)
+    if base.shape != targeted.shape:
+        raise ValueError(
+            "Baseline and AC-policy target-mask shapes must match: "
+            f"baseline={base.shape}, target_mask={targeted.shape}."
+        )
+    out = base.copy()
+    active = targeted & np.isfinite(out)
+    if np.any(active):
+        floor = float(np.clip(target_level, 0.0, upper))
+        out[active] = np.maximum(out[active], floor)
+    return np.clip(out, 0.0, float(upper)).astype(np.float32)
+
+
+def _scale_pattern_to_weighted_mean_above_lower_bound(
+    pattern: np.ndarray,
+    weights: np.ndarray,
+    target_mean: float,
+    lower_bound: np.ndarray,
+    upper: float = 0.98,
+) -> np.ndarray:
+    """Scale a spatial pattern to a weighted mean without crossing a baseline."""
+    pattern = np.asarray(pattern, dtype=np.float32)
+    weights = np.asarray(weights, dtype=float)
+    lower = np.asarray(lower_bound, dtype=np.float32)
+    if pattern.shape != weights.shape or pattern.shape != lower.shape:
+        raise ValueError(
+            "Pattern, weights and lower bound must have identical shapes: "
+            f"pattern={pattern.shape}, weights={weights.shape}, lower={lower.shape}."
+        )
+
+    active = np.isfinite(pattern) & np.isfinite(weights) & np.isfinite(lower) & (weights > 0)
+    out = np.clip(np.nan_to_num(lower, nan=0.0), 0.0, float(upper)).astype(np.float32)
+    if not np.any(active):
+        return out
+
+    minimum = _weighted_mean(out, weights)
+    target = float(np.clip(target_mean, minimum, float(upper)))
+    if target <= minimum + 1e-10:
+        return out
+
+    def candidate(scale: float) -> np.ndarray:
+        values = np.maximum(lower[active], pattern[active] * float(scale))
+        return np.clip(values, 0.0, float(upper))
+
+    lo = 0.0
+    hi = 1.0
+    attainable = minimum
+    for _ in range(40):
+        trial = out.copy()
+        trial[active] = candidate(hi)
+        attainable = _weighted_mean(trial, weights)
+        if attainable >= target - 1e-10:
+            break
+        hi *= 2.0
+    if attainable < target - 1e-7:
+        raise ValueError(
+            f"Requested weighted policy coverage {target:.8f} is not attainable "
+            f"above the baseline; maximum is {attainable:.8f}."
+        )
+
+    for _ in range(50):
+        mid = 0.5 * (lo + hi)
+        trial = out.copy()
+        trial[active] = candidate(mid)
+        if _weighted_mean(trial, weights) < target:
+            lo = mid
+        else:
+            hi = mid
+
+    out[active] = candidate(hi)
+    return np.clip(out, 0.0, float(upper)).astype(np.float32)
+
+
 def _pawn_table(
     problem: dict[str, Any],
     x: np.ndarray,
@@ -1152,6 +1241,8 @@ class NB09ImprovedFast:
     def _load_ac_inputs(self) -> None:
         ac_cfg = self.cfg.get("ac", {})
         self.ac_cfg = ac_cfg
+        ac_policy_cfg = self.cfg.get("ac_policy", {}) or {}
+        self.ac_policy_target_level = float(ac_policy_cfg.get("target_level", 0.70))
         self.wh_cfg = ac_cfg.get("waste_heat", {})
         self.ac_ssp_options = [1, 2, 3, 5]
         self.ac_ssp_base = int(ac_cfg.get("ssp", 2))
@@ -1308,12 +1399,33 @@ class NB09ImprovedFast:
         _store_coverage("policy", cov_policy_3d)
         self.coverage_pattern_by_year = self.coverage_pattern_by_mode_year["base"]
 
+        if cov_base_3d.shape != cov_policy_3d.shape:
+            raise ValueError(
+                f"[{self.slug}] NB05 baseline/policy AC cubes have different shapes: "
+                f"base={cov_base_3d.shape}, policy={cov_policy_3d.shape}."
+            )
+        # Notebook 05 defines the policy geography independently of the
+        # sampled SSP: targeted cells are those whose canonical policy map is
+        # raised above its canonical baseline in at least one anchor year.
+        # Use the union because a targeted zone can cease to show a visible
+        # uplift after its baseline itself reaches the configured floor.
+        target_mask_full = np.any(
+            np.isfinite(cov_base_3d)
+            & np.isfinite(cov_policy_3d)
+            & (cov_policy_3d > cov_base_3d + 1e-7),
+            axis=0,
+        )
+        target_mask_full &= self.city_mask
+        self.ac_policy_target_mask_full = target_mask_full.reshape(-1).astype(bool)
+        self.ac_policy_target_mask_rows = self.ac_policy_target_mask_full[self.row_cols]
+
         self.ac_cost_params_path = self._find_first_existing(
             [self.int_dir / f"ac_cost_params_{self.slug}.json", self.int_dir / f"ac_costs_{self.slug}.json"]
         )
         self.ac_cost_params = _load_json(self.ac_cost_params_path)
         muni_cov_path = self.out / f"{self.slug}_muni_cov_yearly.csv"
         self.ac_muni_cov_yearly = pd.read_csv(muni_cov_path) if muni_cov_path.exists() else None
+        self._coverage_series_cache: dict[tuple[tuple[int, ...], int, str, int | None], np.ndarray] = {}
 
         # AC CAPEX / maintenance: the city CONFIG is the canonical source (calibrated).
         # NB09 samples a MULTIPLIER on the configured per-user CAPEX; maintenance is
@@ -2310,9 +2422,29 @@ class NB09ImprovedFast:
         # central NB09 point to reproduce the deterministic workflow.
         if int(ac_ssp) == self.ac_ssp_base:
             return self.interpolate_coverage_raw(year, mode=mode)
-        pattern = self.interpolate_coverage_pattern(year, mode=mode)
-        target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode=mode)
-        return _scale_pattern_to_mean_masked(pattern, self.row_is_city, target_mean, upper=0.98)
+
+        # Alternative SSPs change the baseline penetration target, not the
+        # definition of the intervention.  First rescale the canonical NB05
+        # baseline pattern; then reproduce NB05's policy rule by raising only
+        # the fixed targeted geography to the configured coverage floor.
+        # Independently rescaling the policy pattern can make policy coverage
+        # lower than baseline in some cells and is therefore not admissible.
+        pattern = self.interpolate_coverage_pattern(year, mode="base")
+        target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode="base")
+        baseline = _scale_pattern_to_mean_masked(
+            pattern,
+            self.row_is_city,
+            target_mean,
+            upper=0.98,
+        )
+        if str(mode).lower() != "policy":
+            return baseline
+        return _apply_ac_policy_floor(
+            baseline,
+            self.ac_policy_target_mask_rows,
+            self.ac_policy_target_level,
+            upper=0.98,
+        )
 
     def coverage_full_for_sample(self, year: int, ac_ssp: int, mode: str = "base") -> np.ndarray:
         """Return raw coverage indexed by the full hazard-centroid numbering."""
@@ -2334,11 +2466,10 @@ class NB09ImprovedFast:
         missing coverage cells contribute zero to the population-weighted
         city mean, and are then filled with that (therefore diluted) mean.
 
-        For an alternative sampled AC SSP, the same canonical spatial pattern
-        and gap treatment are retained and the resulting populated-cell map is
-        rescaled to the sampled population-weighted penetration target.  This
-        keeps the sampled SSP interpretation tied to people rather than to an
-        unweighted raster-cell average.
+        For an alternative sampled AC SSP, the canonical baseline pattern and
+        gap treatment are retained and rescaled to the sampled population-
+        weighted penetration target. The policy is then reconstructed with
+        Notebook 05's fixed income-targeted geography and coverage floor.
         """
         exp = self.load_exposure_cached(path)
         centroids = exp.gdf["centr_T2M"].to_numpy(dtype=int)
@@ -2354,31 +2485,46 @@ class NB09ImprovedFast:
         ).astype(float)
         populated = np.isfinite(pop_by_centroid) & (pop_by_centroid > 0)
 
-        # Begin with the canonical NB05 map even for alternative sampled SSPs;
-        # the latter are rescaled only after applying the deterministic gap
-        # rule below.
-        coverage = self.coverage_full_for_sample(year, self.ac_ssp_base, mode=mode).astype(float)
-        if np.any(populated & ~np.isfinite(coverage)):
-            numerator = float(
-                np.sum(np.nan_to_num(coverage[populated], nan=0.0) * pop_by_centroid[populated])
-            )
-            denominator = float(np.sum(pop_by_centroid[populated]))
-            fallback = numerator / denominator if denominator > 0 else 0.0
-            coverage[populated & ~np.isfinite(coverage)] = fallback
-
-        coverage[~np.isfinite(coverage)] = 0.0
-        coverage = np.clip(coverage, 0.0, 0.98)
-
-        if int(ac_ssp) != self.ac_ssp_base:
-            target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode=mode)
-            coverage = _scale_pattern_to_weighted_mean(
-                coverage,
-                pop_by_centroid,
-                target_mean,
-                upper=0.98,
+        def _canonical_with_nb05_gap(canonical_mode: str) -> np.ndarray:
+            coverage = self.coverage_full_for_sample(
+                year,
+                self.ac_ssp_base,
+                mode=canonical_mode,
             ).astype(float)
+            if np.any(populated & ~np.isfinite(coverage)):
+                numerator = float(
+                    np.sum(np.nan_to_num(coverage[populated], nan=0.0) * pop_by_centroid[populated])
+                )
+                denominator = float(np.sum(pop_by_centroid[populated]))
+                fallback = numerator / denominator if denominator > 0 else 0.0
+                coverage[populated & ~np.isfinite(coverage)] = fallback
+            coverage[~np.isfinite(coverage)] = 0.0
+            return np.clip(coverage, 0.0, 0.98)
 
-        return coverage.astype(np.float32)
+        if int(ac_ssp) == self.ac_ssp_base:
+            # Exact central control: preserve the canonical NB05 policy map as
+            # well as its baseline map.
+            return _canonical_with_nb05_gap(mode).astype(np.float32)
+
+        # For alternative sampled SSPs, rescale the canonical baseline after
+        # applying NB05's missing-cell treatment, then apply the same fixed
+        # targeted-zone floor as Notebook 05.
+        baseline = _canonical_with_nb05_gap("base")
+        target_mean = self.coverage_mean_for_mode(year, ac_ssp, mode="base")
+        baseline = _scale_pattern_to_weighted_mean(
+            baseline,
+            pop_by_centroid,
+            target_mean,
+            upper=0.98,
+        ).astype(np.float32)
+        if str(mode).lower() != "policy":
+            return baseline
+        return _apply_ac_policy_floor(
+            baseline,
+            self.ac_policy_target_mask_full,
+            self.ac_policy_target_level,
+            upper=0.98,
+        )
 
     def tree_dt2m_for_day(
         self,
@@ -2478,6 +2624,29 @@ class NB09ImprovedFast:
         else:
             cov_yearly["dGVI"] = 0.0
 
+        alternative_base_targets: dict[int, float] = {}
+        alternative_policy_targets: dict[int, float] = {}
+        if int(sample["ac_ssp"]) != self.ac_ssp_base:
+            exp_ssp_idx = int(sample["EXP_SSP_IDX"])
+            base_path = self.coverage_series_for_waste_heat(
+                years_all,
+                int(sample["ac_ssp"]),
+                mode="base",
+                exp_ssp_idx=exp_ssp_idx,
+            )
+            policy_path = self.coverage_series_for_waste_heat(
+                years_all,
+                int(sample["ac_ssp"]),
+                mode="policy",
+                exp_ssp_idx=exp_ssp_idx,
+            )
+            alternative_base_targets = {
+                int(year): float(value) for year, value in zip(years_all, base_path)
+            }
+            alternative_policy_targets = {
+                int(year): float(value) for year, value in zip(years_all, policy_path)
+            }
+
         for year in years_all:
             mask = cov_yearly["year"] == int(year)
             weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float)
@@ -2489,24 +2658,26 @@ class NB09ImprovedFast:
                 cov_yearly.loc[mask, "policy_share_t"] = cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float)
                 cov_yearly.loc[mask, "kwh_per_user_t"] = cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float)
             else:
-                base_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="base")
-                policy_target = self.coverage_mean_for_mode(int(year), sample["ac_ssp"], mode="policy")
-
-                cov_yearly.loc[mask, "base_share_t"] = _scale_pattern_to_weighted_mean(
+                base_target = alternative_base_targets[int(year)]
+                policy_target = alternative_policy_targets[int(year)]
+                baseline = _scale_pattern_to_weighted_mean(
                     cov_yearly.loc[mask, "base_share_raw"].to_numpy(float),
                     weights,
                     base_target,
                     upper=0.98,
                 )
-                cov_yearly.loc[mask, "policy_share_t"] = _scale_pattern_to_weighted_mean(
+                policy = _scale_pattern_to_weighted_mean_above_lower_bound(
                     cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float),
                     weights,
                     policy_target,
+                    baseline,
                     upper=0.98,
                 )
+                cov_yearly.loc[mask, "base_share_t"] = baseline
+                cov_yearly.loc[mask, "policy_share_t"] = policy
 
                 user_weights = cov_yearly.loc[mask, "pop_muni"].to_numpy(float) * np.maximum(
-                    cov_yearly.loc[mask, "base_share_t"].to_numpy(float),
+                    baseline,
                     1e-9,
                 )
                 target_kwh = self.get_kwh_per_user(sample["ac_ssp"], int(year))
@@ -2880,13 +3051,20 @@ class NB09ImprovedFast:
         finite = values[np.isfinite(values)]
         return float(finite.mean()) if finite.size else 0.0
 
-    def coverage_mean_for_waste_heat(self, year: int, ac_ssp: int, mode: str = "base") -> float:
-        """Return the population-weighted municipal penetration used by NB05."""
+    def coverage_mean_for_waste_heat(
+        self,
+        year: int,
+        ac_ssp: int,
+        mode: str = "base",
+        exp_ssp_idx: int | None = None,
+    ) -> float:
+        """Return citywide penetration for NB05-compatible waste-heat accounting."""
         return float(
             self.coverage_series_for_waste_heat(
                 np.asarray([int(year)], dtype=int),
                 ac_ssp,
                 mode=mode,
+                exp_ssp_idx=exp_ssp_idx,
             )[0]
         )
 
@@ -2895,19 +3073,35 @@ class NB09ImprovedFast:
         years: np.ndarray,
         ac_ssp: int,
         mode: str = "base",
+        exp_ssp_idx: int | None = None,
     ) -> np.ndarray:
-        """Return the NB05 citywide AC-penetration path.
+        """Return the NB05-compatible citywide AC-penetration path.
 
-        Notebook 05 first interpolates municipal users and total population
-        from the anchor years and only then divides the two series.  Interpolating
-        anchor-year penetration ratios directly is close, but not algebraically
-        identical when population changes.  The distinction matters for the
-        central NB01--NB08 parity control.
+        For the configured AC SSP, Notebook 05 first interpolates municipal
+        users and total population from the anchor years and only then divides
+        the two series; this exact route is retained for central parity. For an
+        alternative AC SSP, anchor coverage is taken from the reconstructed
+        spatial baseline/policy maps on the sampled exposure, and users and
+        population are interpolated separately using the same convention.
         """
         target_years = np.asarray(years, dtype=float)
+        mode_key = "policy" if str(mode).lower() == "policy" else "base"
+        cache = getattr(self, "_coverage_series_cache", None)
+        if cache is None:
+            cache = {}
+            self._coverage_series_cache = cache
+        cache_key = (
+            tuple(int(year) for year in target_years),
+            int(ac_ssp),
+            mode_key,
+            None if exp_ssp_idx is None else int(exp_ssp_idx),
+        )
+        if cache_key in cache:
+            return cache[cache_key].copy()
+
         if int(ac_ssp) == self.ac_ssp_base and self.ac_muni_cov_yearly is not None:
             df = self.ac_muni_cov_yearly
-            coverage_col = "ac_policy_muni" if str(mode).lower() == "policy" else "ac_base_muni"
+            coverage_col = "ac_policy_muni" if mode_key == "policy" else "ac_base_muni"
             users_anchors: dict[int, float] = {}
             pop_anchors: dict[int, float] = {}
             if coverage_col in df.columns and {"year", "pop_muni"}.issubset(df.columns):
@@ -2925,16 +3119,51 @@ class NB09ImprovedFast:
                 population = np.asarray([pop_anchors[int(y)] for y in anchor_years], dtype=float)
                 users_t = np.interp(target_years, anchor_years, users)
                 population_t = np.interp(target_years, anchor_years, population)
-                return np.divide(
+                result = np.divide(
                     users_t,
                     population_t,
                     out=np.zeros_like(users_t, dtype=float),
                     where=population_t > 0,
                 )
-        return np.asarray(
-            [self.coverage_mean_for_mode(int(year), ac_ssp, mode=mode) for year in target_years],
+                cache[cache_key] = result
+                return result.copy()
+
+        if int(ac_ssp) != self.ac_ssp_base and exp_ssp_idx is not None:
+            anchor_years = np.asarray(self.years, dtype=float)
+            coverage_anchors: list[float] = []
+            population_anchors: list[float] = []
+            for anchor_year in self.years:
+                path = self.exposure_path_for_year(int(anchor_year), int(exp_ssp_idx))
+                coverage_anchors.append(
+                    self.coverage_mean_for_exposure(
+                        path,
+                        int(anchor_year),
+                        int(ac_ssp),
+                        mode_key,
+                    )
+                )
+                population_anchors.append(self.pop_total_for_exposure(path, 1.0))
+            population = np.asarray(population_anchors, dtype=float)
+            users = np.asarray(coverage_anchors, dtype=float) * population
+            users_t = np.interp(target_years, anchor_years, users)
+            population_t = np.interp(target_years, anchor_years, population)
+            result = np.divide(
+                users_t,
+                population_t,
+                out=np.zeros_like(users_t, dtype=float),
+                where=population_t > 0,
+            )
+            cache[cache_key] = result
+            return result.copy()
+
+        # Compatibility fallback for diagnostic callers that do not provide
+        # an exposure SSP. Production evaluation always supplies it.
+        result = np.asarray(
+            [self.coverage_mean_for_ews(int(year), ac_ssp, mode=mode_key) for year in target_years],
             dtype=float,
         )
+        cache[cache_key] = result
+        return result.copy()
 
     def evaluate_year(
         self,
@@ -3548,13 +3777,17 @@ class NB09ImprovedFast:
 
         cost_frame = self.build_muni_ac_cost_frame(sample, years_all, pop_25y)
         if cost_frame is None:
-            base_share_t = np.array(
-                [self.coverage_mean_for_mode(int(y), sample["ac_ssp"], mode="base") for y in years_all],
-                dtype=float,
+            base_share_t = self.coverage_series_for_waste_heat(
+                years_all,
+                int(sample["ac_ssp"]),
+                mode="base",
+                exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
             )
-            policy_share_t = np.array(
-                [self.coverage_mean_for_mode(int(y), sample["ac_ssp"], mode="policy") for y in years_all],
-                dtype=float,
+            policy_share_t = self.coverage_series_for_waste_heat(
+                years_all,
+                int(sample["ac_ssp"]),
+                mode="policy",
+                exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
             )
             users_base_t = np.asarray(pop_25y, dtype=float) * base_share_t
             users_policy_t = np.asarray(pop_25y, dtype=float) * policy_share_t
@@ -5179,10 +5412,16 @@ class NB09ImprovedFast:
         marginal_current_25y = ref_plus1_annual_25y - ref_annual_25y
         marginal_policy_25y = ac_plus1_annual_25y - ac_gross_annual_25y
         pen_current_25y = self.coverage_series_for_waste_heat(
-            years_all, sample["ac_ssp"], mode="base"
+            years_all,
+            sample["ac_ssp"],
+            mode="base",
+            exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
         )
         pen_policy_25y = self.coverage_series_for_waste_heat(
-            years_all, sample["ac_ssp"], mode="policy"
+            years_all,
+            sample["ac_ssp"],
+            mode="policy",
+            exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
         )
         d_t_current_25y = self.waste_heat_dailymean_delta(pen_current_25y, sample)
         d_t_policy_25y = self.waste_heat_dailymean_delta(pen_policy_25y, sample)
@@ -5242,12 +5481,32 @@ class NB09ImprovedFast:
         )
         sample_d_t_current = float(
             self.waste_heat_dailymean_delta(
-                np.array([self.coverage_mean_for_waste_heat(sample_year, sample["ac_ssp"], mode="base")]), sample
+                np.array(
+                    [
+                        self.coverage_mean_for_waste_heat(
+                            sample_year,
+                            sample["ac_ssp"],
+                            mode="base",
+                            exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
+                        )
+                    ]
+                ),
+                sample,
             )[0]
         )
         sample_d_t_policy = float(
             self.waste_heat_dailymean_delta(
-                np.array([self.coverage_mean_for_waste_heat(sample_year, sample["ac_ssp"], mode="policy")]), sample
+                np.array(
+                    [
+                        self.coverage_mean_for_waste_heat(
+                            sample_year,
+                            sample["ac_ssp"],
+                            mode="policy",
+                            exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
+                        )
+                    ]
+                ),
+                sample,
             )[0]
         )
         sample_wh_penalty = 0.0
@@ -5287,7 +5546,14 @@ class NB09ImprovedFast:
                 d_t_current_a = float(
                     self.waste_heat_dailymean_delta(
                         np.asarray(
-                            [self.coverage_mean_for_waste_heat(year, sample["ac_ssp"], mode="base")]
+                            [
+                                self.coverage_mean_for_waste_heat(
+                                    year,
+                                    sample["ac_ssp"],
+                                    mode="base",
+                                    exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
+                                )
+                            ]
                         ),
                         sample,
                     )[0]
@@ -5295,7 +5561,14 @@ class NB09ImprovedFast:
                 d_t_policy_a = float(
                     self.waste_heat_dailymean_delta(
                         np.asarray(
-                            [self.coverage_mean_for_waste_heat(year, sample["ac_ssp"], mode="policy")]
+                            [
+                                self.coverage_mean_for_waste_heat(
+                                    year,
+                                    sample["ac_ssp"],
+                                    mode="policy",
+                                    exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
+                                )
+                            ]
                         ),
                         sample,
                     )[0]
