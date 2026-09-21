@@ -78,6 +78,11 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Generated notebook state and executed copies
+*.out.ipynb
+.Rhistory
+urban-heat/notebooks/city_agnostic/**/cache/
+
 # IPython
 profile_default/
 ipython_config.py
