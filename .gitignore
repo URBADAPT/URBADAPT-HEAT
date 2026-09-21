@@ -239,4 +239,11 @@ urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126.out.ipynb
 /natcities_visual_items/tables
 natcities_visual_items/report.html
 natcities_visual_items/R/.Rhistory
-gmd_visual_items/gmd_uncertainty/fig_uncertainty.png
+# Generated GMD figure outputs. Scoped to the top level and to
+# gmd_uncertainty/ so the generators themselves stay tracked:
+# workflow_figures/, workflow_tables/ and gmd_uncertainty/*.py
+/gmd_visual_items/*.pdf
+/gmd_visual_items/*.png
+gmd_visual_items/gmd_uncertainty/*.png
+gmd_visual_items/gmd_uncertainty/*.pdf
+gmd_visual_items/**/__pycache__/
