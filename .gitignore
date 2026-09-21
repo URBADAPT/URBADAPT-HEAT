@@ -227,9 +227,23 @@ urban-heat/notebooks/city_agnostic/March2026/Lisbon/09_uncertainty_0126_Lisbon_i
 urban-heat/notebooks/city_agnostic/March2026/Lisbon/09_uncertainty_0126_Lisbon.out.ipynb
 urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126_Rome_improved.out.ipynb
 urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126.out.ipynb
+
+# Local MCP server config (machine-specific)
 .mcp.json
+
+# Manuscripts folder -- never tracked
+/manuscripts/
+
+# Generated reporting outputs (build products of the visual-items pipelines)
 /natcities_visual_items/figures
 /natcities_visual_items/tables
-gmd_visual_items/gmd_uncertainty/fig_uncertainty.png
-/manuscripts
-/manuscripts
+natcities_visual_items/report.html
+natcities_visual_items/R/.Rhistory
+# Generated GMD figure outputs. Scoped to the top level and to
+# gmd_uncertainty/ so the generators themselves stay tracked:
+# workflow_figures/, workflow_tables/ and gmd_uncertainty/*.py
+/gmd_visual_items/*.pdf
+/gmd_visual_items/*.png
+gmd_visual_items/gmd_uncertainty/*.png
+gmd_visual_items/gmd_uncertainty/*.pdf
+gmd_visual_items/**/__pycache__/
