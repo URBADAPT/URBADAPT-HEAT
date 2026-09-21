@@ -228,3 +228,6 @@ urban-heat/notebooks/city_agnostic/March2026/Lisbon/09_uncertainty_0126_Lisbon.o
 urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126_Rome_improved.out.ipynb
 urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126.out.ipynb
 .mcp.json
+/natcities_visual_items/figures
+/natcities_visual_items/tables
+gmd_visual_items/gmd_uncertainty/fig_uncertainty.png
