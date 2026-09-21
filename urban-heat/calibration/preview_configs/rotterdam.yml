@@ -8,6 +8,7 @@
 
 slug: rotterdam # city name
 city_name: Rotterdam
+gvi_city_aliases: ["Rotterdam [The Hague]"]   # gvi_356_cities.csv uses this name (NB01 filter)
 wp_iso3: NLD
 wp_country: Netherlands
 pop_k: 660                       # approx population (thousands), from eu_urbclim_cities_urbadapt

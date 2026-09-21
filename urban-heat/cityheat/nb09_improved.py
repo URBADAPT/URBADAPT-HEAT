@@ -6,6 +6,7 @@ import argparse
 import copy
 import json
 import os
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -44,7 +45,7 @@ AGE_TO_ID = {"<15": 1, "15-64": 2, "65+": 3}
 IF_FAMILIES = ["burke_polynomial", "burke_powerlaw"]
 TREF_OPTIONS = [18.0, 20.0, 22.0, 24.0, 26.0]
 TREF_BASE = 20.0
-RETURN_PERIODS = [2, 5, 10, 20]
+DAILY_QUANTILE_PCTS = [50, 80, 90, 95]  # percentiles of the DAILY heat-death distribution (NOT annual return periods)
 HORIZON_YEARS = 25
 DISCOUNT_RATE_DEFAULT = 0.03
 SEED_DEFAULT = 42
@@ -274,12 +275,17 @@ def _pawn_table(
     return out[cols]
 
 
-def _freq_curve_from_daily(daily_impacts: np.ndarray, rps: list[int]) -> dict[str, float]:
+def _daily_quantiles(daily_impacts: np.ndarray, pcts: list[int]) -> dict[str, float]:
+    """Percentiles of the DAILY heat-death distribution (NOT annual return levels).
+
+    Keys are ``daily_p{pct}`` (e.g. daily_p50/p80/p90/p95): the deaths on the day at
+    that percentile of the year's daily-death series. The earlier form divided by
+    ``1 - 1/rp`` and mislabeled these as 2/5/10/20-year return periods.
+    """
     vals = np.asarray(daily_impacts, dtype=float)
     out: dict[str, float] = {}
-    for rp in rps:
-        q = float(np.clip(1.0 - 1.0 / float(rp), 0.0, 1.0))
-        out[f"rp{int(rp)}"] = float(np.quantile(vals, q)) if vals.size else np.nan
+    for p in pcts:
+        out[f"daily_p{int(p)}"] = float(np.percentile(vals, p)) if vals.size else np.nan
     return out
 
 
@@ -305,7 +311,7 @@ def _pv_capex_with_replacements(
             continue
         pay_idx = int(start_idx)
         while pay_idx < horizon:
-            pv += cohort * float(capex_per_user) / ((1.0 + r) ** float(pay_idx))
+            pv += cohort * float(capex_per_user) / ((1.0 + r) ** float(pay_idx + 1))  # end-of-year (t=1..T) to match NB08
             pay_idx += life
     return float(pv)
 
@@ -343,7 +349,7 @@ def _npv_capex_linear(
     r = float(discount_rate)
     pv = 0.0
     for t_idx in range(years):
-        pv += float(capex_per_index_pt) * inc / ((1.0 + r) ** float(t_idx))
+        pv += float(capex_per_index_pt) * inc / ((1.0 + r) ** float(t_idx + 1))  # end-of-year (t=1..T) to match NB08
     return float(pv)
 
 
@@ -364,7 +370,7 @@ def _npv_om_cohorts_scaled(
         lifetime_years=lifetime_years,
     )
     om_stream = float(om_per_index_per_year) * float(delta_index_total) * factor
-    discount = (1.0 + float(discount_rate)) ** np.arange(int(years), dtype=float)
+    discount = (1.0 + float(discount_rate)) ** np.arange(1, int(years) + 1, dtype=float)  # end-of-year (t=1..T) to match NB08
     pv = float(np.sum(om_stream / discount))
     return pv, om_stream
 
@@ -589,6 +595,7 @@ class NB09Improved:
             raise FileNotFoundError("No fully-available tagged baseline mode found for all modeled years.")
         self.ref_mode = "climatology_mean" if "climatology_mean" in self.baseline_modes else self.baseline_modes[0]
 
+        self._used_fixed_city_pattern = False
         self.base_matrix_by_year: dict[int, sparse.csr_matrix] = {}
         self.ref_citymean_by_year: dict[int, np.ndarray] = {}
         self.mode_day_anom: dict[tuple[str, int], np.ndarray] = {}
@@ -601,7 +608,16 @@ class NB09Improved:
             self.ref_citymean_by_year[y] = citymean
             mat = np.nan_to_num(arr, nan=0.0).reshape(arr.shape[0], -1).astype(np.float32)
             csr = sparse.csr_matrix(mat)
-            self._assert_city_pattern(csr)
+            try:
+                self._assert_city_pattern(csr)
+            except ValueError:
+                # Fixed city-mask column set for cities whose daily valid-cell pattern varies
+                # across days (mirrors the fast engine; filled cells carry 0 degC -> ~0 deaths).
+                if not self._used_fixed_city_pattern:
+                    self.row_cols = np.where(self.city_mask.ravel())[0].astype(np.int32)
+                    self.row_is_city = np.ones(len(self.row_cols), dtype=bool)
+                    self._used_fixed_city_pattern = True
+                csr = self._csr_with_fixed_row_cols(mat, self.row_cols)
             self.base_matrix_by_year[y] = csr
 
         for mode in self.baseline_modes:
@@ -624,6 +640,17 @@ class NB09Improved:
                 )
             if not np.array_equal(mat.indices[a:b], self.row_cols):
                 raise ValueError("Base matrix sparse column pattern is not stable across rows.")
+
+    @staticmethod
+    def _csr_with_fixed_row_cols(mat: np.ndarray, row_cols: np.ndarray) -> sparse.csr_matrix:
+        n_days, n_cells = mat.shape
+        rc = np.asarray(row_cols, dtype=np.int32)
+        if rc.size == 0:
+            return sparse.csr_matrix((n_days, n_cells), dtype=np.float32)
+        vals = mat[:, rc].reshape(-1).astype(np.float32, copy=False)
+        rows = np.repeat(np.arange(n_days, dtype=np.int32), rc.size)
+        cols = np.tile(rc, n_days)
+        return sparse.csr_matrix((vals, (rows, cols)), shape=(n_days, n_cells), dtype=np.float32)
 
     def _load_nc_time_yx(self, path: Path) -> np.ndarray:
         ds = xr.open_dataset(path)
@@ -946,6 +973,22 @@ class NB09Improved:
         )
         self.ac_cost_params = _load_json(self.ac_cost_params_path)
 
+        # AC CAPEX / maintenance: the city CONFIG is the canonical source (calibrated).
+        # NB09 samples a MULTIPLIER on the configured per-user CAPEX; maintenance is
+        # recomputed as configured maint_rate x sampled CAPEX. The NB05 interim JSON is
+        # validated against the config and only used as a fallback.
+        self.ac_capex_base = float(self.ac_cfg.get("capex_per_user", self.ac_cost_params.get("capex_per_user", 500.0)))
+        self.ac_maint_rate = float(self.ac_cfg.get("maint_rate", self.ac_cost_params.get("maint_rate", 0.05)))
+        # Validate the NB05 interim JSON against the canonical config (warn-only; config wins).
+        for _key, _cfg_val in (
+            ("capex_per_user", self.ac_capex_base),
+            ("maint_rate", self.ac_maint_rate),
+            ("lifetime_years", self.ac_cfg.get("lifetime_years")),
+        ):
+            _js_val = self.ac_cost_params.get(_key)
+            if _cfg_val is not None and _js_val is not None and not np.isclose(float(_js_val), float(_cfg_val), rtol=1e-3, atol=1e-6):
+                warnings.warn(f"[{self.slug}] AC {_key}: config={_cfg_val} != NB05 JSON={_js_val}; using config.")
+
         # AC electricity tariff uncertainty should be anchored to each city config.
         tariff_base = float(
             self.ac_cost_params.get(
@@ -987,7 +1030,32 @@ class NB09Improved:
         self.ews_init = float(self.ews_cfg.get("ramp_initial_efficacy", 0.10))
         self.ews_ramp_base = int(self.ews_cfg.get("ramp_years", 3))
         self.ews_ramp_options = sorted(set([2, self.ews_ramp_base, 5]))
-        self.ews_interp_options = ["marginal", "counterfactual"]
+        # EWS effectiveness-INTERPRETATION uncertainty (a UQ axis).
+        # NB09 does NOT re-cost the EWS: the city's configured infrastructure and its
+        # setup / fixed-opex costs (capex_setup, opex_annual_fixed) are held FIXED as
+        # the OBSERVED system. What we vary is how the epidemiological *effectiveness*
+        # credited to that infrastructure is interpreted, over a LOCAL bracket = the
+        # configured class plus its adjacent class(es) on the
+        #   marginal -> intermediate -> counterfactual
+        # effectiveness scale. This is a local-classification bracket, not a
+        # distribution "centred" on the config (equal-probability categorical
+        # sampling has no centre):
+        #   marginal       -> {marginal, intermediate}
+        #   intermediate   -> {marginal, intermediate, counterfactual}
+        #   counterfactual -> {intermediate, counterfactual}
+        _interp_scale = ["marginal", "intermediate", "counterfactual"]
+        _interp_brackets = {
+            "marginal":       ["marginal", "intermediate"],
+            "intermediate":   ["marginal", "intermediate", "counterfactual"],
+            "counterfactual": ["intermediate", "counterfactual"],
+        }
+        self.ews_interp_base = str(self.ews_cfg.get("interpretation", "marginal")).lower()
+        _interp_center = self.ews_interp_base if self.ews_interp_base in _interp_scale else "marginal"
+        if bool(self.ews_cfg.get("uq_interp_full_range", False)):
+            # Escape hatch: sample the full marginal->intermediate->counterfactual range for every city.
+            self.ews_interp_options = list(_interp_scale)
+        else:
+            self.ews_interp_options = list(_interp_brackets[_interp_center])
         self.level_options = ["low", "central", "high"]
         self.ews_cost_model_options = ["pavanello", "chiabai"]
         self.ews_target_base = int(self.ews_cfg.get("target_activation_days", 23))
@@ -1069,7 +1137,7 @@ class NB09Improved:
         # Electricity feedback (Falchetta, De Cian and Lunghi 2026)
         self.elec_fb_cfg = self.cfg.get("electricity_feedback", {})
         self.elec_fb_enabled = bool(self.elec_fb_cfg.get("enabled", False))
-        self.elec_fb_pct_per_point = float(self.elec_fb_cfg.get("pct_reduction_per_gvi_point", 0.008))
+        from cityheat.electricity_feedback import resolve_pct_gvi_reduction as _rpgr; self.elec_fb_pct_per_point = _rpgr(self.cfg, self.base_dir, self.int_dir)[0]  # runtime per-city GVI-elec calibration from JJA daily-max T2M (Falchetta Fig-5)
         self.elec_fb_summer_months = int(self.elec_fb_cfg.get("summer_months", 3))
         self.elec_fb_co2_per_kwh = float(self.elec_fb_cfg.get("co2_intensity_gCO2_per_kwh", 372))
         self.elec_fb_ac_summary = None
@@ -1390,11 +1458,11 @@ class NB09Improved:
             ParamSpec("EWS_RAMP_YEARS_IDX", "choice", options=list(range(len(self.ews_ramp_options)))),
             ParamSpec("EWS_COST_MODEL_IDX", "choice", options=list(range(len(self.ews_cost_model_options)))),
             ParamSpec("DISCOUNT_RATE_IDX", "choice", options=[0.02, 0.03, 0.05]),
-            ParamSpec("AC_CAPEX_PER_USER_IDX", "choice", options=[350.0, 500.0, 650.0]),
+            ParamSpec("AC_CAPEX_MULT_IDX", "choice", options=[0.8, 1.0, 1.2]),
             ParamSpec("AC_TARIFF_EUR_PER_KWH_IDX", "choice", options=self.ac_tariff_options),
-            ParamSpec("AC_LIFETIME_YEARS_IDX", "choice", options=[8, 10, 12]),
-            ParamSpec("TREE_CAPEX_PER_TREE_IDX", "choice", options=[168.0, 210.0, 252.0]),
-            ParamSpec("TREE_OM_PER_TREE_YR_IDX", "choice", options=[27.0, 135.0]),
+            ParamSpec("AC_LIFETIME_YEARS_IDX", "choice", options=[9, 12, 16]),
+            ParamSpec("TREE_CAPEX_MULT_IDX", "choice", options=[0.8, 1.0, 1.2]),
+            ParamSpec("TREE_OM_MULT_IDX", "choice", options=[1.0, 5.0]),
             # Electricity feedback (Falchetta et al. 2026)
             ParamSpec("ELEC_FEEDBACK_ENABLED_IDX", "choice", options=[0, 1]),
             ParamSpec("ELEC_COEFF_SCALE", "uniform", low=0.50, high=1.50),
@@ -1676,7 +1744,11 @@ class NB09Improved:
                 gdf = gpd.GeoDataFrame(df.drop(columns=["geometry"]), geometry=geom, crs="EPSG:4326")
                 exp = Exposures(gdf)
             if f"centr_T2M" not in exp.gdf.columns:
-                exp.assign_centroids(self.hazard_template, distance="euclidean", threshold=0, overwrite=True)
+                # threshold=None: assign each exposure cell to its coincident hazard centroid, matching the
+                # deterministic ImpactCalc (nb04). threshold=0 on the full multi-age exposure (triplicate
+                # geometries) kept only ~1/3 of cells, silently dropping ~2/3 of the population from the
+                # mortality impact (~3x too low); verified threshold=None recovers 99% of the deterministic.
+                exp.assign_centroids(self.hazard_template, distance="euclidean", threshold=None, overwrite=True)
             self.exp_cache[key] = exp
         return self.exp_cache[key]
 
@@ -2004,9 +2076,17 @@ class NB09Improved:
             deaths_warning = float(base_arr[warning_mask].sum())
             deaths_warning_by_age[age] = deaths_warning
 
-            if str(sample["ews_interpretation"]).lower() == "marginal":
+            _interp = str(sample["ews_interpretation"]).lower()
+            if _interp == "marginal":
                 lvl = sample[f"ews_eff_{self._age_key(age)}_level"]
                 eff_age = float(self.ews_marg.get(age, {}).get(lvl, self.ews_marg.get(age, {}).get("central", 0.0)))
+            elif _interp == "intermediate":
+                # meteo-HHWS midpoint (mirrors NB06): 50/50 mix of the age-differentiated
+                # marginal efficacy and the (age-flat) counterfactual efficacy.
+                lvl = sample[f"ews_eff_{self._age_key(age)}_level"]
+                eff_marg = float(self.ews_marg.get(age, {}).get(lvl, self.ews_marg.get(age, {}).get("central", 0.0)))
+                eff_cf = float(self.ews_cf.get(sample["ews_cf_eff_level"], self.ews_cf.get("central", 0.0)))
+                eff_age = 0.5 * eff_marg + 0.5 * eff_cf
             else:
                 eff_age = float(self.ews_cf.get(sample["ews_cf_eff_level"], self.ews_cf.get("central", 0.0)))
 
@@ -2215,11 +2295,12 @@ class NB09Improved:
             "ews_ramp_years": self.ews_ramp_options[int(row["EWS_RAMP_YEARS_IDX"])],
             "ews_cost_model": self.ews_cost_model_options[int(row["EWS_COST_MODEL_IDX"])],
             "discount_rate": [0.02, 0.03, 0.05][int(row["DISCOUNT_RATE_IDX"])],
-            "ac_capex_per_user": [350.0, 500.0, 650.0][int(row["AC_CAPEX_PER_USER_IDX"])],
+            "ac_capex_mult": [0.8, 1.0, 1.2][int(row["AC_CAPEX_MULT_IDX"])],
+            "ac_capex_per_user": self.ac_capex_base * [0.8, 1.0, 1.2][int(row["AC_CAPEX_MULT_IDX"])],
             "ac_tariff_eur_per_kwh": self.ac_tariff_options[int(row["AC_TARIFF_EUR_PER_KWH_IDX"])],
-            "ac_lifetime_years": [8, 10, 12][int(row["AC_LIFETIME_YEARS_IDX"])],
-            "tree_capex_per_tree": [168.0, 210.0, 252.0][int(row["TREE_CAPEX_PER_TREE_IDX"])],
-            "tree_om_per_tree_yr": [27.0, 135.0][int(row["TREE_OM_PER_TREE_YR_IDX"])],
+            "ac_lifetime_years": [9, 12, 16][int(row["AC_LIFETIME_YEARS_IDX"])],
+            "tree_capex_mult": [0.8, 1.0, 1.2][int(row["TREE_CAPEX_MULT_IDX"])],
+            "tree_om_mult": [1.0, 5.0][int(row["TREE_OM_MULT_IDX"])],
             "elec_feedback_enabled": bool(int(row["ELEC_FEEDBACK_ENABLED_IDX"])),
             "elec_coeff_scale": float(row["ELEC_COEFF_SCALE"]),
         }
@@ -2251,14 +2332,11 @@ class NB09Improved:
         pop_25y: np.ndarray,
     ) -> dict[str, float]:
         r = float(sample["discount_rate"])
-        t_index = np.arange(len(years_all), dtype=float)
-        maint_rate = float(self.ac_cost_params.get("maint_rate", self.ac_cfg.get("maint_rate", 0.05)))
-        maint_per_user_yr = float(
-            self.ac_cost_params.get(
-                "maint_per_user_yr",
-                maint_rate * float(sample["ac_capex_per_user"]),
-            )
-        )
+        t_index = np.arange(1, len(years_all) + 1, dtype=float)  # end-of-year (t=1..T) to match NB08 AC cost timing
+        # Maintenance recomputed from the SAMPLED CAPEX at the configured rate (config
+        # canonical); the central multiplier reproduces configured maint_rate x CAPEX.
+        maint_rate = self.ac_maint_rate
+        maint_per_user_yr = maint_rate * float(sample["ac_capex_per_user"])
         discount_factors = (1.0 + r) ** t_index
         tariff = float(sample["ac_tariff_eur_per_kwh"])
 
@@ -2411,7 +2489,7 @@ class NB09Improved:
         r = float(sample["discount_rate"])
 
         base_capex_per_tree = float(
-            self.tree_cost_params.get("capex_per_tree", trees_cfg.get("capex_per_tree_eur", sample["tree_capex_per_tree"]))
+            self.tree_cost_params.get("capex_per_tree", trees_cfg.get("capex_per_tree_eur", 0.0))
         )
         base_capex_per_index = float(
             self.tree_cost_params.get(
@@ -2419,19 +2497,23 @@ class NB09Improved:
                 trees_cfg.get("capex_per_index_pt_eur", 0.0),
             )
         )
-        capex_scale = float(sample["tree_capex_per_tree"]) / max(base_capex_per_tree, 1e-6)
-        capex_per_index = base_capex_per_index * capex_scale if base_capex_per_index > 0 else float(sample["tree_capex_per_tree"])
+        # UQ scales the CALIBRATED per-GVI-point CAPEX by a dimensionless multiplier (0.8/1.0/1.2).
+        capex_scale = float(sample["tree_capex_mult"])
+        capex_per_index = base_capex_per_index * capex_scale
 
         base_om_per_tree = float(
-            self.tree_cost_params.get("om_per_tree_yr", trees_cfg.get("om_per_tree_per_year_eur", sample["tree_om_per_tree_yr"]))
+            self.tree_cost_params.get("om_per_tree_yr", trees_cfg.get("om_per_tree_per_year_eur", 0.0))
         )
+        # O&M per GVI-point: calibrated om_per_index_pt_yr if given, else the calibrated per-tree
+        # O&M/CAPEX ratio applied to the per-GVI-point CAPEX (0.0 if per-tree costs are absent).
         base_om_per_index = float(
             self.tree_cost_params.get(
                 "om_per_index_pt_yr",
-                (base_om_per_tree / max(base_capex_per_tree, 1e-6)) * base_capex_per_index if base_capex_per_index > 0 else 0.0,
+                (base_om_per_tree / base_capex_per_tree) * base_capex_per_index if (base_capex_per_tree > 0 and base_capex_per_index > 0) else 0.0,
             )
         )
-        om_scale = float(sample["tree_om_per_tree_yr"]) / max(base_om_per_tree, 1e-6)
+        # UQ scales the CALIBRATED per-GVI-point O&M by a dimensionless multiplier (1.0/5.0).
+        om_scale = float(sample["tree_om_mult"])
         om_per_index = base_om_per_index * om_scale
 
         delta_index_total = float(
@@ -2525,9 +2607,9 @@ class NB09Improved:
         sample_year = int(sample["year"])
         year_res = anchor_results[sample_year]
         residual_daily = year_res["daily_residual_total"]
-        impact_freq = _freq_curve_from_daily(residual_daily, RETURN_PERIODS)
+        impact_freq = _daily_quantiles(residual_daily, DAILY_QUANTILE_PCTS)
         annual_deaths = float(residual_daily.sum())
-        aai_agg = annual_deaths / float(self.days_in_year(sample_year))
+        aai_agg = annual_deaths  # deaths/yr (annual total); prior /days_in_year gave mean-daily, mismatching the "deaths/yr" label
 
         anchor_years = np.array(self.years, dtype=int)
         years_all = np.arange(min(self.years), min(self.years) + HORIZON_YEARS, dtype=int)
@@ -2779,7 +2861,7 @@ class NB09Improved:
                 {
                     "aai_agg": out["aai_agg"],
                     "annual_deaths": out["annual_deaths"],
-                    **{f"rp{rp}": out[f"rp{rp}"] for rp in RETURN_PERIODS},
+                    **{f"daily_p{p}": out[f"daily_p{p}"] for p in DAILY_QUANTILE_PCTS},
                 }
             )
             cba_ews_rows.append(
@@ -2856,7 +2938,7 @@ class NB09Improved:
         sens_freq_df = _pawn_table(
             self.problem,
             x,
-            {f"rp{rp}": samples_df[f"rp{rp}"].to_numpy(float) for rp in RETURN_PERIODS},
+            {f"daily_p{p}": samples_df[f"daily_p{p}"].to_numpy(float) for p in DAILY_QUANTILE_PCTS},
         )
         sens_cba_df = _pawn_table(
             self.problem,
@@ -2972,7 +3054,7 @@ class NB09Improved:
         }
         samples_df.to_csv(paths["samples"], index=False)
         impact_df.to_csv(paths["impact"], index=False)
-        impact_df[[f"rp{rp}" for rp in RETURN_PERIODS]].to_csv(paths["freq"], index=False)
+        impact_df[[f"daily_p{p}" for p in DAILY_QUANTILE_PCTS]].to_csv(paths["freq"], index=False)
         cba_ews_df.to_csv(paths["cba"], index=False)
         cba_ac_df.to_csv(paths["cba_ac"], index=False)
         cba_tree_df.to_csv(paths["cba_trees"], index=False)
@@ -3022,11 +3104,12 @@ class NB09Improved:
             "tree_start_age_options": self.tree_start_age_options,
             "economic_options": {
                 "discount_rate": [0.02, 0.03, 0.05],
-                "ac_capex_per_user": [350.0, 500.0, 650.0],
+                "ac_capex_mult": [0.8, 1.0, 1.2],
+                "ac_capex_per_user_base": self.ac_capex_base,
                 "ac_tariff_eur_per_kwh": self.ac_tariff_options,
-                "ac_lifetime_years": [8, 10, 12],
-                "tree_capex_per_tree": [168.0, 210.0, 252.0],
-                "tree_om_per_tree_yr": [27.0, 135.0],
+                "ac_lifetime_years": [9, 12, 16],
+                "tree_capex_mult": [0.8, 1.0, 1.2],
+                "tree_om_mult": [1.0, 5.0],
             },
             "vuln_param_ranges": {
                 "VULN_K": [0.55, 0.95],
@@ -3047,7 +3130,7 @@ class NB09Improved:
                 "CBA uncertainty now samples discounting plus AC/tree cost parameters in the same global sample as the impact-chain uncertainty.",
                 "AC CBA is evaluated as policy AC versus current/autonomous AC under the same sampled hazard, exposure, IF and vulnerability settings.",
                 "Tree CBA is evaluated as tree policy versus the same sampled no-tree reference branch.",
-                "Vulnerability projection uncertainty (Level A): 7 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
+                "Vulnerability projection uncertainty (Level A): 10 parameters perturbed, SVI recomputed on-the-fly; output-only, does not affect mortality.",
                 "Original March2026/NB09 outputs remain untouched; all improved artifacts are saved in tables/uncertainty_improved.",
             ],
         }
@@ -3151,19 +3234,19 @@ class NB09Improved:
             plt.savefig(self.unc_dir / f"sens_tornado_cba_ews_{self.slug}_improved.png", dpi=160)
             plt.close(fig)
 
-        freq_cols = [f"rp{rp}" for rp in RETURN_PERIODS]
+        freq_cols = [f"daily_p{p}" for p in DAILY_QUANTILE_PCTS]
         freq_df = samples_df[freq_cols].replace([np.inf, -np.inf], np.nan)
         q05 = freq_df.quantile(0.05)
         q50 = freq_df.quantile(0.50)
         q95 = freq_df.quantile(0.95)
-        x_rp = np.asarray(RETURN_PERIODS, dtype=float)
+        x_pct = np.asarray(DAILY_QUANTILE_PCTS, dtype=float)
         fig, ax = plt.subplots(figsize=(7.5, 4.5))
-        ax.fill_between(x_rp, q05.to_numpy(float), q95.to_numpy(float), color="#4C78A8", alpha=0.22, label="5-95%")
-        ax.plot(x_rp, q50.to_numpy(float), marker="o", color="#1F4E79", lw=1.8, label="median")
-        ax.set_title(f"{self.city} - uncertainty frequency curve (improved)")
-        ax.set_xlabel("Return period (years)")
-        ax.set_ylabel("Annual deaths")
-        ax.set_xticks(x_rp)
+        ax.fill_between(x_pct, q05.to_numpy(float), q95.to_numpy(float), color="#4C78A8", alpha=0.22, label="5-95%")
+        ax.plot(x_pct, q50.to_numpy(float), marker="o", color="#1F4E79", lw=1.8, label="median")
+        ax.set_title(f"{self.city} - daily heat-death quantiles (improved)")
+        ax.set_xlabel("Daily-death percentile")
+        ax.set_ylabel("Deaths on that day")
+        ax.set_xticks(x_pct)
         ax.grid(alpha=0.3)
         ax.legend(frameon=False)
         plt.tight_layout()
@@ -3253,7 +3336,7 @@ def regenerate_saved_figures(city: str) -> Path:
 
 def run_nb09_improved(city: str | None = None, n: int | None = None, seed: int | None = None) -> dict[str, Path]:
     slug = (city or os.environ.get("CITY") or "rome").strip().lower()
-    n_use = int(n if n is not None else os.environ.get("NB09_N", 512))
+    n_use = int(n if n is not None else os.environ.get("NB09_N", 128))
     seed_use = int(seed if seed is not None else os.environ.get("NB09_SEED", SEED_DEFAULT))
     runner = NB09Improved(slug)
     return runner.run(n=n_use, seed=seed_use)
@@ -3262,7 +3345,7 @@ def run_nb09_improved(city: str | None = None, n: int | None = None, seed: int |
 def main() -> None:
     parser = argparse.ArgumentParser(description="Improved March2026 NB09 uncertainty workflow.")
     parser.add_argument("--city", default=os.environ.get("CITY", "rome"), help="City slug: rome, athens, lisbon")
-    parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 512)), help="Latin hypercube sample size")
+    parser.add_argument("--n", type=int, default=int(os.environ.get("NB09_N", 128)), help="Latin hypercube sample size")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("NB09_SEED", SEED_DEFAULT)), help="Sampling seed")
     parser.add_argument("--figures-only", action="store_true", help="Regenerate saved figures from existing improved outputs")
     args = parser.parse_args()

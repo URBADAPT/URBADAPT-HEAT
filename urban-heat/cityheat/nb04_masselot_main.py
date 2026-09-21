@@ -231,8 +231,6 @@ def _annotate_burke_sensitivity(
     )
     return out
 
-
-# ---------------------------------------------------------------------------
 # Deterministic Burke sensitivity IF construction
 #
 # Ported verbatim from the original March2026 Burke-main NB04 (cells 13/16/20/54).
@@ -249,7 +247,6 @@ def _annotate_burke_sensitivity(
 # cannot be reproduced by this standard build. Its verbatim original curves are
 # shipped in ``burke_if_reference/copenhagen/`` and loaded as-is, preserving the
 # current Copenhagen sensitivity exactly.
-# ---------------------------------------------------------------------------
 
 BURKE_T_MIN, BURKE_T_MAX, BURKE_T_STEP = 0.0, 40.0, 0.5
 BURKE_T_REF = 20.0
@@ -304,6 +301,45 @@ def _burke_base_curves() -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, n
     }
     powerlaw = {
         age: np.clip(_burke_heat_tail_power(T_grid, BURKE_T_REF, *anc) / BURKE_PER100K, 0, 1)
+        for age, anc in BURKE_POWERLAW_ANCHORS.items()
+    }
+    return T_grid, poly, powerlaw
+
+
+# Cold-city (Track-B) polynomial anchor profile, RELATIVE to a local onset T_ref.
+# Ported verbatim from the pre-refactor March2026 Copenhagen NB04 (cell 11). The
+# anchors are heuristic (read by eye, to allow a response within the local event
+# range) -> a documented Discussion caveat, not a calibration. The power-law reuses
+# the standard January-2026 anchors at the local T_ref (matches the committed
+# Copenhagen power-law curve). Validated 2026-08 to reproduce the committed
+# Copenhagen curves at T_ref~=18.8 degC: poly <0.3/100k, power-law <0.02/100k (all ages).
+BURKE_COLD_CITY_POLY_REL = {  # (T_ref + dT_degC, deaths per 100k per day)
+    "65+": [(0.2, 0.05), (0.5, 0.15), (1.0, 0.45), (1.5, 1.10), (2.0, 2.50), (3.0, 6.00)],
+    "15-64": [(0.2, 0.005), (0.5, 0.020), (1.0, 0.060), (1.5, 0.150), (2.0, 0.350), (3.0, 0.900)],
+    "<15": [(0.2, 0.001), (0.5, 0.004), (1.0, 0.010), (1.5, 0.020), (2.0, 0.030), (3.0, 0.050)],
+}
+
+
+def _burke_cold_city_base_curves(t_ref: float) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndarray]]:
+    """Cold-city (Track-B) Burke base curves at a LOCAL reference temperature.
+
+    Mirrors ``_burke_base_curves`` but uses ``t_ref`` (the city's warm-season local
+    p90) instead of the fixed 20 degC, with the cold-city polynomial anchor profile
+    (relative to ``t_ref``); the power-law reuses the standard anchors at ``t_ref``.
+    The degree-4 polynomial self-truncates to 0 above its last anchor -- the
+    documented cold-city structural caveat (the curve drops to 0 above the local
+    event range). Used only for cities flagged ``extreme_hazard.event_track.
+    cold_city_if_variant: true``; every other city keeps ``_burke_base_curves``.
+    """
+    T_grid = np.arange(BURKE_T_MIN, BURKE_T_MAX + 1e-6, BURKE_T_STEP)
+    poly = {
+        age: np.clip(
+            _burke_heat_tail_polynomial(T_grid, t_ref, [(t_ref + dT, d) for dT, d in pts]) / BURKE_PER100K,
+            0, 1)
+        for age, pts in BURKE_COLD_CITY_POLY_REL.items()
+    }
+    powerlaw = {
+        age: np.clip(_burke_heat_tail_power(T_grid, t_ref, *anc) / BURKE_PER100K, 0, 1)
         for age, anc in BURKE_POWERLAW_ANCHORS.items()
     }
     return T_grid, poly, powerlaw
@@ -417,6 +453,79 @@ def _load_true_baseline_scaling(root: Path, slug: str) -> pd.DataFrame | None:
     return df[AGE_ORDER].copy()
 
 
+def _compute_local_burke_tref(
+    root: Path, slug: str, int_dir: Path, cfg: dict[str, Any] | None
+) -> tuple[float, str]:
+    """Local warm-season onset temperature for the cold-city (Track-B) Burke IF.
+
+    Faithful port of the pre-refactor March2026 Copenhagen NB04 cell-9: the p90 of
+    the historical (UrbClim baseline-years) warm-season city-mean daily temperature.
+    Returns ``(T_ref_degC, source)``. Robustly falls back to the configured fixed
+    ``t_ref_fixed_c`` (20 degC) when ``t_ref_mode`` is not local, or the city mask /
+    historical UrbClim series are unavailable -- so a mis-provisioned city degrades
+    to the standard reference rather than crashing. (This mirrors cell-9's own
+    fallback.) Validated end-to-end on the re-run: Copenhagen must land ~18.8 degC.
+    """
+    cfg = cfg or {}
+    evt = ((cfg.get("extreme_hazard", {}) or {}).get("event_track", {}) or {})
+    tref_pct = float(evt.get("t_ref_percentile_default", 90))
+    tref_fixed = float(evt.get("t_ref_fixed_c", 20.0))
+    tref_mode = str(evt.get("t_ref_mode_default", "fixed_20c")).strip().lower()
+    if not tref_mode.startswith("local"):
+        return tref_fixed, "fixed_20c"
+    baseline_mode = str(
+        evt.get("t_ref_baseline_mode_default", evt.get("threshold_baseline_mode_default", "climatology_mean"))
+    ).strip().lower()
+    season = evt.get("season", {}) or {}
+    start_md, end_md = str(season.get("start_md", "05-15")), str(season.get("end_md", "09-30"))
+    s = int(start_md.split("-")[0]) * 100 + int(start_md.split("-")[1])
+    e = int(end_md.split("-")[0]) * 100 + int(end_md.split("-")[1])
+
+    city_mask_p = Path(int_dir) / "city_mask.npz"
+    base_dir = Path(root) / str(cfg.get("base_dir", f"data/{slug}"))
+    nc_cfg = (cfg.get("files", {}) or {}).get("t2m_mean_daily_nc", {}) or {}
+    pattern = str(nc_cfg.get("pattern", "T2M_year_daily_mean_*.nc"))
+    api = (cfg.get("climate", {}) or {}).get("urbclim_api", {}) or {}
+    base_years = sorted({int(y) for y in api.get("years", range(2008, 2018))})
+    dir_names = [d for d in (str(api.get("local_dir", "")).strip(), str(nc_cfg.get("dir", "")).strip()) if d]
+    files: list[str] = []
+    for d in dir_names:
+        p = base_dir / d
+        if p.exists():
+            for f in sorted(p.glob(pattern)):
+                last = f.stem.split("_")[-1]
+                if last.isdigit() and int(last) in base_years:
+                    files.append(str(f.resolve()))
+    files = sorted(set(files))
+    if not (city_mask_p.exists() and files):
+        return tref_fixed, "fixed_20c (local requested but city_mask/historical UrbClim unavailable)"
+
+    import xarray as xr
+    city_mask = np.load(city_mask_p)["city_mask"].astype(bool)
+    with xr.open_mfdataset(files, combine="by_coords", decode_times=True) as ds:
+        vname = "T2M" if "T2M" in ds.data_vars else list(ds.data_vars)[0]
+        da = ds[vname].sel(time=ds["time.year"].isin(base_years))
+        citymean = da.where(xr.DataArray(city_mask, dims=("y", "x"))).mean(dim=("y", "x"), skipna=True).to_numpy().astype(float)
+        dates = pd.to_datetime(da["time"].values)
+    if np.nanmedian(citymean) > 150:  # Kelvin -> Celsius
+        citymean = citymean - 273.15
+
+    if baseline_mode == "climatology_mean":
+        cdf = pd.DataFrame({"md": dates.month * 100 + dates.day, "t": citymean})
+        clim = cdf.groupby("md")["t"].mean()
+        md = clim.index.to_numpy(int)
+        m = (md >= s) & (md <= e) if s <= e else (md >= s) | (md <= e)
+        warm = clim.to_numpy(float)[m]
+    else:  # historical_dailymean
+        md = dates.month.to_numpy(int) * 100 + dates.day.to_numpy(int)
+        m = (md >= s) & (md <= e) if s <= e else (md >= s) | (md <= e)
+        warm = citymean[m]
+    warm = warm[np.isfinite(warm)]
+    if warm.size == 0:
+        return tref_fixed, "fixed_20c (empty warm season)"
+    return float(np.percentile(warm, tref_pct)), f"local_p{int(tref_pct)} ({baseline_mode})"
+
+
 def _build_burke_sensitivities(
     *,
     root: Path,
@@ -425,6 +534,7 @@ def _build_burke_sensitivities(
     scale_factors: pd.DataFrame,
     variant_name: str,
     main_family: str,
+    cold_city_tref: float | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, Any], dict[str, Path]]:
     """Produce the Burke sensitivity IF JSONs without any ``outputs/<city>/`` dependency.
 
@@ -463,7 +573,13 @@ def _build_burke_sensitivities(
             if true_scaling is not None
             else "Masselot-recovered _mdd_scaling_table FALLBACK (<15 unscaled!)"
         )
-        T_grid, poly_base, pw_base = _burke_base_curves()
+        if cold_city_tref is not None:
+            # Track-B cold-city variant: local onset T_ref + cold-city anchors
+            # (ported from March2026 Copenhagen NB04; the degree-4 poly self-
+            # truncates above the local event range). Warm cities are unaffected.
+            T_grid, poly_base, pw_base = _burke_cold_city_base_curves(cold_city_tref)
+        else:
+            T_grid, poly_base, pw_base = _burke_base_curves()
         raw = {
             "burke_polynomial": _build_burke_family_json(
                 T_grid, poly_base, burke_scaling, family="burke_polynomial"
@@ -478,9 +594,14 @@ def _build_burke_sensitivities(
         }
         annual_paths = _burke_original_annual_best_effort(root, slug, city)
         built = True
+        _base_desc = (
+            f"cold-city Track-B base curves at local T_ref={cold_city_tref:.2f} degC (heuristic anchors)"
+            if cold_city_tref is not None
+            else "city-independent standard base curves (fixed T_ref=20 degC)"
+        )
         numerical_source = (
-            "built deterministically from the March2026 Burke-main calibration "
-            "(city-independent base curves x baseline-mortality year scaling); "
+            "built deterministically from the March2026 Burke calibration "
+            f"({_base_desc} x baseline-mortality year scaling); "
             f"scaling source: {scaling_src}"
         )
 
@@ -741,6 +862,35 @@ def run_nb04_masselot_main(
     # city-independent Burke calibration scaled by the same baseline-mortality
     # trend as Masselot-main (scale_factors); the sole extreme/Track-B city
     # (Copenhagen) loads its verbatim committed reference in burke_if_reference/.
+    #
+    # Track-B cold-city variant (Burke sensitivity ONLY; Masselot untouched): if the
+    # config flags extreme_hazard.event_track.cold_city_if_variant, build the Burke IF
+    # at the city's local onset T_ref + cold-city anchors (ported from March2026
+    # Copenhagen NB04) instead of the fixed-20C curve that reads ~0 for cold cities.
+    # Copenhagen keeps its committed reference (loaded, not built) -> numbers unchanged.
+    cold_city_tref: float | None = None
+    _cc_cfg: dict[str, Any] | None = None
+    _cc_path = root / "configs" / f"{slug}.yml"
+    if _cc_path.exists():
+        try:
+            with open(_cc_path, "r") as _f:
+                _cc_loaded = yaml.safe_load(_f)
+            if isinstance(_cc_loaded, dict):
+                _cc_cfg = _cc_loaded
+        except (OSError, yaml.YAMLError):
+            _cc_cfg = None
+    if _cc_cfg and bool(
+        ((_cc_cfg.get("extreme_hazard", {}) or {}).get("event_track", {}) or {}).get("cold_city_if_variant", False)
+    ):
+        _ref_src, _ = _burke_reference_paths(root, slug)
+        if _ref_src["burke_polynomial"].exists() and _ref_src["burke_powerlaw"].exists():
+            # e.g. Copenhagen: a committed verbatim reference takes precedence over the
+            # build (its published curves are preserved), so skip the T_ref computation.
+            print("[burke] cold_city_if_variant set but a committed reference exists -> loading it (build skipped)")
+        else:
+            cold_city_tref, _tref_src = _compute_local_burke_tref(root, slug, int_dir, _cc_cfg)
+            print(f"[burke] cold-city Track-B variant enabled: local T_ref={cold_city_tref:.2f} degC ({_tref_src})")
+
     burke_jsons, burke_source_paths, burke_annual_sources = _build_burke_sensitivities(
         root=root,
         slug=slug,
@@ -748,6 +898,7 @@ def run_nb04_masselot_main(
         scale_factors=scale_factors,
         variant_name=output_variant,
         main_family=main_family,
+        cold_city_tref=cold_city_tref,
     )
     burke_paths = {
         "burke_polynomial": int_dir / f"if_curves_by_year_{slug}_burke_polynomial.json",

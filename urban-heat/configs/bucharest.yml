@@ -272,7 +272,7 @@ vulnerability:
 #      archetype=weak_threshold, interpretation=counterfactual; efficacy_counterfactual on the
 #      Urban 2025 regional gradient (N-EU 33%, overall 25%, S-EU 12%). See configs/EWS_REFERENCE.md.
 ews:
-  archetype: weak_threshold
+  archetype: meteo_hhwws
   operational_trigger_mode: epi_deaths_file
   warning_season:
     mode: exact_dates
@@ -299,7 +299,7 @@ ews:
   threshold_recalib_interval_options: [3, 5, 7]
   warning_months: [5, 6, 7, 8, 9]
 
-  interpretation: counterfactual # no comprehensive HHAP -> model benefit of establishing one
+  interpretation: intermediate   # tier-2 meteo-based HHWS -> midpoint(marginal, counterfactual) efficacy
 
   efficacy_counterfactual:
     low: 0.08

@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URBADAPT-HEAT v1.0 — Urban Heat Adaptation Framework</title>
+    <style>
+        :root {
+            /* Single knob for the whole figure: every size below derives from it. */
+            --scale: 1.34;
+            --title-size: calc(22px * var(--scale));
+            --subtitle-size: calc(12px * var(--scale));
+            --section-title-size: calc(12px * var(--scale));
+            --nb-title-size: calc(13px * var(--scale));
+            --nb-desc-size: calc(11px * var(--scale));
+            --nb-output-size: calc(10px * var(--scale));
+            --tag-size: calc(9px * var(--scale));
+            --mechanism-size: calc(10px * var(--scale));
+            --side-effect-size: calc(10px * var(--scale));
+            --legend-size: calc(10px * var(--scale));
+            --flow-label-size: calc(10px * var(--scale));
+            --badge-size: calc(10px * var(--scale));
+            --nb-num-size: calc(11px * var(--scale));
+            --nb-file-size: calc(9px * var(--scale));
+            --mech-arrow-size: calc(14px * var(--scale));
+            --padding-base: calc(14px * var(--scale));
+            --gap-base: calc(10px * var(--scale));
+            --nb-num-width: calc(20px * var(--scale));
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* Single-page export. The page size matches the rendered content
+           (1430 x 2422 CSS px at --scale: 1.34); re-measure if either changes. */
+        @page { size: 14.9in 25.23in; margin: 0; }
+
+        @media print {
+            html, body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        body {
+            font-family: 'Calibri', 'Segoe UI', sans-serif;
+            background: white;
+            padding: calc(25px * var(--scale));
+        }
+
+        /* Width scales with --scale so larger type does not force extra wrapping. */
+        .container { max-width: calc(1017px * var(--scale)); margin: 0 auto; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: calc(14px * var(--scale));
+            margin-bottom: calc(15px * var(--scale));
+        }
+
+        .header-logo {
+            height: calc(48px * var(--scale));
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: var(--title-size);
+            font-weight: 500;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: var(--subtitle-size);
+        }
+
+        /* Foundation Strip */
+        .foundation-strip {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            gap: var(--gap-base);
+            margin-bottom: calc(12px * var(--scale));
+            padding: calc(10px * var(--scale)) calc(14px * var(--scale));
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            border-radius: calc(8px * var(--scale));
+            color: white;
+        }
+
+        .foundation-item {
+            display: flex;
+            align-items: center;
+            gap: calc(10px * var(--scale));
+        }
+
+        .foundation-icon { font-size: calc(20px * var(--scale)); }
+
+        .foundation-content { flex: 1; }
+
+        .foundation-title {
+            font-weight: 600;
+            font-size: calc(11px * var(--scale));
+            margin-bottom: calc(2px * var(--scale));
+        }
+
+        .foundation-title code,
+        .foundation-desc code {
+            font-family: 'Consolas', monospace;
+            background: rgba(255,255,255,0.18);
+            padding: calc(1px * var(--scale)) calc(4px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+        }
+
+        .foundation-desc {
+            font-size: calc(9px * var(--scale));
+            opacity: 0.88;
+            line-height: 1.55;
+        }
+
+        .foundation-arrow { color: #f1c40f; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--gap-base);
+        }
+
+        .section {
+            border-radius: calc(8px * var(--scale));
+            padding: var(--padding-base) calc(16px * var(--scale));
+            position: relative;
+        }
+
+        .section-title {
+            font-size: var(--section-title-size);
+            font-weight: 600;
+            margin-bottom: var(--gap-base);
+            padding-bottom: calc(6px * var(--scale));
+            border-bottom: 1px solid rgba(0,0,0,0.15);
+        }
+
+        .data { background: #d6eaf8; }
+        .data .section-title { color: #1a5276; }
+        .risk { background: #fadbd8; }
+        .risk .section-title { color: #922b21; }
+        .adapt { background: #d5f5e3; }
+        .adapt .section-title { color: #145a32; }
+        .cba { background: #e8daef; }
+        .cba .section-title { color: #4a235a; }
+
+        .nb {
+            background: white;
+            border-radius: calc(5px * var(--scale));
+            padding: var(--gap-base) calc(12px * var(--scale));
+            margin-bottom: calc(8px * var(--scale));
+            font-size: var(--nb-desc-size);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .nb:last-child { margin-bottom: 0; }
+
+        .nb-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: calc(3px * var(--scale));
+            flex-wrap: wrap;
+            gap: calc(4px * var(--scale));
+        }
+
+        .nb-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: var(--nb-num-width);
+            height: var(--nb-num-width);
+            padding: 0 calc(7px * var(--scale));
+            background: #2c3e50;
+            color: white;
+            border-radius: calc(10px * var(--scale));
+            font-size: var(--nb-num-size);
+            font-weight: 600;
+            margin-right: calc(8px * var(--scale));
+            flex-shrink: 0;
+        }
+
+        .nb-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: var(--nb-title-size);
+        }
+
+        .nb-file {
+            font-family: 'Consolas', monospace;
+            font-size: var(--nb-file-size);
+            color: #95a5a6;
+            margin-left: calc(28px * var(--scale));
+            margin-bottom: calc(5px * var(--scale));
+            word-break: break-all;
+        }
+
+        .nb-desc {
+            color: #555;
+            font-size: var(--nb-desc-size);
+            line-height: 1.5;
+            margin-left: calc(28px * var(--scale));
+        }
+
+        .nb-desc code {
+            font-family: 'Consolas', monospace;
+            font-size: 0.92em;
+            background: #f4f6f7;
+            padding: 0 calc(3px * var(--scale));
+            border-radius: calc(2px * var(--scale));
+        }
+
+        .nb-output {
+            margin-top: calc(8px * var(--scale));
+            margin-left: calc(28px * var(--scale));
+            font-size: var(--nb-output-size);
+            color: #16a085;
+            font-weight: 500;
+            padding-top: calc(6px * var(--scale));
+            border-top: 1px dashed #bdc3c7;
+        }
+
+        .tag {
+            font-size: var(--tag-size);
+            padding: calc(2px * var(--scale)) calc(6px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .tag-pub { background: #aed6f1; color: #1a5276; }
+        .tag-priv { background: #f5b7b1; color: #922b21; }
+        .tag-el { background: #e5e8e8; color: #566573; }
+
+        .emu {
+            background: #d1f2eb;
+            color: #0e6655;
+            padding: calc(1px * var(--scale)) calc(5px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .mechanism-box {
+            display: flex;
+            align-items: center;
+            gap: calc(6px * var(--scale));
+            margin-top: calc(8px * var(--scale));
+            margin-left: calc(28px * var(--scale));
+            padding: calc(6px * var(--scale)) var(--gap-base);
+            border-radius: calc(4px * var(--scale));
+            font-size: var(--mechanism-size);
+            font-weight: 500;
+        }
+
+        .mech-hazard {
+            background: linear-gradient(90deg, #fdebd0 0%, #f9e79f 100%);
+            color: #9a7d0a;
+            border: 1px solid #f7dc6f;
+        }
+
+        .mech-vuln {
+            background: linear-gradient(90deg, #eaeded 0%, #d5dbdb 100%);
+            color: #1c2833;
+            border: 1px solid #aeb6bf;
+        }
+
+        .mech-arrow { font-size: var(--mech-arrow-size); }
+
+        /* Single neutral callout for externalities, co-benefits and overlaps —
+           the ⚡ / 🌱 / ⇄ prefixes carry the distinction, not colour. */
+        .callout {
+            background: #f8f9f9;
+            border: 1px dashed #aeb6bf;
+            border-left: 3px solid #85929e;
+            padding: calc(8px * var(--scale)) var(--gap-base);
+            margin: calc(8px * var(--scale)) 0 0 calc(28px * var(--scale));
+            font-size: var(--side-effect-size);
+            color: #566573;
+            border-radius: 0 calc(5px * var(--scale)) calc(5px * var(--scale)) 0;
+        }
+
+        .callout strong { color: #2c3e50; }
+
+        .span-full { grid-column: 1 / 3; }
+
+        .adapt-cols {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--gap-base);
+        }
+
+        .adapt-cols .nb { margin-bottom: 0; }
+
+        /* Cross-notebook coupling strip inside the adaptation section */
+        .couplings {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--gap-base);
+            margin-top: var(--gap-base);
+            padding-top: var(--gap-base);
+            border-top: 1px dashed #7dcea0;
+        }
+
+        .coupling {
+            font-size: var(--side-effect-size);
+            color: #145a32;
+            background: rgba(255,255,255,0.55);
+            border-radius: calc(4px * var(--scale));
+            padding: calc(6px * var(--scale)) var(--gap-base);
+            line-height: 1.45;
+        }
+
+        .coupling strong { color: #0e6655; }
+
+        .coupling .to { color: #7f8c8d; font-style: italic; }
+
+        .flow-arrow {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: calc(5px * var(--scale)) 0;
+            grid-column: 1 / 3;
+        }
+
+        .arrow-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .arrow-line {
+            width: 2px;
+            height: calc(12px * var(--scale));
+            background: #95a5a6;
+        }
+
+        .arrow-head {
+            width: 0;
+            height: 0;
+            border-left: calc(8px * var(--scale)) solid transparent;
+            border-right: calc(8px * var(--scale)) solid transparent;
+            border-top: calc(10px * var(--scale)) solid #95a5a6;
+        }
+
+        .flow-label {
+            font-size: var(--flow-label-size);
+            color: #7f8c8d;
+            margin-top: calc(3px * var(--scale));
+            font-style: italic;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: calc(18px * var(--scale));
+            margin-top: calc(18px * var(--scale));
+            padding-top: calc(14px * var(--scale));
+            border-top: 1px solid #ddd;
+            flex-wrap: wrap;
+        }
+
+        .leg-item {
+            display: flex;
+            align-items: center;
+            font-size: var(--legend-size);
+            color: #5d6d7e;
+        }
+
+        .leg-box {
+            width: calc(16px * var(--scale));
+            height: calc(16px * var(--scale));
+            border-radius: calc(3px * var(--scale));
+            margin-right: calc(6px * var(--scale));
+            flex-shrink: 0;
+        }
+
+        .risk-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: calc(8px * var(--scale));
+        }
+
+        .risk-cols .nb { margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img class="header-logo" src="logo_urbadapt_icon.png" alt="URBADAPT logo">
+            <div class="header-text">
+                <h1>URBADAPT-HEAT v1.0 — Urban Heat Adaptation Framework</h1>
+                <p class="subtitle">Probabilistic, city-level cost&ndash;benefit analysis of heat-mortality adaptation</p>
+            </div>
+        </div>
+
+        <!-- Foundation Strip -->
+        <div class="foundation-strip">
+            <div class="foundation-item">
+                <span class="foundation-icon">⚙️</span>
+                <div class="foundation-content">
+                    <div class="foundation-title">City-agnostic <code>template/</code> driven by <code>configs/&lt;city&gt;.yml</code></div>
+                </div>
+            </div>
+            <div class="foundation-item">
+                <span class="foundation-icon">🗂️</span>
+                <div class="foundation-content">
+                    <div class="foundation-title"><code>data_manifests/</code></div>
+                    <div class="foundation-desc">
+                        Per-city manifests pointing to every source dataset, synced from Drive at setup
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- ROW 1: Data & grid harmonisation -->
+            <div class="section data">
+                <div class="section-title">Inputs &amp; grid harmonisation</div>
+                <div class="nb">
+                    <div class="nb-header">
+                        <span class="nb-num">NB1</span>
+                        <span class="nb-title">Setup &amp; Data Sync</span>
+                    </div>
+                    <div class="nb-file">01_setup_0126.ipynb</div>
+                    <div class="nb-desc">
+                        Load &amp; validate city YAML · resolve paths<br>
+                        Sync inputs from Drive manifest<br>
+                        Input audit: FUA, LCZ, GVI, historical UrbClim<br>
+                        T2M archive, GVI&ndash;LST cooling coefficients
+                    </div>
+                    <div class="nb-output">→ Validated config, resolved paths, masked LCZ raster</div>
+                </div>
+                <div class="nb">
+                    <div class="nb-header">
+                        <span class="nb-num">NB2</span>
+                        <span class="nb-title">Harmonised Grids</span>
+                        <span class="tag tag-el">Hazard · Exposure · Vulnerability</span>
+                    </div>
+                    <div class="nb-file">02_grids_0126.ipynb</div>
+                    <div class="nb-desc">
+                        Reference grid + FUA mask (100 m, EPSG:3035)<br>
+                        <strong>Hazard fields:</strong> synthetic baseline year (month/day
+                        climatology of the historical archive) + monthly CMIP6 warming deltas →
+                        daily T2M for each future target year<br>
+                        <strong>Exposure:</strong> WorldPop age-structured population (&lt;15 · 15&ndash;64 · 65+),
+                        conservative reprojection; WCDE age-specific scaling for future years<br>
+                        <strong>Vulnerability:</strong> baseline SVI — thermal (GHS-AGE vintage) +
+                        foreign-born share + non-employment, equally weighted
+                    </div>
+                    <div class="nb-output">→ Daily T2M files · age grids · baseline SVI</div>
+                </div>
+            </div>
+
+            <!-- ROW 1: Climate Risk Model -->
+            <div class="section risk">
+                <div class="section-title">Climate risk and impact modelling</div>
+                <div class="risk-cols">
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB3</span>
+                            <span class="nb-title">Hazard, Exposure &amp;<br>Dynamic Vulnerability</span>
+                        </div>
+                        <div class="nb-file">03_hazard_exposure_0126.ipynb</div>
+                        <div class="nb-desc">
+                            CLIMADA <code>Hazard</code> (<code>T2M</code>, °C, one event per
+                            calendar day × target year; frequencies corrected to sum to one per year)<br>
+                            Age-differentiated <code>Exposures</code> (one <code>impf_T2M</code> per age group)<br>
+                            <strong>Projected SVI</strong> per year &amp; scenario (persistence <em>k</em>,
+                            spatial retention φ, thermal-retrofit pathway) →
+                            <code>exposure_with_vulnerability</code> read by NB04&ndash;NB08
+                        </div>
+                        <div class="nb-output">→ Hazard + exposure + time-consistent vulnerability</div>
+                    </div>
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB4</span>
+                            <span class="nb-title">Impact<br>Functions</span>
+                        </div>
+                        <div class="nb-file">04_impact_functions_sensitivity.ipynb</div>
+                        <div class="nb-desc">
+                            <strong>Main:</strong> Masselot city- <em>and</em> age-specific ERFs —
+                            genuinely local, not a European average.
+                            <code>IF_MAIN_FAMILY</code> selects the high-<em>T</em> tail:
+                            constant vs <strong>log-linear</strong> (default)<br>
+                            <strong>Sensitivity:</strong> Burke polynomial &amp; convex
+                            power-law (city-agnostic); cold-city variant for Track B<br>
+                            Annual scaling by projected baseline mortality (WCDE life tables)
+                        </div>
+                        <div class="nb-output">→ Per-year <code>ImpactFuncSet</code> (main + sensitivity families)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow arrow -->
+            <div class="flow-arrow">
+                <div class="arrow-container">
+                    <div class="arrow-line"></div>
+                    <div class="arrow-head"></div>
+                    <div class="flow-label">Age-resolved heat-attributable mortality — current-AC baseline (no additional policy)</div>
+                </div>
+            </div>
+
+            <!-- ROW 2: Adaptation Strategies -->
+            <div class="section adapt span-full">
+                <div class="section-title">Adaptation options: effectiveness, costs, synergies, and trade-offs</div>
+                <div class="adapt-cols">
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB5</span>
+                            <span class="nb-title">Air Conditioning</span>
+                            <span class="tag tag-priv">Private</span>
+                        </div>
+                        <div class="nb-file">05_AC_0126.ipynb</div>
+                        <div class="nb-desc">
+                            NUTS3 penetration → zone-level coverage via a
+                            <strong>logistic income-rank curve</strong>, calibrated to reproduce the
+                            NUTS3 mean (observed sub-municipal income or
+                            <span class="emu">🤖 income emulator</span>)<br>
+                            Two policies under an <strong>equal-users constraint</strong>:
+                            income-targeted catch-up vs uniform uplift<br>
+                            Age-specific efficacy ε<sub>a</sub> attenuates the mortality dose<br>
+                            Costs: CAPEX + maintenance + electricity (kWh/user
+                            dispersed by local summer heat exposure)
+                        </div>
+                        <div class="mechanism-box mech-vuln">
+                            <span class="mech-arrow">→</span>
+                            <strong>Impact function ↓</strong>
+                            <span style="margin-left:auto;">dose scaled by (1 − ε<sub>a</sub>·c)</span>
+                        </div>
+                        <div class="callout">
+                            <strong>⚡ Externality:</strong> waste heat → hazard ↑<br>
+                            Empirical penetration→night-ΔT lookup + temperature-dependent
+                            COP degradation, CDD-share activation
+                        </div>
+                        <div class="nb-output">→ GROSS avoided deaths · costs · marginal deaths per °C</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB6</span>
+                            <span class="nb-title">Early Warning</span>
+                            <span class="tag tag-pub">Public</span>
+                        </div>
+                        <div class="nb-file">06_EWS_0126.ipynb</div>
+                        <div class="nb-desc">
+                            Warning days triggered by a <strong>baseline-deaths threshold</strong>
+                            (<code>epi_deaths_file</code>, periodically recalibrated;
+                            <code>event_mask</code> fallback where heat deaths are too few — Track B)<br>
+                            Efficacy interpretation follows a city-specific
+                            <strong>three-tier maturity taxonomy</strong>:<br>
+                            &nbsp;&nbsp;<strong>marginal</strong> — mature epidemiological HHWS with
+                            surveillance (e.g. Rome, Lisbon); added protection only<br>
+                            &nbsp;&nbsp;<strong>intermediate</strong> — meteorologically triggered HHWS
+                            (e.g. Berlin, Vienna); midpoint of marginal &amp; counterfactual efficacy<br>
+                            &nbsp;&nbsp;<strong>counterfactual</strong> — no comprehensive HHAP
+                            (e.g. Athens, Copenhagen); deployment from a low baseline<br>
+                            Setup CAPEX graded by tier — zero for mature systems<br>
+                            Institutional ramp-up · gross → net via mortality displacement<br>
+                            Costs: per-capita per-warning-day (default) or per-day city-level model
+                        </div>
+                        <div class="mechanism-box mech-vuln">
+                            <span class="mech-arrow">→</span>
+                            <strong>Conditional mortality ↓</strong>
+                            <span style="margin-left:auto;">on warning days only</span>
+                        </div>
+                        <div class="callout">
+                            <strong>⇄ Overlap:</strong> efficacy scaled down by population-weighted
+                            current-AC coverage — AC shrinks the addressable residual mortality pool
+                        </div>
+                        <div class="nb-output">→ Avoided deaths · costs over the CBA horizon</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB7</span>
+                            <span class="nb-title">Urban Street Trees</span>
+                            <span class="tag tag-pub">Public</span>
+                        </div>
+                        <div class="nb-file">07_vegetation_0126_emulator2.ipynb</div>
+                        <div class="nb-desc">
+                            Baseline greenness from the <strong>Green View Index</strong>,
+                            by LCZ class<br>
+                            Default policy: <strong>regional Q3 catch-up</strong> — every region below the
+                            city-wide upper quartile receives its ΔGVI shortfall, built LCZ classes only<br>
+                            Two-step cooling: ΔGVI→ΔLST from city/month/LCZ regressions (cooling-only,
+                            warming clipped) then ΔLST→ΔT2M via a
+                            <span class="emu">🤖 quadratic emulator</span><br>
+                            Maturity ramp · asset lifetime · equity-weighted allocation variant<br>
+                            Costs: city-specific PLI-adjusted CAPEX + O&amp;M per tree
+                        </div>
+                        <div class="mechanism-box mech-hazard">
+                            <span class="mech-arrow">→</span>
+                            <strong>Hazard ↓</strong>
+                            <span style="margin-left:auto;">ΔGVI → ΔLST → 🤖 → ΔT2M</span>
+                        </div>
+                        <div class="callout">
+                            <strong>🌱 Co-benefit:</strong> cooling → AC electricity ↓
+                            at a configured reduction rate per GVI point
+                        </div>
+                        <div class="nb-output">→ Avoided deaths · costs · equity metrics</div>
+                    </div>
+                </div>
+
+                <!-- Explicit cross-notebook coupling -->
+                <div class="couplings">
+                    <div class="coupling">
+                        <strong>NB5 → NB6</strong> <span class="to">calibration</span><br>
+                        Current-AC baseline daily deaths (NB4 IFs × AC coverage) calibrate the
+                        deaths-per-day threshold that defines warning days
+                    </div>
+                    <div class="coupling">
+                        <strong>NB5 → NB8</strong> <span class="to">externality</span><br>
+                        Marginal deaths per °C priced as the incremental waste-heat penalty (scaled by λ<sub>y</sub>)
+                    </div>
+                    <div class="coupling">
+                        <strong>NB7 → NB8</strong> <span class="to">co-benefit</span><br>
+                        Trees lower <code>kwh_per_user</code>, cutting AC operating cost in the combined scenario
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flow arrow -->
+            <div class="flow-arrow">
+                <div class="arrow-container">
+                    <div class="arrow-line"></div>
+                    <div class="arrow-head"></div>
+                    <div class="flow-label">Policy-specific incremental costs, avoided deaths &amp; interaction parameters</div>
+                </div>
+            </div>
+
+            <!-- ROW 3: Economics, Uncertainty & Synthesis -->
+            <div class="section cba span-full">
+                <div class="section-title">Economics, uncertainty &amp; synthesis</div>
+                <div class="adapt-cols">
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB8</span>
+                            <span class="nb-title">Cost&ndash;Benefit Analysis</span>
+                        </div>
+                        <div class="nb-file">08_CBA_0126.ipynb</div>
+                        <div class="nb-desc">
+                            <strong>Integrates NB5 + NB6 + NB7</strong> on a common discounted horizon;
+                            hazard track read from <code>HAZARD_TRACK</code><br>
+                            Anchor-year mortality interpolated to annual streams; trees scaled by maturity;
+                            gross → net displacement; optional life-years saved<br><br>
+                            <strong>Explicit bookkeeping</strong> instead of silent netting:<br>
+                            &nbsp;&nbsp;<code>AC (NET)</code> — standalone, minus standalone waste-heat penalty<br>
+                            &nbsp;&nbsp;<code>AC (NET + trees)</code> — combined: lower kWh/user, λ<sub>y</sub>-corrected penalty<br>
+                            &nbsp;&nbsp;<code>Trees (base O&amp;M)</code> — direct health benefits only<br><br>
+                            <strong>Pareto frontier</strong> over policy scales + ICERs along it;
+                            benefits by SVI quintile; public vs private cost bearer
+                        </div>
+                        <div class="nb-output">→ PV cost, NPV, BCR, cost/death, cost/life-year, ICER, efficient portfolios</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB9</span>
+                            <span class="nb-title">Uncertainty Quantification</span>
+                        </div>
+                        <div class="nb-file">09_uncertainty_0126_improved_fast.ipynb<br>→ <code>cityheat.nb09_improved_fast</code></div>
+                        <div class="nb-desc">
+                            <strong>Monte Carlo</strong> propagation through the full chain over:<br>
+                            &nbsp;&nbsp;climate scenario &amp; GCM band (low / central / high)<br>
+                            &nbsp;&nbsp;IF family, tail extrapolation &amp; <em>T</em><sub>ref</sub><br>
+                            &nbsp;&nbsp;AC / EWS / tree efficacy &amp; maturity timing<br>
+                            &nbsp;&nbsp;SVI projection (<em>k</em>, φ, retrofit rate)<br>
+                            &nbsp;&nbsp;costs, cost model choice &amp; discount rate<br>
+                            Spatially explicit <strong>daily raster</strong> modifiers for tree cooling and
+                            AC waste heat; event-level warning-day logic<br>
+                            <strong>PAWN</strong> global sensitivity indices per output
+                        </div>
+                        <div class="nb-output">→ Probabilistic deaths avoided, BCR distributions &amp; factor ranking</div>
+                    </div>
+
+                    <div class="nb">
+                        <div class="nb-header">
+                            <span class="nb-num">NB10</span>
+                            <span class="nb-title">Summary &amp; Reporting</span>
+                        </div>
+                        <div class="nb-file">10_summary_0126.ipynb<br>→ <code>cityheat.nb10_summary</code></div>
+                        <div class="nb-desc">
+                            Aggregated results tables &amp; figures across pathways, scenarios and hazard tracks<br>
+                            Ranking of adaptation options by cost-effectiveness and equity<br>
+                            Output manifests record every configuration choice, so a run is
+                            reproducible from config alone<br>
+                            Variant-namespaced, self-contained per-city report
+                        </div>
+                        <div class="nb-output">→ Decision-ready comparison, reproducible per city &amp; variant</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="leg-item"><div class="leg-box" style="background: #d6eaf8;"></div> Inputs &amp; grids</div>
+            <div class="leg-item"><div class="leg-box" style="background: #fadbd8;"></div> Risk model</div>
+            <div class="leg-item"><div class="leg-box" style="background: #d5f5e3;"></div> Adaptation</div>
+            <div class="leg-item"><div class="leg-box" style="background: #e8daef;"></div> Economics &amp; uncertainty</div>
+            <div class="leg-item"><div class="leg-box" style="background: #d1f2eb;"></div> 🤖 Statistical emulator</div>
+        </div>
+    </div>
+</body>
+</html>

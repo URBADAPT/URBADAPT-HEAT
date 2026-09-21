@@ -190,6 +190,21 @@ income:
     year: null                    # (city,subcity_code) unique -> one row/zone, no year filter
   aggregation: mean   # one row per (city,subcity_code); no pop-count col -> mean
 
+# Burke-sensitivity cold-city (Track-B) IF -- AUTO-CLASSIFIED (deaths-based, classify_burke_track.py):
+# standard Burke deaths 0.15/yr = 1.0% of Masselot 15.4/yr (< 5% threshold) -> cold city.
+# Build the Burke IF at the local warm-season onset T_ref (p90) + cold-city anchors (heuristic
+# profile -> GMD Discussion caveat). Burke SENSITIVITY ONLY: enabled / run_extreme_track are left
+# unset, so the Masselot-main hazard track is unchanged.
+extreme_hazard:
+  event_track:
+    cold_city_if_variant: true
+    t_ref_mode_default: local_p90
+    t_ref_percentile_default: 90
+    t_ref_baseline_mode_default: climatology_mean
+    season:
+      start_md: "05-15"
+      end_md: "09-30"
+
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
   source: "shapefile"   # AC = observed-income boundary (postal 5-digit ~83); NB05 clips to FUA [emulator boundaries]
@@ -266,7 +281,7 @@ vulnerability:
 #      archetype=weak_threshold, interpretation=counterfactual; efficacy_counterfactual on the
 #      Urban 2025 regional gradient (N-EU 33%, overall 25%, S-EU 12%). See configs/EWS_REFERENCE.md.
 ews:
-  archetype: weak_threshold
+  archetype: meteo_hhwws
   operational_trigger_mode: epi_deaths_file
   warning_season:
     mode: exact_dates
@@ -293,7 +308,7 @@ ews:
   threshold_recalib_interval_options: [3, 5, 7]
   warning_months: [5, 6, 7, 8, 9]
 
-  interpretation: counterfactual # no comprehensive HHAP -> model benefit of establishing one
+  interpretation: intermediate   # tier-2 meteo-based HHWS -> midpoint(marginal, counterfactual) efficacy
 
   efficacy_counterfactual:
     low: 0.2

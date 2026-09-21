@@ -228,12 +228,15 @@ urban-heat/notebooks/city_agnostic/March2026/Lisbon/09_uncertainty_0126_Lisbon.o
 urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126_Rome_improved.out.ipynb
 urban-heat/notebooks/city_agnostic/March2026/Rome/09_uncertainty_0126.out.ipynb
 
-# Manuscripts folder
+# Local MCP server config (machine-specific)
+.mcp.json
+
+# Manuscripts folder -- never tracked
 /manuscripts/
+
+# Generated reporting outputs (build products of the visual-items pipelines)
 /natcities_visual_items/figures
 /natcities_visual_items/tables
+natcities_visual_items/report.html
 natcities_visual_items/R/.Rhistory
 gmd_visual_items/gmd_uncertainty/fig_uncertainty.png
-/natcities_visual_items/figures
-natcities_visual_items/report.html
-/natcities_visual_items/tables

@@ -196,13 +196,28 @@ income:
     year: null
   aggregation: mean   # emulator index is per-zone mean (NOT weighted)
 
+# Burke-sensitivity cold-city (Track-B) IF -- AUTO-CLASSIFIED (deaths-based, classify_burke_track.py):
+# standard Burke deaths 0.78/yr = 1.7% of Masselot 45.3/yr (< 5% threshold) -> cold city.
+# Build the Burke IF at the local warm-season onset T_ref (p90) + cold-city anchors (heuristic
+# profile -> GMD Discussion caveat). Burke SENSITIVITY ONLY: enabled / run_extreme_track are left
+# unset, so the Masselot-main hazard track is unchanged.
+extreme_hazard:
+  event_track:
+    cold_city_if_variant: true
+    t_ref_mode_default: local_p90
+    t_ref_percentile_default: 90
+    t_ref_baseline_mode_default: climatology_mean
+    season:
+      start_md: "05-15"
+      end_md: "09-30"
+
 # TODO: spatial zoning source (shapefile vs OSM admin level).
 zones:
-  source: "osm"             # TODO: "shapefile" | "osm"
-  shapefile: null
-  shapefile_zone_col: null
-  osm_admin_level: 10   # AC downscaling: OSM L10 Stadtteile ~86 [OSM_REGIONS_REFERENCE]
-  match_by: "name"   # OSM name-keyed; emulator income tabular (not spatial_join)
+  source: "shapefile"       # switched from OSM: ship the emulator's own 86-Stadtteil boundary so zones are deterministic (live OSM L10 returned a non-matching set on Juno -> emulator matched 0/87)
+  shapefile: "boundaries/cologne_stadtteile.geojson"   # built from income_emulator/data/DE_cologne.gpkg (the boundary the emulator was deployed on); names == cologne_p_inc.csv subcity_code (86/86)
+  shapefile_zone_col: "name"
+  osm_admin_level: null   # (was 10; unused now that zones come from the shipped shapefile)
+  match_by: "name"   # name-keyed; matches emulator income subcity_code (Stadtteil names)
   cache_file: null
 
 # Reporting/vegetation region level — Cologne: 9 Stadtbezirke at OSM admin_level=9 (verified 2026-06-29).
@@ -273,7 +288,7 @@ vulnerability:
 #      measured mortality benefit is marginal (Feldbusch 2025: pooled RR~1.00, urban-adjusted
 #      0.85) -> model a MODEST marginal benefit. See configs/EWS_REFERENCE.md.
 ews:
-  archetype: mature_hhwws
+  archetype: meteo_hhwws
   operational_trigger_mode: epi_deaths_file
   warning_season:
     mode: exact_dates
@@ -300,7 +315,7 @@ ews:
   threshold_recalib_interval_options: [3, 5, 7]
   warning_months: [5, 6, 7, 8, 9]
 
-  interpretation: marginal       # mature DWD HHWS -> model modest marginal benefit (Feldbusch 2025 pooled RR~1.00)
+  interpretation: intermediate   # tier-2 meteo-based HHWS -> midpoint(marginal, counterfactual) efficacy
 
   efficacy_counterfactual:
     low: 0.2

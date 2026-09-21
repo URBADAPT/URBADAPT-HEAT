@@ -951,17 +951,17 @@ def plot_section_7_uncertainty(sp: SummaryPaths, cfg: dict[str, Any]) -> list[Pa
     if freq_path is not None:
         freq = pd.read_csv(freq_path)
     else:
-        freq = impact[[col for col in ("rp2", "rp5", "rp10", "rp20") if col in impact.columns]].copy()
-    rp_cols = [col for col in ("rp2", "rp5", "rp10", "rp20") if col in freq.columns]
+        freq = impact[[col for col in ("daily_p50", "daily_p80", "daily_p90", "daily_p95") if col in impact.columns]].copy()
+    rp_cols = [col for col in ("daily_p50", "daily_p80", "daily_p90", "daily_p95") if col in freq.columns]
     if rp_cols:
-        rps = [int(col.replace("rp", "")) for col in rp_cols]
+        rps = [int(col.replace("daily_p", "")) for col in rp_cols]
         medians = [pd.to_numeric(freq[col], errors="coerce").median() for col in rp_cols]
         p5s = [pd.to_numeric(freq[col], errors="coerce").quantile(0.05) for col in rp_cols]
         p95s = [pd.to_numeric(freq[col], errors="coerce").quantile(0.95) for col in rp_cols]
         axes[1].fill_between(rps, p5s, p95s, color="#c7d2fe", alpha=0.55)
         axes[1].plot(rps, medians, color="#4338ca", marker="o", linewidth=2)
-        axes[1].set_title("Frequency curve uncertainty")
-        axes[1].set_xlabel("Return period (years)")
+        axes[1].set_title("Daily heat-death quantiles")
+        axes[1].set_xlabel("Daily-death percentile")
         axes[1].set_ylabel("Deaths")
         axes[1].grid(alpha=0.2)
     else:

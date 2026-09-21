@@ -8,6 +8,7 @@
 
 slug: sevilla # city name
 city_name: Sevilla
+gvi_city_aliases: ["Seville"]   # gvi_356_cities.csv uses this name (NB01 filter)
 wp_iso3: ESP
 wp_country: Spain
 pop_k: 680                       # approx population (thousands), from eu_urbclim_cities_urbadapt

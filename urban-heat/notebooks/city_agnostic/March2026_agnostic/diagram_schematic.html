@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URBADAPT-HEAT v1.0 — Workflow Schematic</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* Single-page landscape export sized to the SVG aspect. */
+        @page { size: 15.2in 7.2in; margin: 0; }
+
+        @media print {
+            html, body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        body {
+            font-family: 'Calibri', 'Segoe UI', sans-serif;
+            background: white;
+            padding: 26px 30px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .header-logo { height: 54px; width: auto; flex-shrink: 0; }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 26px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        svg { display: block; width: 100%; height: auto; }
+
+        /* ── SVG text roles ───────────────────────────────── */
+        .strip-text  { font-size: 13px; fill: #ffffff; }
+        .strip-code  { font-family: 'Consolas', monospace; font-size: 12.5px; }
+        .stage       { font-size: 12px; font-weight: 700; letter-spacing: .07em; }
+        .nb-num      { font-size: 11px; font-weight: 700; fill: #ffffff; }
+        .nb-title    { font-size: 15.5px; font-weight: 600; fill: #1b2631; }
+        .nb-sub      { font-size: 11px; fill: #7f8c8d; }
+        .nb-mech     { font-size: 11px; font-weight: 600; fill: #566573; }
+        .badge-text  { font-size: 8.5px; font-weight: 700; letter-spacing: .05em; }
+        .edge-label  { font-size: 10px; fill: #7f8c8d; }
+        .edge-label-i{ font-size: 10px; fill: #7f8c8d; font-style: italic; }
+        .bus-label   { font-size: 10px; fill: #7f8c8d; letter-spacing: .02em; }
+        .leg         { font-size: 11px; fill: #5d6d7e; }
+
+        .flow  { stroke: #5d6d7e; stroke-width: 1.6; fill: none; }
+        .inter { stroke: #7f8c8d; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+        .drop  { stroke: #95a5a6; stroke-width: 1.2; fill: none; stroke-dasharray: 3 3; }
+        .node  { stroke-width: 1.2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img class="header-logo" src="logo_urbadapt_icon.png" alt="URBADAPT logo">
+            <div>
+                <h1>URBADAPT-HEAT v1.0 — Workflow Schematic</h1>
+                <p class="subtitle">Ten modular notebooks: from city configuration to decision-ready adaptation appraisal</p>
+            </div>
+        </div>
+
+        <svg viewBox="0 0 1300 530" xmlns="http://www.w3.org/2000/svg" role="img"
+             aria-label="URBADAPT-HEAT workflow schematic connecting ten notebook modules">
+            <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                        markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                    <path d="M0,0 L10,5 L0,10 z" fill="#5d6d7e"/>
+                </marker>
+                <marker id="arrow-i" viewBox="0 0 10 10" refX="9" refY="5"
+                        markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                    <path d="M0,0 L10,5 L0,10 z" fill="#7f8c8d"/>
+                </marker>
+                <marker id="arrow-s" viewBox="0 0 10 10" refX="9" refY="5"
+                        markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                    <path d="M0,0 L10,5 L0,10 z" fill="#95a5a6"/>
+                </marker>
+            </defs>
+
+            <!-- ── Configuration foundation ───────────────────────────── -->
+            <rect x="40" y="12" width="1220" height="42" rx="8" fill="#2c3e50"/>
+            <text x="650" y="38" class="strip-text" text-anchor="middle">
+                <tspan class="strip-code">configs/&lt;city&gt;.yml</tspan>
+                <tspan dx="6">·</tspan>
+                <tspan class="strip-code" dx="6">data_manifests/</tspan>
+                <tspan dx="10">— one city-agnostic notebook template drives every module</tspan>
+            </text>
+
+            <path class="drop" d="M135,54 V70" marker-end="url(#arrow-s)"/>
+            <path class="drop" d="M430,54 V70" marker-end="url(#arrow-s)"/>
+            <path class="drop" d="M770,54 V70" marker-end="url(#arrow-s)"/>
+            <path class="drop" d="M1135,54 V70" marker-end="url(#arrow-s)"/>
+
+            <!-- ── Stage captions ─────────────────────────────────────── -->
+            <text x="135"  y="88" class="stage" text-anchor="middle" fill="#1a5276">INPUTS &amp; GRIDS</text>
+            <text x="430"  y="88" class="stage" text-anchor="middle" fill="#922b21">CLIMATE RISK &amp; IMPACT</text>
+            <text x="770"  y="88" class="stage" text-anchor="middle" fill="#145a32">ADAPTATION OPTIONS</text>
+            <text x="1135" y="88" class="stage" text-anchor="middle" fill="#4a235a">ECONOMICS &amp; SYNTHESIS</text>
+
+            <!-- ══ COLUMN 1 — inputs ══════════════════════════════════ -->
+            <g>
+                <rect class="node" x="40" y="156" width="190" height="64" rx="8" fill="#d6eaf8" stroke="#aed6f1"/>
+                <rect x="52" y="174" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="70" y="188" class="nb-num" text-anchor="middle">NB1</text>
+                <text x="98" y="184" class="nb-title">Setup</text>
+                <text x="98" y="202" class="nb-sub">config · data sync</text>
+            </g>
+            <g>
+                <rect class="node" x="40" y="252" width="190" height="64" rx="8" fill="#d6eaf8" stroke="#aed6f1"/>
+                <rect x="52" y="270" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="70" y="284" class="nb-num" text-anchor="middle">NB2</text>
+                <text x="98" y="280" class="nb-title">Grids</text>
+                <text x="98" y="298" class="nb-sub">100 m · EPSG:3035</text>
+            </g>
+
+            <!-- ══ COLUMN 2 — risk ════════════════════════════════════ -->
+            <g>
+                <rect class="node" x="330" y="156" width="200" height="64" rx="8" fill="#fadbd8" stroke="#f5b7b1"/>
+                <rect x="342" y="174" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="360" y="188" class="nb-num" text-anchor="middle">NB3</text>
+                <text x="388" y="184" class="nb-title">Hazard &amp; exposure</text>
+                <text x="388" y="202" class="nb-sub">+ dynamic vulnerability</text>
+            </g>
+            <g>
+                <rect class="node" x="330" y="252" width="200" height="64" rx="8" fill="#fadbd8" stroke="#f5b7b1"/>
+                <rect x="342" y="270" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="360" y="284" class="nb-num" text-anchor="middle">NB4</text>
+                <text x="388" y="280" class="nb-title">Impact functions</text>
+                <text x="388" y="298" class="nb-sub">age-specific ERFs</text>
+            </g>
+
+            <!-- ══ COLUMN 3 — adaptation ══════════════════════════════ -->
+            <g>
+                <rect class="node" x="650" y="96" width="240" height="72" rx="8" fill="#d5f5e3" stroke="#a9dfbf"/>
+                <rect x="662" y="114" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="680" y="128" class="nb-num" text-anchor="middle">NB5</text>
+                <text x="708" y="124" class="nb-title">Air conditioning</text>
+                <rect x="822" y="112" width="56" height="15" rx="3" fill="#f5b7b1"/>
+                <text x="850" y="123" class="badge-text" text-anchor="middle" fill="#922b21">PRIVATE</text>
+                <text x="708" y="150" class="nb-mech">→ impact function ↓</text>
+            </g>
+            <g>
+                <rect class="node" x="650" y="200" width="240" height="72" rx="8" fill="#d5f5e3" stroke="#a9dfbf"/>
+                <rect x="662" y="218" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="680" y="232" class="nb-num" text-anchor="middle">NB6</text>
+                <text x="708" y="228" class="nb-title">Early warning</text>
+                <rect x="828" y="216" width="50" height="15" rx="3" fill="#aed6f1"/>
+                <text x="853" y="227" class="badge-text" text-anchor="middle" fill="#1a5276">PUBLIC</text>
+                <text x="708" y="254" class="nb-mech">→ warning-day mortality ↓</text>
+            </g>
+            <g>
+                <rect class="node" x="650" y="304" width="240" height="72" rx="8" fill="#d5f5e3" stroke="#a9dfbf"/>
+                <rect x="662" y="322" width="36" height="20" rx="10" fill="#2c3e50"/>
+                <text x="680" y="336" class="nb-num" text-anchor="middle">NB7</text>
+                <text x="708" y="332" class="nb-title">Street trees</text>
+                <rect x="828" y="320" width="50" height="15" rx="3" fill="#aed6f1"/>
+                <text x="853" y="331" class="badge-text" text-anchor="middle" fill="#1a5276">PUBLIC</text>
+                <text x="708" y="358" class="nb-mech">→ hazard ↓</text>
+            </g>
+
+            <!-- ══ COLUMN 4 — economics ══════════════════════════════ -->
+            <g>
+                <rect class="node" x="1010" y="204" width="250" height="64" rx="8" fill="#e8daef" stroke="#d2b4de"/>
+                <rect x="1022" y="222" width="42" height="20" rx="10" fill="#2c3e50"/>
+                <text x="1043" y="236" class="nb-num" text-anchor="middle">NB8</text>
+                <text x="1074" y="232" class="nb-title">Cost–benefit analysis</text>
+                <text x="1074" y="250" class="nb-sub">NPV · BCR · Pareto frontier</text>
+            </g>
+            <g>
+                <rect class="node" x="1010" y="300" width="250" height="64" rx="8" fill="#e8daef" stroke="#d2b4de"/>
+                <rect x="1022" y="318" width="42" height="20" rx="10" fill="#2c3e50"/>
+                <text x="1043" y="332" class="nb-num" text-anchor="middle">NB9</text>
+                <text x="1074" y="328" class="nb-title">Uncertainty</text>
+                <text x="1074" y="346" class="nb-sub">Monte Carlo · PAWN</text>
+            </g>
+            <g>
+                <rect class="node" x="1010" y="396" width="250" height="64" rx="8" fill="#e8daef" stroke="#d2b4de"/>
+                <rect x="1022" y="414" width="42" height="20" rx="10" fill="#2c3e50"/>
+                <text x="1043" y="428" class="nb-num" text-anchor="middle">NB10</text>
+                <text x="1074" y="424" class="nb-title">Summary</text>
+                <text x="1074" y="442" class="nb-sub">tables · figures · ranking</text>
+            </g>
+
+            <!-- ── Sequential flow ───────────────────────────────────── -->
+            <path class="flow" d="M135,220 V252" marker-end="url(#arrow)"/>
+            <path class="flow" d="M230,284 H280 V188 H330" marker-end="url(#arrow)"/>
+            <path class="flow" d="M430,220 V252" marker-end="url(#arrow)"/>
+
+            <!-- ── Bus 1: baseline risk into every adaptation option ─── -->
+            <path class="flow" d="M530,188 H600"/>
+            <path class="flow" d="M530,284 H600"/>
+            <path class="flow" d="M600,132 V340"/>
+            <circle cx="600" cy="188" r="3.2" fill="#5d6d7e"/>
+            <circle cx="600" cy="236" r="3.2" fill="#5d6d7e"/>
+            <circle cx="600" cy="284" r="3.2" fill="#5d6d7e"/>
+            <path class="flow" d="M600,132 H650" marker-end="url(#arrow)"/>
+            <path class="flow" d="M600,236 H650" marker-end="url(#arrow)"/>
+            <path class="flow" d="M600,340 H650" marker-end="url(#arrow)"/>
+            <text class="bus-label" transform="translate(590,300) rotate(-90)" text-anchor="middle">
+                baseline risk
+            </text>
+
+            <!-- ── Bus 2: costs and avoided deaths into the CBA ──────── -->
+            <path class="flow" d="M890,132 H950"/>
+            <path class="flow" d="M890,236 H950"/>
+            <path class="flow" d="M890,340 H950"/>
+            <path class="flow" d="M950,132 V340"/>
+            <circle cx="950" cy="236" r="3.2" fill="#5d6d7e"/>
+            <path class="flow" d="M950,236 H1010" marker-end="url(#arrow)"/>
+            <text class="bus-label" transform="translate(940,300) rotate(-90)" text-anchor="middle">
+                costs &amp; benefits
+            </text>
+
+            <path class="flow" d="M1135,268 V300" marker-end="url(#arrow)"/>
+            <path class="flow" d="M1135,364 V396" marker-end="url(#arrow)"/>
+
+            <!-- ── Interactions between options (dashed) ─────────────── -->
+            <path class="inter" d="M650,112 H430 V150" marker-end="url(#arrow-i)"/>
+            <text x="540" y="104" class="edge-label" text-anchor="middle">waste heat → hazard ↑</text>
+
+            <path class="inter" d="M770,168 V196" marker-end="url(#arrow-i)"/>
+            <text x="782" y="188" class="edge-label">deaths threshold · AC overlap</text>
+
+            <path class="inter" d="M890,356 H970 V258 H1006" marker-end="url(#arrow-i)"/>
+            <text x="898" y="370" class="edge-label">AC electricity ↓</text>
+
+            <!-- ── Uncertainty feeds back through the whole chain ────── -->
+            <path class="inter" d="M1010,348 H985 V480 H600 V346" marker-end="url(#arrow-i)"/>
+            <text x="790" y="472" class="edge-label-i" text-anchor="middle">Monte Carlo re-runs the full chain</text>
+
+            <!-- ── Legend ────────────────────────────────────────────── -->
+            <g>
+                <rect x="271" y="500" width="14" height="14" rx="3" fill="#d6eaf8" stroke="#aed6f1"/>
+                <text x="291" y="511" class="leg">Inputs &amp; grids</text>
+
+                <rect x="386" y="500" width="14" height="14" rx="3" fill="#fadbd8" stroke="#f5b7b1"/>
+                <text x="406" y="511" class="leg">Climate risk &amp; impact</text>
+
+                <rect x="537" y="500" width="14" height="14" rx="3" fill="#d5f5e3" stroke="#a9dfbf"/>
+                <text x="557" y="511" class="leg">Adaptation</text>
+
+                <rect x="631" y="500" width="14" height="14" rx="3" fill="#e8daef" stroke="#d2b4de"/>
+                <text x="651" y="511" class="leg">Economics &amp; synthesis</text>
+
+                <path class="flow" d="M782,507 H808" marker-end="url(#arrow)"/>
+                <text x="814" y="511" class="leg">data flow</text>
+
+                <path class="inter" d="M883,507 H909" marker-end="url(#arrow-i)"/>
+                <text x="915" y="511" class="leg">interaction / feedback</text>
+            </g>
+        </svg>
+    </div>
+</body>
+</html>
