@@ -19,13 +19,29 @@ if (!exists("REPO_ROOT")) {
   source(file.path(.d, "_helpers.R"))
 }
 
+# Share of the modelled 2020 baseline heat-attributable deaths borne by the 65+
+# bin. Read from interim/annual_heat_deaths_generic_<city>.csv, whose unsuffixed
+# form is the main Masselot specification (same file si2_if_comparison.R reads);
+# these files carry only the three age-bin columns, so the total is their sum.
+share_65plus <- function(city, year = 2020) {
+  age_cols <- c("<15", "15-64", "65+")
+  d <- read_city_csv(city, sprintf("annual_heat_deaths_generic_%s.csv", city),
+                     where = "interim", quiet = TRUE)
+  if (is.null(d) || !all(c("year", age_cols) %in% names(d))) return(NA_real_)
+  r <- d[d$year == year, age_cols, drop = FALSE]
+  if (!nrow(r)) return(NA_real_)
+  tot <- sum(as.matrix(r), na.rm = TRUE)
+  if (!is.finite(tot) || tot <= 0) return(NA_real_)
+  100 * sum(r[["65+"]], na.rm = TRUE) / tot
+}
+
 build_tab_city_characteristics <- function() {
   banner("Table: per-city characterisation (SI)")
   meta <- load_city_meta()
   if (is.null(meta) || !nrow(meta)) {
     message("No city metadata -- run 00_city_meta.R first."); return(invisible(NULL)) }
 
-  need <- c("city_label", "country", "pop_k", "warmseason_mean_t2m", "hot_days",
+  need <- c("city", "city_label", "country", "pop_k", "warmseason_mean_t2m", "hot_days",
             "climate_cluster", "coef_lst_coverage_pct", "lcz_compact_pct",
             "lcz_open_pct", "lcz_other_built_pct", "lcz_built_pct",
             "lcz_diversity")
@@ -48,6 +64,7 @@ build_tab_city_characteristics <- function() {
     # manuscript, and it keeps the CSV header readable too.
     `T2M (°C)`  = round(d$warmseason_mean_t2m, 1),
     `Hot days`  = d$hot_days,
+    `65+ deaths (%)` = vapply(d$city, share_65plus, numeric(1)),
     `Coef. cov. (%)` = d$coef_lst_coverage_pct,
     `Compact (%)`    = d$lcz_compact_pct,
     `Open (%)`       = d$lcz_open_pct,
@@ -61,6 +78,9 @@ build_tab_city_characteristics <- function() {
     "warm-season mean temperature.",
     "\\emph{Class} is the descriptive climate cluster (k-means on warm-season mean",
     "2\\,m temperature and hot-day count).",
+    "\\emph{65+ deaths} is the share of the modelled 2020 baseline heat-attributable",
+    "deaths falling on the 65+ age bin, the joint outcome of each city's age structure",
+    "and its age-specific exposure-response functions.",
     "\\emph{Coef. cov.} is the share of summer (May--September) Local Climate Zone",
     "months with a non-zero greening-cooling coefficient; it conditions every",
     "tree-pathway result and should be read alongside any per-city greening number.",
@@ -75,8 +95,9 @@ build_tab_city_characteristics <- function() {
   # counts render as integers, shares to one decimal, LCZ diversity to two.
   save_table(out, "tab_city_characteristics", caption = cap,
              label = "tab:city_characteristics",
-             digits = c(0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 2),
-             align = c("l", "l", "l", "r", "l", "r", "r", "r", "r", "r", "r", "r", "r"),
+             digits = c(0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 2),
+             align = c("l", "l", "l", "r", "l", "r", "r", "r", "r", "r", "r", "r",
+                       "r", "r"),
              longtable = TRUE, size = "\\scriptsize")
 
   low <- out$City[!is.na(out$`Coef. cov. (%)`) & out$`Coef. cov. (%)` < 25]
