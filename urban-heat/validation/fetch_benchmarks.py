@@ -13,11 +13,14 @@ Sources, and why only these two:
          fractions. Methodologically like-for-like with Masselot and with us.
 
   momo - Instituto de Salud Carlos III MoMo, daily provincial deaths attributable to
-         temperature excess. Province (NUTS-3) resolution. MoMo's expected baseline is
-         fitted on historical mortality, so its counterfactual is a seasonal norm rather
-         than the minimum-mortality temperature: it is CONSERVATIVE and systematically
-         below MMT-referenced estimates. Compare ratios, not levels (compare_baseline.py
-         carries a Masselot/MoMo column for exactly this reason).
+         temperature excess, 2015-2025. Province (NUTS-3) resolution. MoMo's expected
+         baseline is fitted on historical mortality, so its counterfactual is a seasonal
+         norm rather than the minimum-mortality temperature, and it should run below
+         MMT-referenced estimates. It does, but not uniformly: against Masselot it is
+         level in Madrid (1.02) yet 3.8-4.4x lower in Barcelona and Sevilla. Treat it as
+         a benchmark with its own city-specific uncertainty, not a fixed offset - which
+         is why compare_baseline.py always reports the Masselot/reference ratio beside
+         the model/reference one.
 
 Deliberately NOT included:
 

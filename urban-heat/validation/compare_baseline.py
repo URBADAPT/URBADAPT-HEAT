@@ -29,10 +29,20 @@ Rates are per 100k. The model denominator is its own exposure population (the su
 `population` in <city>_policy_comparison.csv), not config pop_k, which is unusable for
 four cities and off by >2x for Porto.
 
+The averaging window is not a free choice. The modelled hazard is a climatology over
+UrbClim 2008-2017, so the benchmark mean should cover years with a comparable climate.
+Both national series start later than 2008 (SpF 2014, MoMo 2015), and Europe warmed
+sharply after 2021 - 2022 alone roughly doubles Marseille's and Madrid's numbers. The
+default window is therefore 2015-2019: the closest available overlap with the model's own
+climate period. Widening it to 2015-2025 raises benchmark levels by 20-40% in the hot
+cities and would flatter the model for the wrong reason, so --sensitivity reports the
+alternatives rather than hiding the choice.
+
 Usage:
     python validation/compare_baseline.py
     python validation/compare_baseline.py --outputs-base "G:/.../n128_results"
     python validation/compare_baseline.py --min-year 2014 --max-year 2022
+    python validation/compare_baseline.py --sensitivity     # ratios under other windows
 
 Requires: pandas, numpy. Run validation/fetch_benchmarks.py first.
 """
@@ -124,8 +134,11 @@ def read_benchmarks(min_year: int, max_year: int) -> pd.DataFrame:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--outputs-base", type=Path, default=DEFAULT_OUTPUTS)
-    ap.add_argument("--min-year", type=int, default=2014)
-    ap.add_argument("--max-year", type=int, default=2022)
+    # Closest available overlap with the model's UrbClim 2008-2017 climatology.
+    ap.add_argument("--min-year", type=int, default=2015)
+    ap.add_argument("--max-year", type=int, default=2019)
+    ap.add_argument("--sensitivity", action="store_true",
+                    help="also report model/reference ratios under other windows")
     ap.add_argument("--out", type=Path, default=HERE / "outputs")
     args = ap.parse_args()
 
@@ -201,6 +214,26 @@ def main() -> int:
         print("\n  model_over_ref near or slightly above 1 is the expected result:")
         print("  benchmark geographies include cooler hinterland, so they under-state")
         print("  the city rate. Below 1 means the model is low against a lower bound.")
+
+    if args.sensitivity:
+        print("\n[window sensitivity]  model/reference rate ratio per averaging window")
+        base = df[["slug", "model_rate"]].copy()
+        windows = [(args.min_year, args.max_year), (2014, 2022), (2015, 2025)]
+        for lo, hi in dict.fromkeys(windows):
+            b = read_benchmarks(lo, hi)
+            if b.empty:
+                continue
+            col = f"{lo}-{hi}"
+            b[col] = b.ref_deaths / b.ref_pop * 1e5
+            base = base.merge(b[["slug", col]], on="slug", how="left")
+            base[col] = base.model_rate / base[col]
+        cols = [c for c in base.columns if c not in ("slug", "model_rate")]
+        keep = base.dropna(how="all", subset=cols).sort_values(cols[0])
+        print(keep[["slug", *cols]].to_string(
+            index=False, float_format=lambda x: f"{x:,.2f}"))
+        print("  The default window is the leftmost. Later windows include the post-2021")
+        print("  warming, which a 2008-2017 climatology does not represent, so they")
+        print("  raise the benchmark and flatter the model for the wrong reason.")
 
     print(f"\n[write] {dest}")
     return 0

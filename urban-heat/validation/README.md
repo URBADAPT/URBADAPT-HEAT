@@ -28,7 +28,7 @@ counterfactual:
 | Counterfactual | Sources | Usable? |
 | --- | --- | --- |
 | Minimum-mortality temperature | Masselot, Sante publique France, **us** | yes, like-for-like |
-| Threshold / expected baseline | Spain MoMo | yes, but conservative - compare ratios |
+| Threshold / expected baseline | Spain MoMo | yes, but runs low by an amount that varies by city |
 | Recent-years seasonal norm | Italy SISMG, EuroMOMO | **no** |
 
 The last row is the trap. SISMG's "expected" is fitted on recent years and so already
@@ -44,16 +44,36 @@ sample (dept 75 at 2.13M against a modelled 2.32M).
 
 ## What the current run (n128_results) shows
 
+Benchmarks are averaged over **2015-2019**, the closest available overlap with the
+model's UrbClim 2008-2017 climatology. `--sensitivity` shows the alternatives; no city
+changes band under any of them.
+
 **vs Masselot, all 40 cities** - a reproduction check, since we use their coefficients:
 the cross-city gradient holds (Spearman 0.85 on rates) but levels do not (17/40 within a
 factor of 2), and the error is graded in temperature (log rate ratio vs annual mean T,
 r = +0.66, ~x1.3 per degC). Cool cities far too low, hot cities too high.
 
-**vs independent sources** - Paris 1.23, Marseille 1.72, Lyon 3.18, Nantes **0.10**
-against Sante publique France. The `mas_over_ref` column shows Masselot sits at 0.81-1.59
-against the same benchmark, so the definitional offset is small and the deviation is ours.
-Paris passing within ~23% on the sample's cleanest geographic match is the single
-strongest validation result available.
+**vs independent sources**, model/reference and Masselot/reference on the same benchmark:
+
+| City | Source | model/ref | Masselot/ref | Read |
+| --- | --- | --- | --- | --- |
+| Nantes | SpF dept 44 | **0.12** | 0.97 | Masselot matches the benchmark; we are 8x low |
+| Paris | SpF dept 75 | **1.09** | 0.72 | closest geographic match in the sample - passes |
+| Madrid | MoMo | 1.61 | 1.02 | mild over-prediction |
+| Marseille | SpF dept 13 | 1.86 | 1.01 | within the dept-vs-city allowance |
+| Lyon | SpF dept 69 | 2.55 | 1.28 | high |
+| Sevilla | MoMo | 7.65 | 4.37 | over-predicted, but the benchmark itself is contested |
+| Barcelona | MoMo | 13.97 | 3.81 | over-predicted, benchmark contested |
+
+The `Masselot/ref` column is what makes this readable. Where it sits near 1 - Nantes,
+Paris, Madrid, Marseille - the two sources agree and any deviation is ours. Where it is
+far from 1 - Barcelona and Sevilla, at 3.8-4.4 - MoMo and Masselot disagree strongly with
+each other, so those two cities have no settled benchmark and our over-prediction there
+is confirmed in direction but not in magnitude.
+
+Paris at 1.09 on the sample's one close geographic match (dept 75 at 2.13M against a
+modelled 2.32M) is the strongest single validation result available. Note that Masselot's
+Paris is *Greater* Paris at 6.87M, which is why its ratio is 0.72 rather than ~1.
 
 **Two faults, not one.** Domain coverage explains the hot-city inflation (Spearman -0.53
 between coverage and the rate ratio; the over-predicted cities are those whose exposure
