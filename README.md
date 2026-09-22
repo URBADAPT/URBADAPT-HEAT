@@ -51,52 +51,26 @@ URBADAPT-HEAT/
     ├── environment.yml              # Conda environment (Python 3.10, conda-forge)
     ├── pyproject.toml               # cityheat package metadata
     ├── launch_windows.bat           # One-click Windows launcher
-    ├── cityheat/                    # Python helper package
-    │   ├── config.py                # YAML config loader/validator
-    │   ├── data_io.py               # Raster, NetCDF, geodata I/O
-    │   ├── grids.py                 # Reference grid, reprojection, FUA mask
-    │   ├── hazards.py               # UrbClim T2M processing, tree-cooling scaling
-    │   ├── impacts.py               # Age-varying impact functions, deaths with AC
-    │   ├── benefits.py              # Event-to-annual interpolation, discounting, PV
-    │   ├── costs.py                 # AC CAPEX/maintenance/electricity PV calculators
-    │   ├── ac_downscale.py          # Logistic income-rank AC coverage downscaling
-    │   ├── trees.py                 # ΔGVI → cost mapping, ramp years, O&M/CAPEX split
-    │   ├── mix.py                   # Budget grid-search, Pareto-optimal policy mixes
-    │   ├── vulnerability_layer.py   # Static and dynamic SVI construction
-    │   ├── nb09_improved.py         # Monte Carlo uncertainty quantification (PAWN)
-    │   ├── nb10_summary.py          # Summary statistics and reporting
-    │   ├── plotting.py              # Standard maps and result figures
-    │   └── run_city.py              # Full-city pipeline orchestrator
-    ├── configs/                     # City-specific YAML configuration files
-    │   ├── rome.yml
-    │   ├── athens.yml
-    │   ├── lisbon.yml
-    │   ├── copenhagen.yml
-    │   ├── genova.yml
-    │   └── barcelona.yml
-    ├── data_manifests/              # Google Drive sync manifests (per city)
-    ├── scripts/                     # Standalone preprocessing scripts
-    │   ├── build_delta_bands.py     # Build CMIP6 climate-uncertainty delta CSV
-    │   ├── build_dynamic_exposures.py
-    │   ├── build_projected_vulnerability.py
-    │   ├── download_drmkc_vulnerability.py
-    │   └── prepare_gvi_projections.py
-    ├── notebooks/
-    │   ├── 00_run_city.ipynb        # Driver notebook (calls run_city.py)
-    │   └── city_agnostic/
-    │       └── January2026/         # Canonical city-agnostic pipeline
-    │           ├── 01_setup_0126.ipynb
-    │           ├── 02_grids_0126.ipynb
-    │           ├── 03_hazard_exposure_0126.ipynb
-    │           ├── 04_impact_functions_0126.ipynb
-    │           ├── 05_AC_0126.ipynb
-    │           ├── 06_EWS_0126.ipynb
-    │           ├── 07_vegetation_0126.ipynb
-    │           └── 08_CBA_0126.ipynb
-    │       └── <City>/March2026/    # City-specific runs with uncertainty (NB09, NB10)
+    ├── cityheat/                    # Active model helpers and NB09 engine
+    ├── configs/                     # City-specific YAML inputs
+    ├── data_manifests/              # Input-data manifests
+    ├── scripts/
+    │   ├── run_agnostic_batch.py    # Executes the current notebook template
+    │   ├── juno_run_agnostic.sh     # Juno launcher for NB01–08
+    │   └── juno_run_nb09.sh         # Juno launcher for NB09
+    ├── notebooks/city_agnostic/
+    │   ├── README.md                # Notebook provenance and historical versions
+    │   └── March2026_agnostic/
+    │       └── template/            # Current city-agnostic NB01–10 sources
     ├── data/                        # Input data (gitignored; synced from Drive)
-    └── outputs/                     # Model outputs (gitignored)
+    └── outputs_variants/            # Run outputs (selected artifacts are versioned)
 ```
+
+The current 40-city workflow executes NB01–08 from `March2026_agnostic/template`
+with each city's YAML config. Its NB09 campaign uses the same template together
+with `cityheat.nb09_improved_fast_masselot_main`. NB10 was not run for the final
+40-city campaign. Historical January/March and four-pilot notebook copies are
+not part of the current Git tree; see the [notebook provenance note](urban-heat/notebooks/city_agnostic/README.md).
 
 ---
 

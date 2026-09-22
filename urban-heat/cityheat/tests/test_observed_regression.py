@@ -1,9 +1,9 @@
 """Regression: wiring the income-source switch must not change OBSERVED behaviour.
 
 Portable (no /tmp backups). Asserts that for observed mode the resolver yields the
-prior config-driven inputs, that the injected switch cells add no cross-city drift,
-and that the emulator additions in NB05 are guarded by INCOME_SOURCE=='emulator'
-(hence inert under observed).
+prior config-driven inputs, that the current NB05 template contains the income
+switch cells, and that emulator additions are guarded by
+INCOME_SOURCE=='emulator' (hence inert under observed).
 
     pytest urban-heat/cityheat/tests/test_observed_regression.py
     python  urban-heat/cityheat/tests/test_observed_regression.py
@@ -20,12 +20,16 @@ _URBAN_HEAT = os.path.abspath(os.path.join(_HERE, "..", ".."))
 sys.path.insert(0, _URBAN_HEAT)
 from cityheat.income_source import resolve_income_inputs  # noqa: E402
 
-_AGNOSTIC = os.path.join(_URBAN_HEAT, "notebooks", "city_agnostic", "March2026_agnostic")
-_CITIES = ["Rome", "Athens", "Lisbon", "Copenhagen"]
+_TEMPLATE = os.path.join(
+    _URBAN_HEAT, "notebooks", "city_agnostic", "March2026_agnostic", "template"
+)
 
 
-def _nb05(city):
-    return json.load(open(glob.glob(os.path.join(_AGNOSTIC, city, "05_*.ipynb"))[0]))
+def _nb05():
+    matches = glob.glob(os.path.join(_TEMPLATE, "05_*.ipynb"))
+    assert len(matches) == 1, f"expected one NB05 template, got {matches}"
+    with open(matches[0], encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def test_observed_resolver_equals_prior_config():
@@ -37,18 +41,18 @@ def test_observed_resolver_equals_prior_config():
     assert spec["aggregation"] == cfg["income"].get("aggregation", "mean")
 
 
-def test_switch_cells_identical_across_cities():
-    def income_cells(city):
-        return [ "".join(c["source"]) for c in _nb05(city)["cells"]
-                 if any("income" in t for t in c.get("metadata", {}).get("tags", [])) ]
-    ref = income_cells("Rome")
-    assert len(ref) == 2, f"expected resolver + override cells, got {len(ref)}"
-    for city in _CITIES[1:]:
-        assert income_cells(city) == ref, f"{city} switch cells differ -> added drift"
+def test_switch_cells_present_in_template():
+    income_cells = [
+        "".join(c["source"]) for c in _nb05()["cells"]
+        if any("income" in t for t in c.get("metadata", {}).get("tags", []))
+    ]
+    assert len(income_cells) == 2, f"expected resolver + override cells, got {len(income_cells)}"
+    assert "resolve_income_inputs(cfg)" in income_cells[0]
+    assert "load_emulator_inc_agg" in income_cells[1]
 
 
 def test_emulator_additions_are_guarded():
-    src = "\n".join("".join(c["source"]) for c in _nb05("Rome")["cells"])
+    src = "\n".join("".join(c["source"]) for c in _nb05()["cells"])
     # the cell-21 guard and the override are both gated on the emulator source
     assert 'if INCOME_SOURCE == "emulator":' in src and "income_names = None" in src
     assert "load_emulator_inc_agg" in src
