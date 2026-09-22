@@ -1,9 +1,22 @@
-"""Locate the two structural faults behind the modelled baseline's level errors.
+"""Localise why the modelled baseline's levels are wrong, city by city.
 
 compare_baseline.py establishes that the cross-city *gradient* is sound (Spearman ~0.85
 against Masselot) but the *levels* are graded in temperature: cool cities far too low,
-hot cities too high. This script tests the two mechanisms that would produce exactly
-that pattern, and flags the cities affected.
+hot cities too high. This script localises why.
+
+THE HEADLINE RESULT, established by section D below: cool and hot cities are not two
+faults but one. The baseline hazard is a day-of-year climatological mean, which collapses
+the temperature distribution onto its central tendency and removes the hot tail entirely.
+What each city's burden then depends on is simply where that compressed distribution
+falls relative to its minimum-mortality temperature. Peak citymask temperature minus MMT
+tracks the modelled attributable fraction at Spearman +0.82 across the 40 cities. Dublin
+peaks 0.01 C above its MMT and Nantes 0.11 C above, so their burden collapses to nothing;
+Rome and Athens sit 5-7 C above theirs for a hundred days with no compensating variance,
+so theirs inflates. Fixing the hazard construction addresses both ends at once - which is
+why the t2m_baseline_mode alternatives (warmest_summer, domain_peak_day) are the test to
+run before any manuscript edit.
+
+Sections A-C localise the remaining, city-specific problems on top of that.
 
   A. AGE INVERSION.
      Heat mortality is overwhelmingly a 65+ burden; Masselot's own city-age table puts
@@ -23,15 +36,29 @@ that pattern, and flags the cities affected.
      at 0.14x - carry an entirely normal age structure. Those are a magnitude problem,
      not an age-structure problem, and need a separate explanation.
 
-  B. DOMAIN COVERAGE (the hot-city inflation, and Athens).
-     We apply the exposure-response pixelwise inside the FUA while Masselot applies it to
-     a city mean, so we over-count where intra-urban heat spread is large - worst where
-     the modelled domain is the hot dense core rather than the whole URAU. The cities we
-     over-predict are exactly those whose exposure population falls well short of the
-     URAU population.
-     Test: model_pop / URAU pop against the rate ratio. Athens sits at 29% coverage and
-     168 deaths/100k versus Masselot's 12.5 - an order of magnitude beyond the trend,
-     which reads as a domain error rather than a modelling choice.
+  B. DOMAIN COVERAGE.
+     We apply the exposure-response pixelwise while Masselot applies it to a city mean,
+     so we over-count where intra-urban spread is wide - worst where the modelled domain
+     is the dense core with no cooler periphery to dilute the population-weighted
+     exposure. Coverage tracks the rate ratio at Spearman -0.53.
+     Caveat on reading it: model_pop/URAU_pop measures a URAU inconsistency as much as
+     ours. The model appears to run at core-municipality scale throughout (Athens = the
+     7 municipal communities, 665k; Milan = the 9 municipi, 1.38M), whereas URAU is the
+     core city for some cities and the whole agglomeration for others (Paris URAU is
+     6.87M against a modelled 2.32M). That also sits awkwardly with the manuscript's
+     "all analyses are performed at the Functional Urban Area (FUA) scale" - worth
+     settling with the model author, since it is not resolvable from the slimmed export.
+
+     ATHENS IS STILL UNEXPLAINED and is the one city that should block a manuscript
+     edit. Its modelled attributable fraction is 16.2% of all deaths, against a Masselot
+     range of 0.07-2.08% and a European literature ceiling near 3-4%: arithmetically
+     impossible, not merely biased. Ruled out so far - the coefficients (Athens' impact
+     function is *lower* than Rome's at every temperature, and its MMT of 23.98 C is the
+     highest in the sample), hazard bookkeeping (366 days, frequencies summing to 1.0),
+     social vulnerability (SVI 0.477 against Rome's 0.499), and the section-D mechanism
+     alone (at a comparable 5.7 C peak exceedance, Ljubljana/Rome/Milan land near 3%,
+     so Athens is ~5x above even that trend). What remains is the exposure side - the
+     age grid or city_mask - which lives in NB01-NB03 and is absent from the export.
 
 Age splits live in the interim companion tree (annual_heat_deaths_generic_<city>.csv),
 not in the slimmed results export - see --aux-base.
@@ -62,6 +89,9 @@ DEFAULT_AUX = JUNO / "n128_interim_for_figures"
 AGE_SHARE_FLOOR = 0.50
 # Exposure population this far short of the URAU means the domain is the core, not the city.
 COVERAGE_FLOOR = 0.60
+# Above this share of all-cause deaths, a heat burden is not physically credible:
+# Masselot spans 0.07-2.08% across these cities and the literature tops out near 3-4%.
+AF_IMPLAUSIBLE = 3.0
 
 
 def masselot_age_share() -> pd.DataFrame:
@@ -164,6 +194,65 @@ def main() -> int:
         print("\n  largest residuals against that trend (candidate bugs, not biases):")
         print(out[["slug", "model_pop_over_urau_pop", "model_over_mas", "resid"]]
               .head(5).to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+
+    # ---- C. attributable-fraction plausibility -------------------------------------
+    # The one screen that does not depend on getting the exposure population right:
+    # heat deaths as a share of all-cause deaths in the same population. Masselot spans
+    # 0.07-2.08% across the 40 cities and the European literature tops out near 3-4%, so
+    # anything far above that is arithmetically impossible rather than merely biased.
+    meta = pd.read_csv(URBAN_HEAT / "10288665" / "metadata.csv")[
+        ["URAU_CODE", "deathrate_tot"]
+    ].rename(columns={"URAU_CODE": "urau_code"})
+    mas_af = pd.read_csv(URBAN_HEAT / "10288665" / "results" / "city.csv")[
+        ["URAU_CODE", "af_heat_est", "mmt"]
+    ].rename(columns={"URAU_CODE": "urau_code"})
+    df = df.merge(meta, on="urau_code", how="left").merge(mas_af, on="urau_code", how="left")
+    df["model_af_pct"] = df.model_deaths / (df.model_pop * df.deathrate_tot) * 100
+
+    print("\n[C] attributable fraction - modelled heat deaths as % of all-cause deaths")
+    c = df.sort_values("model_af_pct", ascending=False)
+    print(c[["slug", "model_deaths", "model_af_pct", "af_heat_est", "model_over_mas"]]
+          .head(8).to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+    print(f"\n  Masselot AF across these cities: {df.af_heat_est.min():.2f}"
+          f" - {df.af_heat_est.max():.2f}%")
+    over = c[c.model_af_pct > AF_IMPLAUSIBLE]
+    print(f"  modelled AF above {AF_IMPLAUSIBLE}% (not physically credible): "
+          f"{', '.join(over.slug) or 'none'}")
+
+    # ---- D. the unifying mechanism ---------------------------------------------------
+    rows = []
+    for slug in df.slug:
+        f = args.aux_base / slug / "interim" / f"hazard_events_T2M_daily_{slug}.csv"
+        if not f.exists():
+            continue
+        h = pd.read_csv(f)
+        h = h[pd.to_datetime(h.date).dt.year == 2020]
+        rows.append({
+            "slug": slug,
+            "citymask_max_c": h.mean_intensity_citymask_degC.max(),
+            "domain_offset_c": (h.mean_intensity_citymask_degC.mean()
+                                - h.mean_intensity_degC.mean()),
+        })
+    if rows:
+        df = df.merge(pd.DataFrame(rows), on="slug", how="left")
+        df["peak_above_mmt_c"] = df.citymask_max_c - df.mmt
+        print("\n[D] where the climatology falls relative to each city's MMT")
+        v = df[df.peak_above_mmt_c.notna()]
+        print(f"  Spearman(peak above MMT, modelled AF)          "
+              f"= {v.peak_above_mmt_c.corr(v.model_af_pct, method='spearman'):+.2f}")
+        print(f"  Spearman(peak above MMT, model/Masselot ratio) "
+              f"= {v.peak_above_mmt_c.corr(v.model_over_mas, method='spearman'):+.2f}")
+        print(f"  Spearman(core-vs-domain offset, modelled AF)   "
+              f"= {v.domain_offset_c.corr(v.model_af_pct, method='spearman'):+.2f}")
+        ends = pd.concat([v.nsmallest(4, "peak_above_mmt_c"), v.nlargest(4, "peak_above_mmt_c")])
+        print()
+        print(ends[["slug", "citymask_max_c", "mmt", "peak_above_mmt_c",
+                    "model_af_pct", "model_over_mas"]]
+              .to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+        print("\n  A climatological-mean hazard has no tail, so a city whose peak barely")
+        print("  reaches its MMT records almost no burden while one sitting well above it")
+        print("  records a large one. This is the single mechanism behind both ends of the")
+        print("  temperature-graded error - test it with t2m_baseline_mode=warmest_summer.")
 
     dest = args.out / "baseline_diagnostics.csv"
     df.to_csv(dest, index=False)
