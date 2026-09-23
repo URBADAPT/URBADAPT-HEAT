@@ -42,6 +42,35 @@ city rate. `model_over_ref` slightly above 1 is the expected result; below 1 is 
 `reference_geographies.csv` grades each match, and Paris is the one close match in the
 sample (dept 75 at 2.13M against a modelled 2.32M).
 
+## The impact functions are exact - so the error is entirely downstream
+
+`10288665/reconstruction_validation.csv` already answers the half of the reviewer's
+question that concerns the coefficients, and answers it decisively. For each of the 40
+cities x 5 age groups it evaluates the reconstructed B-spline over Masselot's own
+30-year ERA5 daily series (`n_days` 10,957), takes the mean daily attributable fraction,
+and multiplies by Masselot's age population and baseline death rate. The result
+reproduces Masselot's published `excess_heat_est` to **within 6.6e-12 on all 200 rows**.
+
+Two consequences, and they are the reason the rest of this directory exists.
+
+**Nothing in the discrepancy can be blamed on the exposure-response functions.** Fed
+Masselot's inputs, our impact functions return Masselot's answer exactly. So the whole of
+the gap measured in `compare_baseline.py` comes from what the production pipeline
+substitutes downstream: the hazard series, the exposure population and domain, and the
+pixelwise application.
+
+**It also names the fix.** That validated calculation averages the attributable fraction
+over 10,957 *actual daily temperatures*. The production pipeline instead evaluates it
+over a single 365-day climatological-mean year. Same curve, different operator - and the
+difference is precisely the Jensen error that `test_baseline_mode.py` measures. So
+`per_year_mean` is not a new modelling choice; it restores consistency with the step the
+project already validates.
+
+One diagnostic in that file invites a wrong conclusion: `pct_diff_rr_heat` runs a median
+-8.7% (down to -26%). That is a definitional mismatch between the spline's RR at the 99th
+percentile and Masselot's published `rr_heat`, not an error in the curve - if the curve
+were 9% low the integral over it could not match to 1e-12. Not worth chasing.
+
 ## What the current run (n128_results) shows
 
 Benchmarks are averaged over **2015-2019**, the closest available overlap with the
