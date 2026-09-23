@@ -15,33 +15,48 @@ Modes compared (the first three as named in the configs):
   per_year_mean     - integrate each observed year, then average. Not a config option;
                       added here because it is the correct functional (see below).
 
-RESULT on rome/milan/sevilla/dublin, in baseline deaths per 100k against Masselot:
+RESULT on six cities, as the model/Masselot rate ratio (1.00 = exact agreement):
 
-    city      production  climatology  per_year_mean  warmest_summer  Masselot
-    dublin          0.02         0.00           0.71            3.27      0.53
-    sevilla        23.54        15.55          24.07           33.91     13.44
-    rome           27.51        33.93          47.09           77.60     21.26
-    milan          32.76        28.46          46.15           70.79     17.06
+    city        annual mean T    current    after per_year_mean
+    stockholm            7.35       0.14                   1.19
+    dublin               9.86       0.03                   1.35
+    nantes              12.53       0.13                   1.04
+    milan               12.97       1.92                   2.71
+    rome                15.75       1.29                   2.22
+    sevilla             18.75       1.75                   1.79
 
-Three conclusions, the last of which was not expected.
+    gradient vs annual mean T   x1.370 per degC  ->  x1.049 per degC
+    spread across the six              59.3x     ->           2.6x
+    median ratio                        0.72     ->           1.57
+
+Conclusions.
 
 1. warmest_summer is NOT the fix. It overshoots everywhere - Dublin to 6.2x Masselot,
-   Rome to 3.6x. It answers "how bad is a hot year", not "what does a typical year look
-   like", which is what a baseline is for.
+   Rome to 3.6x, Nantes to 4.1x. It answers "how bad is a hot year", not "what does a
+   typical year look like", which is what a baseline is for.
 
 2. The defect is a functional-form error, not a missing tail. climatology_mean computes
    f(mean of the years); an average year's burden is mean of f(year). Exposure-response
    curves are convex, so the first is strictly smaller and the gap grows with
    interannual variance. Dublin's annual burden varies by a factor of 5,040 across ten
    years and its climatological peak falls BELOW its MMT, so its burden is identically
-   zero. per_year_mean moves Dublin from 0.03x Masselot to 1.35x - essentially a fix.
+   zero.
 
-3. But the same correction makes the hot cities WORSE: Rome 1.29x -> 2.22x, Milan
-   1.92x -> 2.71x. So there are two independent faults that were partly cancelling, and
-   the respectable-looking aggregate rank correlation was hiding both. Fault 2 - a
-   roughly 2-3x hot-city inflation, presumably the pixelwise application or the domain
-   scale - is now the larger open problem. Do not fix the hazard alone: doing so moves
-   the hot cities further from every benchmark.
+3. Fixing it collapses the temperature-graded error that everything else in this
+   directory was chasing: the gradient goes from x1.37 to x1.05 per degC - essentially
+   flat - and the spread from 59x to 2.6x. What remains is a roughly uniform ~1.6x
+   over-prediction. That is the benign kind of error: a common multiplicative bias
+   cancels from within-city ratios and largely cancels from cross-city comparisons.
+
+   This revises the earlier reading of a separate "2-3x hot-city inflation". A residual
+   tilt survives - the three cool cities average 1.19 and the three hot ones 2.24, so
+   roughly 1.9x across the range - but it is far smaller than the 59x it was hiding
+   inside, and it is not a distinct fault so much as what is left over.
+
+Caveats. n=6, three per side, and the reconstruction's levels carry ~+/-35% (mode ratios
+are much tighter). So the 59x -> 2.6x compression is robust; the size of the residual
+tilt is not well determined. Athens is untouched by any of this - its 16.2% attributable
+fraction is a separate, still-unexplained fault.
 
 What is and is not being measured. This reproduces the *hazard*, not the full model: it
 integrates the city-level impact functions over a reconstructed daily series, so it gives
