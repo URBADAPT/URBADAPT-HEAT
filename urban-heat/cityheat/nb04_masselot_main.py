@@ -25,12 +25,9 @@ AGE_TO_IF_ID = {"<15": 1, "15-64": 2, "65+": 3}
 # scripts/build_variance_corrected_ifs.py for how the files are produced. They are
 # additional families rather than replacements, so the uncorrected results stay
 # reproducible and the two can be run head to head via IF_MAIN_FAMILY.
-SUPPORTED_MASSELOT_FAMILIES = {
-    "masselot",
-    "masselot_tail",
-    "masselot_varcorr",
-    "masselot_tail_varcorr",
-}
+BASE_MASSELOT_FAMILIES = ("masselot", "masselot_tail")
+VARCORR_MASSELOT_FAMILIES = ("masselot_varcorr", "masselot_tail_varcorr")
+SUPPORTED_MASSELOT_FAMILIES = set(BASE_MASSELOT_FAMILIES) | set(VARCORR_MASSELOT_FAMILIES)
 MASSELOT_SOURCE_FILE = {
     "masselot": "masselot_if_curves_{slug}.json",
     "masselot_tail": "masselot_if_curves_{slug}_tail.json",
@@ -99,7 +96,7 @@ def _annotate_masselot(
             "notes": notes,
         }
     )
-    if family == "masselot_tail":
+    if MASSELOT_EXTRAPOLATION.get(family) == "loglinear_tail":
         out["masselot_tail_extrapolation"] = "loglinear_tail"
     return out
 
@@ -804,9 +801,17 @@ def run_nb04_masselot_main(
     tab_dir.mkdir(parents=True, exist_ok=True)
 
     masselot_dir = root / "10288665"
+    # Load only the families this run actually needs. Pulling in the variance-corrected
+    # pair unconditionally would make NB04 require *_varcorr.json for every city - only
+    # the handful with local UrbClim have them - and would change the uncorrected run's
+    # outputs. So the corrected pair is read only when it is the selected main family,
+    # which keeps the default path byte-identical to before.
+    active_families = list(BASE_MASSELOT_FAMILIES)
+    if main_family in VARCORR_MASSELOT_FAMILIES:
+        active_families += list(VARCORR_MASSELOT_FAMILIES)
     masselot_sources = {
-        family: masselot_dir / pattern.format(slug=slug)
-        for family, pattern in MASSELOT_SOURCE_FILE.items()
+        family: masselot_dir / MASSELOT_SOURCE_FILE[family].format(slug=slug)
+        for family in active_families
     }
     missing_sources = [str(path) for path in masselot_sources.values() if not path.exists()]
     if missing_sources:
@@ -816,8 +821,8 @@ def run_nb04_masselot_main(
     legacy_path = int_dir / f"if_curves_frozen_{slug}.json"
     manifest_path = int_dir / f"if_family_manifest_{slug}.json"
     masselot_family_paths = {
-        "masselot": int_dir / f"if_curves_by_year_{slug}_masselot.json",
-        "masselot_tail": int_dir / f"if_curves_by_year_{slug}_masselot_tail.json",
+        family: int_dir / f"if_curves_by_year_{slug}_{family}.json"
+        for family in masselot_sources
     }
 
     masselot_jsons: dict[str, dict[str, Any]] = {}
@@ -1084,7 +1089,14 @@ def run_nb04_masselot_main(
             f"(audit_strict=False) to continue with a warning instead."
         )
 
-    other_masselot = "masselot_tail" if main_family == "masselot" else "masselot"
+    if main_family in VARCORR_MASSELOT_FAMILIES:
+        other_masselot = (
+            "masselot_varcorr"
+            if main_family == "masselot_tail_varcorr"
+            else "masselot_tail_varcorr"
+        )
+    else:
+        other_masselot = "masselot_tail" if main_family == "masselot" else "masselot"
     manifest = {
         "output_variant": output_variant,
         "if_main_family": main_family,
@@ -1122,7 +1134,7 @@ def run_nb04_masselot_main(
             f"In this variant its true source is Masselot / {main_family}, recorded in the JSON metadata."
         ),
     }
-    if main_family == "masselot_tail":
+    if MASSELOT_EXTRAPOLATION.get(main_family) == "loglinear_tail":
         manifest["masselot_tail_extrapolation"] = "loglinear_tail"
     _write_json(manifest_path, manifest)
     print(f"Saved IF family manifest: {manifest_path}")
@@ -1155,6 +1167,8 @@ def run_nb04_masselot_main(
     labels = {
         "masselot": "Masselot constant tail",
         "masselot_tail": "Masselot log-linear tail",
+        "masselot_varcorr": "Masselot constant tail, variance-corrected",
+        "masselot_tail_varcorr": "Masselot log-linear tail, variance-corrected",
         "burke_polynomial": "Burke polynomial",
         "burke_powerlaw": "Burke power-law",
     }
