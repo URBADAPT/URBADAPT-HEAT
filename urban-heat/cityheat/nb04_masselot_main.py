@@ -19,14 +19,29 @@ from climada.entity.impact_funcs import ImpactFunc, ImpactFuncSet
 
 AGE_ORDER = ["<15", "15-64", "65+"]
 AGE_TO_IF_ID = {"<15": 1, "15-64": 2, "65+": 3}
-SUPPORTED_MASSELOT_FAMILIES = {"masselot", "masselot_tail"}
+# The *_varcorr families carry the same curves convolved with pooled June-August daily
+# anomalies, which restores the variance the day-of-year climatological hazard discards.
+# See cityheat/hazard_reconciliation.py for why that is needed and
+# scripts/build_variance_corrected_ifs.py for how the files are produced. They are
+# additional families rather than replacements, so the uncorrected results stay
+# reproducible and the two can be run head to head via IF_MAIN_FAMILY.
+SUPPORTED_MASSELOT_FAMILIES = {
+    "masselot",
+    "masselot_tail",
+    "masselot_varcorr",
+    "masselot_tail_varcorr",
+}
 MASSELOT_SOURCE_FILE = {
     "masselot": "masselot_if_curves_{slug}.json",
     "masselot_tail": "masselot_if_curves_{slug}_tail.json",
+    "masselot_varcorr": "masselot_if_curves_{slug}_varcorr.json",
+    "masselot_tail_varcorr": "masselot_if_curves_{slug}_tail_varcorr.json",
 }
 MASSELOT_EXTRAPOLATION = {
     "masselot": "constant_tail",
     "masselot_tail": "loglinear_tail",
+    "masselot_varcorr": "constant_tail",
+    "masselot_tail_varcorr": "loglinear_tail",
 }
 
 

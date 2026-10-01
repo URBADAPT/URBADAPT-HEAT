@@ -7,6 +7,7 @@
 
 slug: milan # city name
 city_name: Milan
+urau_code: IT002C                  # Masselot URAU (10288665); needed for t2m_era5_bias_correct
 wp_iso3: ITA
 wp_country: Italy
 pop_k: 1370                       # approx population (thousands), from eu_urbclim_cities_urbadapt
