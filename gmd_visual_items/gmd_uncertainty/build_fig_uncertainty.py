@@ -1,11 +1,15 @@
-"""Rebuild GMD Fig. `fig:uncertainty` -- the 7-panel Rome uncertainty + global-
-sensitivity figure -- from the authoritative NB09 export (N=128 Masselot headline).
+"""Rebuild GMD Fig. `fig:uncertainty` -- the 8-panel Rome uncertainty + global-
+sensitivity figure -- from the authoritative NB09 export (N=128 Masselot headline,
+plus the two N=128 Burke IF-conditional ensembles).
 
     python gmd_visual_items/gmd_uncertainty/build_fig_uncertainty.py --archive /path/to/gmd_nb09_archive.tgz --out-dir /path/to/figures
 Panels: (a) annual-mortality ratio to median; (b) daily heat-death profile;
-(c) 25-yr net avoided deaths and (d) present-value cost for AC/Trees/EWS
-(median + IQR); (e-g) largest observed PAWN screening scores for annual
-mortality, EWS net avoided deaths, and the 2050 SVI P90-P10 gap.
+(c) 25-yr net avoided deaths (Masselot and both Burke families) and (d)
+present-value cost for AC/Trees/EWS (median + IQR); (e-g) largest observed PAWN
+screening scores for annual mortality, EWS net avoided deaths, and the 2050 SVI
+P90-P10 gap; (h) annual mortality by impact-function family. The Burke ensembles
+reuse the headline draws with only IF_FAMILY_IDX changed, so costs are identical
+across families and (d) shows Masselot only.
 """
 import argparse
 import tarfile
@@ -15,11 +19,17 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 
 from archive_io import load_samples, read_csv, verify_checksum
 
 RUN = "n128_seed42_v3_616fbc2d5131"     # headline Masselot N=128
+BURKE_RUN = "gmd4_n128_burke_seed42_v3_616fbc2d5131"
+# (key, label, campaign, conditional branch, marker, filled)
+FAMILIES = [("masselot", "Masselot\n(headline)", RUN, None, "o", True),
+            ("burke_polynomial", "Burke\npolynomial", BURKE_RUN, "burke_polynomial", "s", False),
+            ("burke_powerlaw", "Burke\npower-law", BURKE_RUN, "burke_powerlaw", "^", False)]
 CITY = "rome"
 AC, EWS, TREE = "#d1495b", "#1f77b4", "#2a9d3a"
 
@@ -30,14 +40,27 @@ args = parser.parse_args()
 verify_checksum(args.archive)
 
 with tarfile.open(args.archive, "r:gz") as tar:
-    prefix, samples = load_samples(tar, CITY, RUN, 128)
+    fam = {}
+    for key, _, campaign, branch, _, _ in FAMILIES:
+        fprefix, fsamples = load_samples(tar, CITY, campaign, 128, branch=branch)
+        fam[key] = {"prefix": fprefix, "samples": fsamples,
+                    **{n: read_csv(tar, f"{fprefix}/{n}_{CITY}_improved_fast.csv")
+                       for n in ("unc_cba_ac", "unc_cba_ews", "unc_cba_trees")}}
+    prefix, samples = fam["masselot"]["prefix"], fam["masselot"]["samples"]
 
     def rd(name):
         return read_csv(tar, f"{prefix}/{name}_{CITY}_improved_fast.csv")
 
     fc = rd("unc_freq_curve")
-    cba_ac, cba_ews, cba_tr = rd("unc_cba_ac"), rd("unc_cba_ews"), rd("unc_cba_trees")
+    cba_ac, cba_ews, cba_tr = (fam["masselot"][n] for n in ("unc_cba_ac", "unc_cba_ews", "unc_cba_trees"))
     pawn_tables = {name: rd(name) for name in ("sens_aai_agg", "sens_cba_ews", "sens_vulnerability")}
+
+# The Burke runs must be the headline draws with only the IF family swapped.
+coords = [c for c in samples.columns if c.isupper() and c != "IF_FAMILY_IDX"]
+for key in ("burke_polynomial", "burke_powerlaw"):
+    other = fam[key]["samples"].set_index("sample_idx").loc[samples["sample_idx"], coords]
+    if not np.array_equal(other.to_numpy(), samples[coords].to_numpy()):
+        raise ValueError(f"{key}: LHS draws differ from the headline run beyond IF_FAMILY_IDX")
 
 def miq(a):
     a = np.asarray(a, float); a = a[np.isfinite(a)]
@@ -62,6 +85,7 @@ for x in (p5, p95):
     a.axvline(x, color="k", ls="--", lw=1)
 a.set_title("(a) Annual heat mortality (ratio to median)", fontsize=10)
 a.set_xlabel("ratio to median"); a.set_ylabel("draws")
+a.yaxis.set_major_locator(MaxNLocator(integer=True))
 a.annotate(f"P5 ×{p5:.2f}", (p5, a.get_ylim()[1]*.9), fontsize=8, ha="right")
 a.annotate(f"P95 ×{p95:.2f}", (p95, a.get_ylim()[1]*.9), fontsize=8)
 
@@ -76,14 +100,22 @@ b.set_title("(b) Daily heat-death profile (rel. 95th-pct day)", fontsize=10)
 b.set_xlabel("within-year day percentile"); b.set_ylabel("deaths / 95th-pct day")
 
 labels, cols = ["AC", "Trees", "EWS"], [AC, TREE, EWS]
-# (c) 25-yr net avoided deaths
-navd = [miq(cba_ac["ac_net_avoided_deaths_25y_cum"]),
-        miq(cba_tr["tree_avoided_deaths_25y_cum"]),
-        miq(cba_ews["ews_net_avoided_deaths_25y_cum"])]
-for i, (m, q1, q3) in enumerate(navd):
-    c.errorbar(i, m, yerr=[[m - q1], [q3 - m]], fmt="o", color=cols[i], capsize=4, ms=9)
+# (c) 25-yr net avoided deaths; Burke families offset to the right of Masselot
+outcomes = [("unc_cba_ac", "ac_net_avoided_deaths_25y_cum"),
+            ("unc_cba_trees", "tree_avoided_deaths_25y_cum"),
+            ("unc_cba_ews", "ews_net_avoided_deaths_25y_cum")]
+for j, (key, _, _, _, marker, filled) in enumerate(FAMILIES):
+    for i, (table, col) in enumerate(outcomes):
+        m, q1, q3 = miq(fam[key][table][col])
+        c.errorbar(i + (j - 1) * .24, m, yerr=[[m - q1], [q3 - m]], fmt=marker, color=cols[i],
+                   mfc=cols[i] if filled else "white", mew=1.5, capsize=3,
+                   ms=9 if filled else 7)
 c.set_xticks(range(3)); c.set_xticklabels(labels); c.set_xlim(-.5, 2.5)
 c.set_title("(c) 25-yr net avoided deaths", fontsize=10); c.set_ylabel("deaths (median, IQR)")
+c.legend(handles=[Line2D([], [], ls="", marker=mk, color="#404040", mfc="#404040" if fl else "white",
+                         mew=1.5, ms=7, label=lb.replace("\n", " "))
+                  for _, lb, _, _, mk, fl in FAMILIES],
+         loc="upper left", fontsize=7, frameon=False, handletextpad=.3)
 
 # (d) 25-yr present-value cost (log)
 pvc = [miq(cba_ac["ac_pv_cost_25y"]), miq(cba_tr["tree_pv_cost_25y"]), miq(cba_ews["ews_pv_cost_25y"])]
@@ -102,12 +134,29 @@ for ax, (name, col, title, color) in zip([e, f, g], [
     ax.set_yticks(range(len(params))); ax.set_yticklabels(params, fontsize=7)
     ax.set_title(title, fontsize=10); ax.set_xlabel("median PAWN KS statistic")
 
-h.axis("off")
-h.legend(handles=[Patch(color=AC, label="AC"), Patch(color=TREE, label="Trees"),
-                  Patch(color=EWS, label="EWS")], loc="center", frameon=False, fontsize=11,
-         title="Adaptation pathway (c, d)")
+# (h) annual mortality by impact-function family: draws, IQR, P5-P95, median
+rng = np.random.default_rng(0)
+fam_stats = {}
+for j, (key, label, _, _, marker, filled) in enumerate(FAMILIES):
+    y = fam[key]["samples"]["annual_deaths"].to_numpy(float)
+    p5_, q1, med, q3, p95_ = np.percentile(y, [5, 25, 50, 75, 95])
+    fam_stats[key] = (med, p5_, p95_)
+    tone = "#404040" if filled else "#8a8a8a"
+    h.scatter(j + rng.uniform(-.13, .13, len(y)), y, s=7, color=tone, alpha=.35, lw=0)
+    h.vlines(j + .24, p5_, p95_, color=tone, lw=1)
+    h.vlines(j + .24, q1, q3, color=tone, lw=4)
+    h.plot(j + .24, med, marker, color=tone, mfc=tone if filled else "white", mew=1.5, ms=7)
+h.set_yscale("log")
+h.set_xticks(np.arange(3) + .1)
+h.set_xticklabels([f"{f[1]}\n{fam_stats[f[0]][0]:,.0f} [{fam_stats[f[0]][1]:,.0f}–{fam_stats[f[0]][2]:,.0f}]"
+                   for f in FAMILIES], fontsize=8)
+h.set_xlim(-.4, 2.6)
+h.set_title("(h) Annual heat mortality by IF family", fontsize=10)
+h.set_xlabel("median [P5–P95]", fontsize=8)
+h.set_ylabel("deaths per year (log)")
 
-fig.suptitle(f"Uncertainty and global sensitivity — {CITY.title()} (N=128 Masselot headline)",
+fig.suptitle(f"Uncertainty and global sensitivity — {CITY.title()} "
+             "(N=128 Masselot headline; Burke IF-conditional ensembles in c, h)",
              fontsize=12, y=0.995)
 fig.tight_layout(rect=[0, 0, 1, 0.99])
 args.out_dir.mkdir(parents=True, exist_ok=True)
@@ -115,4 +164,6 @@ out = args.out_dir / "fig_uncertainty.png"
 fig.savefig(out, dpi=200, bbox_inches="tight")
 plt.close(fig)
 print("saved:", out)
-print(f"(a) {CITY.title()} P5/P95 ratios: ×{p5:.2f} / ×{p95:.2f}")
+print(f"(a) {CITY.title()} P5/P95 ratios: x{p5:.2f} / x{p95:.2f}")
+for key, (med, lo_, hi_) in fam_stats.items():
+    print(f"(h) {key}: median {med:,.0f}, P5-P95 {lo_:,.0f}-{hi_:,.0f}")
