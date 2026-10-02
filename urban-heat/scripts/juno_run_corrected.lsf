@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# Run the 40-city NB01..08 agnostic chain on JUNO with BOTH hazard corrections on.
+#
+#   variance-corrected impact functions  (IF_MAIN_FAMILY=masselot_tail_varcorr)
+#   ERA5-Land reference bias correction  (T2M_ERA5_BIAS_CORRECT=1)
+#
+# See cityheat/hazard_reconciliation.py for what the two corrections are and why.
+#
+# Submit:  bsub < scripts/juno_run_corrected.lsf
+# Resume:  submit again - completed cities are skipped via their DONE markers.
+# Status:  bash scripts/juno_run_corrected.lsf --status      (does not submit)
+#
+# WHY THIS IS RESUMABLE RATHER THAN ONE LONG JOB
+# 40 cities at roughly 1.5-3 h each is ~100 h of work, and no JUNO queue exceeds
+# 24 h (s_long/g_long 1440 min, p_long only 480). There is nothing to escalate to,
+# so a job killed at the wall must lose nothing. Each city writes a DONE marker
+# only after its whole chain succeeds; the driver also stops starting new cities
+# once too little wall time remains to finish one, so the wall is never hit
+# mid-city. Expect to submit this ~5 times.
+#
+#### LSF resource request ###########################################################
+#BSUB -J urbadapt40c
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 32G
+#BSUB -R "rusage[mem=32G]"
+#BSUB -W 24:00
+#BSUB -o juno_logs/urbadapt40c.%J.out
+#BSUB -e juno_logs/urbadapt40c.%J.err
+#
+# Queue: s_long gives the full 1440 min on 1 core. The notebooks are effectively
+# single-threaded (CLIMADA's hazard build and the netCDF writes dominate), so the
+# 8 h cap on p_long would cost far more than extra cores would buy. s_* queues
+# reject -n > 1 at submit time, so do not raise -n here.
+#
+# Memory: -M and rusage are per HOST and must match, or LSF silently clamps -M to
+# rusage. 32G is a deliberately generous FIRST guess: locally the kernels peaked
+# near 1 GB, but JUNO runs the larger FUA grids (Paris, Rome, Madrid) and NB02
+# holds several 366-day float32 fields plus 176 MB WorldPop rasters at once.
+# AFTER THE FIRST JOB, measure and tighten - CMCC emails users who over-request:
+#   bjobs -l <JOBID> | grep -iE "MAX MEM|AVG MEM|Total Requested Memory"
+# then resubmit at about peak x 1.3.
+#####################################################################################
+
+set -uo pipefail
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+
+STATE="$REPO/runs/juno_corrected"
+mkdir -p "$REPO/juno_logs" "$STATE"
+
+# Leave this much wall time unused rather than start a city that cannot finish.
+# Set from the slowest city observed locally (Nantes NB02 alone ran 2.7 h) plus margin.
+RESERVE_MIN="${RESERVE_MIN:-240}"
+# Per-cell timeout. The default 7200 s is NOT enough: NB02 downloads WorldPop
+# serially and France's rasters are ~176 MB each, which blew the 2 h cell limit
+# locally. Large countries (FRA, DEU, ESP, POL) need this raised.
+CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
+
+START_EPOCH=$(date +%s)
+WALL_MIN="${WALL_MIN:-1440}"
+
+remaining_min() { echo $(( WALL_MIN - ( ($(date +%s) - START_EPOCH) / 60 ) )); }
+
+#### environment ####################################################################
+# Batch jobs do not source .bashrc, so micromamba is absent unless initialised here.
+# The signature of getting this wrong is exit 127 with an empty log.
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+
+# Keep numerical libraries inside the slots LSF granted.
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export OPENBLAS_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+
+# The two corrections. Both must be set, and setting only one makes agreement
+# WORSE, not better - they are opposite-signed and were partly cancelling.
+export IF_MAIN_FAMILY=masselot_tail_varcorr
+export T2M_ERA5_BIAS_CORRECT=1
+export URBAN_HEAT_OUTPUT_VARIANT=masselot_main_agnostic
+
+PY="$(command -v python)"
+
+#### diagnostics before burning hours ###############################################
+echo "==================================================================="
+echo "host           : $(hostname)"
+echo "job            : ${LSB_JOBID:-interactive}"
+echo "started        : $(date)"
+echo "repo           : $REPO"
+echo "git            : $(git rev-parse --abbrev-ref HEAD 2>/dev/null) @ $(git rev-parse --short HEAD 2>/dev/null)"
+echo "python         : $PY"
+echo "IF family      : $IF_MAIN_FAMILY"
+echo "ERA5 bias corr : $T2M_ERA5_BIAS_CORRECT"
+echo "cell timeout   : ${CELL_TIMEOUT}s"
+echo "wall / reserve : ${WALL_MIN}min / ${RESERVE_MIN}min"
+echo "==================================================================="
+
+# nbconvert needs a kernel literally named "urbanheat"; registering is idempotent.
+python -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+mapfile -t CITIES < <(python scripts/run_agnostic_batch.py --list-cities)
+[[ ${#CITIES[@]} -gt 0 ]] || { echo "FATAL: empty city roster"; exit 1; }
+echo "roster: ${#CITIES[@]} cities"
+
+#### status-only mode ###############################################################
+if [[ "${1:-}" == "--status" ]]; then
+  done_n=0
+  for c in "${CITIES[@]}"; do [[ -f "$STATE/$c.done" ]] && done_n=$((done_n+1)); done
+  echo "complete: $done_n / ${#CITIES[@]}"
+  for c in "${CITIES[@]}"; do [[ -f "$STATE/$c.done" ]] || echo "  todo: $c"; done
+  exit 0
+fi
+
+#### per-city chain #################################################################
+# Order matters: NB01 downloads that city's UrbClim, which the variance-corrected
+# impact functions are built FROM, and NB04 then consumes them. Building the curves
+# before NB01 has run would silently fall back to the uncorrected family.
+run_city() {
+  local city="$1" rc=0
+
+  echo "--- [$city] NB01 (inputs) ---"
+  URBAN_HEAT_RUNS_DIR="$STATE/nb01" \
+    "$PY" scripts/run_agnostic_batch.py --cities "$city" --notebooks 01 \
+      --timeout "$CELL_TIMEOUT" --skip-completed || rc=1
+  [[ $rc -eq 0 ]] || { echo "[$city] FAILED at NB01"; return 1; }
+
+  echo "--- [$city] variance-corrected impact functions ---"
+  if [[ -s "$REPO/10288665/masselot_if_curves_${city}_tail_varcorr.json" ]]; then
+    echo "[$city] corrected curves already present"
+  else
+    "$PY" scripts/build_variance_corrected_ifs.py --cities "$city" || rc=1
+    [[ $rc -eq 0 ]] || { echo "[$city] FAILED building corrected curves"; return 1; }
+  fi
+  # Guard against NB04 silently using the uncorrected family.
+  [[ -s "$REPO/10288665/masselot_if_curves_${city}_tail_varcorr.json" ]] \
+    || { echo "[$city] FAILED: corrected curves missing after build"; return 1; }
+
+  echo "--- [$city] NB02..08 (corrected) ---"
+  URBAN_HEAT_RUNS_DIR="$STATE/nb02_08" \
+    "$PY" scripts/run_agnostic_batch.py --cities "$city" \
+      --notebooks 02 03 04 05 06 07 08 \
+      --timeout "$CELL_TIMEOUT" --skip-completed || rc=1
+  [[ $rc -eq 0 ]] || { echo "[$city] FAILED in NB02..08"; return 1; }
+
+  return 0
+}
+
+ok=0; failed=0; skipped=0; deferred=0
+for city in "${CITIES[@]}"; do
+  if [[ -f "$STATE/$city.done" ]]; then
+    skipped=$((skipped+1)); continue
+  fi
+  rem=$(remaining_min)
+  if (( rem < RESERVE_MIN )); then
+    echo "### ${rem}min left (< ${RESERVE_MIN}min reserve) - stopping cleanly before $city"
+    echo "### resubmit to continue; nothing is lost"
+    deferred=$((deferred+1))
+    break
+  fi
+  echo
+  echo "###################################################################"
+  echo "### $city   (${rem}min wall left)   $(date +%H:%M:%S)"
+  echo "###################################################################"
+  t0=$(date +%s)
+  if run_city "$city"; then
+    date -Iseconds > "$STATE/$city.done"
+    ok=$((ok+1))
+    echo "### [$city] DONE in $(( ($(date +%s) - t0) / 60 ))min"
+  else
+    failed=$((failed+1))
+    # No marker, so a resubmission retries this city. Keep going: the point of a
+    # 40-city batch is to surface everything that breaks, not to stop at the first.
+    echo "### [$city] FAILED after $(( ($(date +%s) - t0) / 60 ))min - continuing"
+  fi
+done
+
+total_done=$(ls -1 "$STATE"/*.done 2>/dev/null | wc -l)
+echo
+echo "==================================================================="
+echo "this job : ok=$ok failed=$failed skipped=$skipped"
+echo "overall  : $total_done / ${#CITIES[@]} cities complete"
+(( total_done < ${#CITIES[@]} )) && echo "ACTION   : resubmit to continue  (bsub < scripts/juno_run_corrected.lsf)"
+echo "memory   : bjobs -l ${LSB_JOBID:-JOBID} | grep -iE 'MAX MEM|Total Requested Memory'"
+echo "finished : $(date)"
+echo "==================================================================="
