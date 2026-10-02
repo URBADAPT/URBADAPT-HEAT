@@ -52,7 +52,18 @@ from scipy.stats import qmc
 
 AGE_ORDER = ["<15", "15-64", "65+"]
 AGE_TO_ID = {"<15": 1, "15-64": 2, "65+": 3}
-IF_FAMILIES = ["burke_polynomial", "burke_powerlaw", "masselot", "masselot_tail"]
+# The *_varcorr entries are the variance-corrected Masselot curves (see
+# cityheat/hazard_reconciliation.py). Listed unconditionally is safe: the set is
+# filtered against the JSONs actually present, so an uncorrected run simply does
+# not see them and behaves exactly as before.
+IF_FAMILIES = [
+    "burke_polynomial",
+    "burke_powerlaw",
+    "masselot",
+    "masselot_tail",
+    "masselot_varcorr",
+    "masselot_tail_varcorr",
+]
 TREF_OPTIONS = [18.0, 20.0, 22.0, 24.0, 26.0]
 TREF_BASE = 20.0
 DAILY_QUANTILE_PCTS = [50, 80, 90, 95]  # percentiles of the DAILY heat-death distribution (NOT annual return periods)

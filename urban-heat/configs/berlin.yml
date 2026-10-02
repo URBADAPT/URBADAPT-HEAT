@@ -8,6 +8,7 @@
 
 slug: berlin # city name
 city_name: Berlin
+urau_code: DE001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: DEU
 wp_country: Germany
 pop_k: 3700                       # approx population (thousands), from eu_urbclim_cities_urbadapt

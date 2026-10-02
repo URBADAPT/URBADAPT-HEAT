@@ -1,5 +1,6 @@
 slug: rome # city name 
 city_name: Rome 
+urau_code: IT001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: ITA
 wp_country: Italy
 base_dir: data/Rome                
