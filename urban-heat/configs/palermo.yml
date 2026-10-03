@@ -7,6 +7,7 @@
 
 slug: palermo # city name
 city_name: Palermo
+urau_code: IT005C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: ITA
 wp_country: Italy
 pop_k: 630                       # approx population (thousands), from eu_urbclim_cities_urbadapt

@@ -8,6 +8,7 @@
 
 slug: budapest # city name
 city_name: Budapest
+urau_code: HU001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: HUN
 wp_country: Hungary
 pop_k: 1700                       # approx population (thousands), from eu_urbclim_cities_urbadapt

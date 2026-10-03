@@ -8,6 +8,7 @@
 
 slug: prague # city name
 city_name: Prague
+urau_code: CZ001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: CZE
 wp_country: Czechia
 pop_k: 1350                       # approx population (thousands), from eu_urbclim_cities_urbadapt

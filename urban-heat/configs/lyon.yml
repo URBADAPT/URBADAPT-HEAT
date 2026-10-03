@@ -8,6 +8,7 @@
 
 slug: lyon # city name
 city_name: Lyon
+urau_code: FR002C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: FRA
 wp_country: France
 pop_k: 520                       # approx population (thousands), from eu_urbclim_cities_urbadapt

@@ -8,6 +8,7 @@
 
 slug: barcelona # city name
 city_name: Barcelona
+urau_code: ES002C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: ESP
 wp_country: Spain
 pop_k: 1620                       # approx population (thousands), from eu_urbclim_cities_urbadapt  # TODO: verify

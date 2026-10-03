@@ -1,5 +1,6 @@
 slug: athens # city name 
 city_name: Athens 
+urau_code: EL001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: GRC
 wp_country: Greece
 base_dir: data/athens                

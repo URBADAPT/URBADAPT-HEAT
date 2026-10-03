@@ -8,6 +8,7 @@
 
 slug: brussels # city name
 city_name: Brussels
+urau_code: BE001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: BEL
 wp_country: Belgium
 pop_k: 1210                       # approx population (thousands), from eu_urbclim_cities_urbadapt

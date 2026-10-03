@@ -1,5 +1,6 @@
 slug: lisbon # city name 
 city_name: Lisbon 
+urau_code: PT001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: PRT
 wp_country: Portugal
 base_dir: data/Lisbon                

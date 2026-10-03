@@ -8,6 +8,7 @@
 
 slug: amsterdam # city name
 city_name: Amsterdam
+urau_code: NL001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: NLD
 wp_country: Netherlands
 pop_k: 920                       # approx population (thousands), from eu_urbclim_cities_urbadapt

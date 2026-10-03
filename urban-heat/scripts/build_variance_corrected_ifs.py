@@ -58,6 +58,9 @@ from cityheat.hazard_reconciliation import (  # noqa: E402
 warnings.filterwarnings("ignore")
 MASSELOT_DIR = ROOT / "10288665"
 VARIANTS = {"": "_varcorr", "_tail": "_tail_varcorr"}
+# Below this many complete UrbClim years the pooled JJA anomaly sample is too thin
+# to convolve with; fail loudly rather than emit a quietly undersampled curve.
+MIN_YEARS = 5
 
 
 def city_dirs() -> dict[str, str]:
@@ -77,16 +80,36 @@ def daily_by_year(city_dir: str) -> pd.DataFrame:
         glob.glob(str(ROOT / "data" / city_dir
                       / "UrbClim/UrbClimT2Mmean/T2M_year_daily_mean_*.nc"))
     )
-    cols = {}
+    cols, short = {}, []
     for f in files:
         m = re.search(r"(\d{4})\.nc$", f)
         if not m:
             continue
+        year = int(m.group(1))
         with xr.open_dataset(f) as ds:
             v = ds.T2M.mean(dim=("x", "y")).values - 273.15
-        cols[int(m.group(1))] = v[:365]   # drop the leap day for a common index
+        # Years must share a 365-day index. A leap year is simply truncated, but an
+        # UrbClim file can also be SHORT (Athens has one), and silently keeping it
+        # used to blow up in the DataFrame constructor with "All arrays must be of
+        # the same length" - an error that says nothing about the real cause.
+        if len(v) < 365:
+            short.append((year, len(v)))
+            continue
+        cols[year] = v[:365]
+    if short:
+        print(f"  [warn] dropping short UrbClim years (need 365 days): "
+              + ", ".join(f"{y}={n}d" for y, n in short))
     if not cols:
-        raise FileNotFoundError(f"no UrbClim years under data/{city_dir}")
+        raise FileNotFoundError(f"no usable UrbClim years under data/{city_dir}")
+    if len(cols) < MIN_YEARS:
+        raise ValueError(
+            f"only {len(cols)} usable UrbClim years under data/{city_dir} "
+            f"(need >= {MIN_YEARS}); the anomaly distribution would be too thin "
+            f"to convolve with. Short years: {short or 'none'}"
+        )
+    if len(cols) < 8:
+        print(f"  [warn] only {len(cols)} usable years; anomaly sample is thinner "
+              "than the 10-year basis the correction was validated on")
     return pd.DataFrame(cols)
 
 

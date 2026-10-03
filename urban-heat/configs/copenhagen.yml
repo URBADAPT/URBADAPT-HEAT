@@ -1,5 +1,6 @@
 slug: copenhagen
 city_name: Copenhagen
+urau_code: DK001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: DNK
 wp_country: Denmark
 base_dir: data/copenhagen

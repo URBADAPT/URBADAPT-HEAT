@@ -8,6 +8,7 @@
 
 slug: paris # city name
 city_name: Paris
+urau_code: FR001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: FRA
 wp_country: France
 pop_k: 2100                       # approx population (thousands), from eu_urbclim_cities_urbadapt

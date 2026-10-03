@@ -8,6 +8,7 @@
 
 slug: sofia # city name
 city_name: Sofia
+urau_code: BG001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: BGR
 wp_country: Bulgaria
 pop_k: 1280                       # approx population (thousands), from eu_urbclim_cities_urbadapt

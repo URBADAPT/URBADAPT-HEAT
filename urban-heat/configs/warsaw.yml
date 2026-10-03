@@ -8,6 +8,7 @@
 
 slug: warsaw # city name
 city_name: Warsaw
+urau_code: PL001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: POL
 wp_country: Poland
 pop_k: 1860                       # approx population (thousands), from eu_urbclim_cities_urbadapt

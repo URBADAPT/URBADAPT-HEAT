@@ -8,6 +8,7 @@
 
 slug: bucharest # city name
 city_name: Bucharest
+urau_code: RO001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: ROU
 wp_country: Romania
 pop_k: 1760                       # approx population (thousands), from eu_urbclim_cities_urbadapt
