@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# Run the 40-city NB01..08 chain for ONE calibration arm, so the two corrections can be
+# attributed separately before either is merged into the default spec.
+#
+#   ARM=none      uncorrected      (= the published spec; n128_results already has this)
+#   ARM=variance  variance-corrected impact functions only
+#   ARM=era5      ERA5-Land reference bias correction only
+#   ARM=both      both corrections
+#
+# Submit:  ARM=era5 bsub < scripts/juno_run_arm.lsf
+# Resume:  same command - completed cities are skipped per arm.
+# Status:  ARM=era5 bash scripts/juno_run_arm.lsf --status
+#
+# WHY THE ARM MATTERS FOR THE HAZARD, AND THE GUARD THAT ENFORCES IT
+# NB02 writes the hazard and NB03 reads INT/hazard_manifest.json - the "latest" one,
+# which every NB02 overwrites. So the hazard sitting in the tree belongs to whichever arm
+# ran last. An arm that needs a different hazard but skips NB02 would silently compute
+# against the wrong one, and nothing downstream would complain.
+#
+# The manifest records `era5_bias_correction.applied`, so this script reads it per city
+# and decides for itself:
+#   hazard already matches the arm  -> run NB04..08 only      (fast)
+#   hazard does not match           -> run NB02..08           (rebuild first)
+# That makes arm order irrelevant and removes the chance of a cross-contaminated run.
+#
+#### LSF resource request ###########################################################
+#BSUB -J urbadaptarm
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 12G
+#BSUB -R "rusage[mem=12G]"
+#BSUB -W 24:00
+#BSUB -o juno_logs/urbadaptarm.%J.out
+#BSUB -e juno_logs/urbadaptarm.%J.err
+#
+# Memory: MEASURED, not guessed. The completed 40-city "both" run (job 419050) peaked at
+# MAX MEM 8.8 GB with AVG 1.7 GB against a 32 G request - 27.7% efficiency, which is the
+# kind of over-request CMCC emails about. 12 G is 8.8 x 1.36, enough headroom for the
+# larger FUA grids without reserving a node's memory for nothing. -M and rusage are equal
+# because a smaller rusage silently clamps -M.
+# An arm that skips NB02 should peak lower still (NB02 holds the 366-day float32 fields),
+# so after the first era5 job check and tighten again:
+#   bjobs -l <JOBID> | grep -iE "MAX MEM|Total Requested Memory"
+#####################################################################################
+
+set -uo pipefail
+
+ARM="${ARM:-}"
+case "$ARM" in
+  none)     IF_FAM="masselot_tail";          ERA5=0 ;;
+  variance) IF_FAM="masselot_tail_varcorr";  ERA5=0 ;;
+  era5)     IF_FAM="masselot_tail";          ERA5=1 ;;
+  both)     IF_FAM="masselot_tail_varcorr";  ERA5=1 ;;
+  *) echo "FATAL: set ARM to one of none|variance|era5|both (got '${ARM}')"; exit 2 ;;
+esac
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+
+STATE="$REPO/runs/arm_$ARM"
+mkdir -p "$REPO/juno_logs" "$STATE"
+
+RESERVE_MIN="${RESERVE_MIN:-240}"
+CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
+WALL_MIN="${WALL_MIN:-1440}"
+START_EPOCH=$(date +%s)
+remaining_min() { echo $(( WALL_MIN - ( ($(date +%s) - START_EPOCH) / 60 ) )); }
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export OPENBLAS_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+
+export IF_MAIN_FAMILY="$IF_FAM"
+export T2M_ERA5_BIAS_CORRECT="$ERA5"
+export URBAN_HEAT_OUTPUT_VARIANT=masselot_main_agnostic
+PY="$(command -v python)"
+
+echo "==================================================================="
+echo "arm            : $ARM"
+echo "host           : $(hostname)"
+echo "job            : ${LSB_JOBID:-interactive}"
+echo "started        : $(date)"
+echo "git            : $(git rev-parse --abbrev-ref HEAD 2>/dev/null) @ $(git rev-parse --short HEAD 2>/dev/null)"
+echo "IF family      : $IF_MAIN_FAMILY"
+echo "ERA5 bias corr : $T2M_ERA5_BIAS_CORRECT"
+echo "state dir      : $STATE"
+echo "==================================================================="
+
+python -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+mapfile -t CITIES < <(python scripts/run_agnostic_batch.py --list-cities)
+[[ ${#CITIES[@]} -gt 0 ]] || { echo "FATAL: empty city roster"; exit 1; }
+
+if [[ "${1:-}" == "--status" ]]; then
+  n=0; for c in "${CITIES[@]}"; do [[ -f "$STATE/$c.done" ]] && n=$((n+1)); done
+  echo "arm $ARM complete: $n / ${#CITIES[@]}"
+  for c in "${CITIES[@]}"; do [[ -f "$STATE/$c.done" ]] || echo "  todo: $c"; done
+  exit 0
+fi
+
+# Does the hazard already in the tree belong to this arm? Reads the provenance block that
+# NB02 writes into the manifest; returns 1 (rebuild) on anything it cannot confirm.
+hazard_matches_arm() {
+  local city="$1"
+  local man="$REPO/outputs_variants/masselot_main_agnostic/$city/interim/hazard_manifest.json"
+  [[ -f "$man" ]] || return 1
+  "$PY" - "$man" "$ERA5" <<'EOF'
+import json, sys
+try:
+    m = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+bc = m.get("era5_bias_correction")
+if bc is None:            # written before provenance was recorded - cannot confirm
+    sys.exit(1)
+sys.exit(0 if bool(bc.get("applied")) == bool(int(sys.argv[2])) else 1)
+EOF
+}
+
+run_city() {
+  local city="$1" rc=0 nbs
+
+  echo "--- [$city] NB01 (inputs) ---"
+  URBAN_HEAT_RUNS_DIR="$STATE/nb01" \
+    "$PY" scripts/run_agnostic_batch.py --cities "$city" --notebooks 01 \
+      --timeout "$CELL_TIMEOUT" --skip-completed || rc=1
+  [[ $rc -eq 0 ]] || { echo "[$city] FAILED at NB01"; return 1; }
+
+  if [[ "$IF_FAM" == *varcorr ]]; then
+    echo "--- [$city] variance-corrected impact functions ---"
+    if [[ -s "$REPO/10288665/masselot_if_curves_${city}_tail_varcorr.json" ]]; then
+      echo "[$city] corrected curves already present"
+    else
+      "$PY" scripts/build_variance_corrected_ifs.py --cities "$city" || rc=1
+      [[ $rc -eq 0 ]] || { echo "[$city] FAILED building corrected curves"; return 1; }
+    fi
+    [[ -s "$REPO/10288665/masselot_if_curves_${city}_tail_varcorr.json" ]] \
+      || { echo "[$city] FAILED: corrected curves missing after build"; return 1; }
+  fi
+
+  if hazard_matches_arm "$city"; then
+    nbs="04 05 06 07 08"
+    echo "--- [$city] hazard in tree already matches arm '$ARM' - running NB$nbs ---"
+  else
+    nbs="02 03 04 05 06 07 08"
+    echo "--- [$city] hazard does not match arm '$ARM' - rebuilding, NB$nbs ---"
+  fi
+
+  URBAN_HEAT_RUNS_DIR="$STATE/nb_rest" \
+    "$PY" scripts/run_agnostic_batch.py --cities "$city" --notebooks $nbs \
+      --timeout "$CELL_TIMEOUT" --skip-completed || rc=1
+  [[ $rc -eq 0 ]] || { echo "[$city] FAILED in NB$nbs"; return 1; }
+  return 0
+}
+
+ok=0; failed=0; skipped=0
+for city in "${CITIES[@]}"; do
+  if [[ -f "$STATE/$city.done" ]]; then skipped=$((skipped+1)); continue; fi
+  rem=$(remaining_min)
+  if (( rem < RESERVE_MIN )); then
+    echo "### ${rem}min left (< ${RESERVE_MIN}min reserve) - stopping cleanly before $city"
+    break
+  fi
+  echo
+  echo "### [$ARM] $city   (${rem}min wall left)   $(date +%H:%M:%S)"
+  t0=$(date +%s)
+  if run_city "$city"; then
+    date -Iseconds > "$STATE/$city.done"; ok=$((ok+1))
+    echo "### [$city] DONE in $(( ($(date +%s) - t0) / 60 ))min"
+  else
+    failed=$((failed+1))
+    echo "### [$city] FAILED after $(( ($(date +%s) - t0) / 60 ))min - continuing"
+  fi
+done
+
+total=$(ls -1 "$STATE"/*.done 2>/dev/null | wc -l)
+echo
+echo "==================================================================="
+echo "arm $ARM | this job: ok=$ok failed=$failed skipped=$skipped"
+echo "arm $ARM | overall : $total / ${#CITIES[@]}"
+(( total < ${#CITIES[@]} )) && echo "ACTION: ARM=$ARM bsub < scripts/juno_run_arm.lsf"
+echo "memory: bjobs -l ${LSB_JOBID:-JOBID} | grep -iE 'MAX MEM|Total Requested Memory'"
+echo "==================================================================="
