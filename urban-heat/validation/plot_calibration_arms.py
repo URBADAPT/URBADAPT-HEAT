@@ -135,6 +135,13 @@ def stats(x, y):
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out-dir", default=os.path.join(HERE, "outputs"))
+    ap.add_argument("--restrict", choices=("all", "common"), default="all",
+                    help="'common' keeps only cities present in EVERY available arm, so "
+                         "the arms are compared on the same sample; 'all' lets each arm "
+                         "use everything it has")
+    ap.add_argument("--arms", nargs="*", default=None,
+                    help="limit to these arms (default: every arm whose tree exists)")
+    ap.add_argument("--suffix", default="", help="appended to the output filenames")
     args = ap.parse_args()
 
     import matplotlib
@@ -148,9 +155,13 @@ def main() -> int:
                       "excess_heat_est": "mas_deaths",
                       "rawrate_heat_est": "mas_rate"})
 
+    want = args.arms or list(ARM_PATHS)
     arms, frames = [], {}
-    for arm, default in ARM_PATHS.items():
-        base = os.environ.get(f"CALIB_ARM_{arm.upper()}", default)
+    for arm in want:
+        if arm not in ARM_PATHS:
+            print(f"[skip] unknown arm '{arm}'")
+            continue
+        base = os.environ.get(f"CALIB_ARM_{arm.upper()}", ARM_PATHS[arm])
         if not os.path.isdir(base):
             print(f"[skip] arm '{arm}': no tree at {base}")
             continue
@@ -165,6 +176,21 @@ def main() -> int:
         print("[error] no arms available")
         return 2
 
+    # An arm pulled only part-way would otherwise be compared on a different sample from
+    # the others, and a subset that happens to be cool (or hot) shifts its median for
+    # that reason alone rather than because of the calibration.
+    sizes = {a: len(frames[a]) for a in arms}
+    if len(set(sizes.values())) > 1:
+        print(f"[warn] arms cover different city counts: {sizes}")
+        if args.restrict == "all":
+            print("       comparing each on its own sample - pass --restrict common "
+                  "to force a like-for-like set")
+    if args.restrict == "common":
+        common = set.intersection(*(set(frames[a].slug) for a in arms))
+        for a in arms:
+            frames[a] = frames[a][frames[a].slug.isin(common)].reset_index(drop=True)
+        print(f"[restrict] common to all arms: {len(common)} cities")
+
     n = len(arms)
     fig, axes = plt.subplots(2, n, figsize=(3.7 * n + 0.6, 7.8), squeeze=False)
     fig.patch.set_facecolor("white")
@@ -178,17 +204,20 @@ def main() -> int:
               "", stats(t.mas_rate.to_numpy(float), t.rate.to_numpy(float)))
     axes[0][0].set_ylabel("TOTAL DEATHS\n\nmodelled (deaths/yr)", fontsize=9, color=INK)
     axes[1][0].set_ylabel("PER CAPITA\n\nmodelled (per 100k)", fontsize=9, color=INK)
+    ncity = len(frames[arms[0]])
+    scope = (f"common sample of {ncity} cities" if args.restrict == "common"
+             else f"each arm on its own sample ({', '.join(f'{a} n={len(frames[a])}' for a in arms)})")
     fig.suptitle("Modelled vs Masselot-estimated heat deaths, by calibration arm",
                  fontsize=13, color=INK, x=0.012, ha="left", y=0.985)
     fig.text(0.012, 0.945,
              "Solid line 1:1; dashed lines a factor of 2 either side. Log-log. "
-             "2020 baseline, 40 cities.",
+             f"2020 baseline. {scope}.",
              fontsize=9, color=MUT, ha="left")
     fig.tight_layout(rect=(0, 0, 1, 0.925))
 
     os.makedirs(args.out_dir, exist_ok=True)
     for ext in ("png", "pdf"):
-        p = os.path.join(args.out_dir, f"calibration_arms.{ext}")
+        p = os.path.join(args.out_dir, f"calibration_arms{args.suffix}.{ext}")
         fig.savefig(p, dpi=190 if ext == "png" else None, facecolor="white")
         print(f"[write] {p}")
 
@@ -207,7 +236,8 @@ def main() -> int:
     s = pd.DataFrame(rows)
     print()
     print(s.to_string(index=False, float_format=lambda v: f"{v:,.2f}"))
-    s.to_csv(os.path.join(args.out_dir, "calibration_arms_summary.csv"), index=False)
+    s.to_csv(os.path.join(args.out_dir, f"calibration_arms_summary{args.suffix}.csv"),
+             index=False)
     return 0
 
 
