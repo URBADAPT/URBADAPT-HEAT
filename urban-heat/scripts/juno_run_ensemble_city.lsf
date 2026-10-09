@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# Reproduce the EXACT multi-year calculation at pipeline level, for one city.
+#
+# Submit:  CITY=milan bsub < scripts/juno_run_ensemble_city.lsf
+# Resume:  same command - years already done are skipped.
+# Status:  CITY=milan bash scripts/juno_run_ensemble_city.lsf --status
+#
+# WHAT THIS SETTLES
+# The variance correction approximates "integrate each observed year, then average" by
+# convolving the response curve with the observed anomaly distribution. That
+# approximation was checked against the exact calculation using a reconstruction of the
+# hazard - city-mean temperatures plus a constant - which reproduces it to ~3%. It has
+# never been checked against the exact calculation INSIDE the pipeline, because the
+# pipeline has no multi-year mode: every baseline mode collapses to a single calendar
+# year.
+#
+# So build the ensemble the slow way. Run the whole chain once per observed UrbClim year
+# (T2M_BASELINE_MODE=observed_year:YYYY), keep each year's baseline deaths, and average
+# them. That mean IS the exact multi-year calculation for this city, and the ratio of it
+# to the uncorrected run is the factor the convolution should have produced.
+#
+# This is the 10x cost the correction exists to avoid, which is why it is one city rather
+# than forty. Roughly 10 x 25 min, so it fits inside a single 24 h job.
+#
+#### LSF resource request ###########################################################
+#BSUB -J urbadaptens
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 12G
+#BSUB -R "rusage[mem=12G]"
+#BSUB -W 24:00
+#BSUB -o juno_logs/urbadaptens.%J.out
+#BSUB -e juno_logs/urbadaptens.%J.err
+#
+# Memory: the 40-city runs peaked at MAX MEM 8.2-8.8 GB on this same chain, so 12 G.
+#####################################################################################
+
+set -uo pipefail
+
+CITY="${CITY:-}"
+[[ -n "$CITY" ]] || { echo "FATAL: set CITY, e.g. CITY=milan bsub < $0"; exit 2; }
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+
+YEARS="${YEARS:-2008 2009 2010 2011 2012 2013 2014 2015 2016 2017}"
+STATE="$REPO/runs/ensemble_$CITY"
+mkdir -p "$REPO/juno_logs" "$STATE"
+CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
+RESERVE_MIN="${RESERVE_MIN:-120}"
+WALL_MIN="${WALL_MIN:-1440}"
+START=$(date +%s)
+remaining_min() { echo $(( WALL_MIN - ( ($(date +%s) - START) / 60 ) )); }
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}" MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+
+# The ensemble must isolate the variance question, so everything else matches the
+# UNCORRECTED spec: stock curves, no ERA5 shift. Only the hazard's year changes.
+export IF_MAIN_FAMILY=masselot_tail
+export T2M_ERA5_BIAS_CORRECT=0
+export URBAN_HEAT_OUTPUT_VARIANT=masselot_main_agnostic
+PY="$(command -v python)"
+DEATHS="outputs_variants/masselot_main_agnostic/$CITY/tables/annual_heat_deaths_baseline_current_ac_$CITY.csv"
+
+if [[ "${1:-}" == "--status" ]]; then
+  echo "city $CITY"
+  for y in $YEARS; do
+    [[ -f "$STATE/$y.csv" ]] && echo "  $y done" || echo "  $y todo"
+  done
+  exit 0
+fi
+
+echo "==================================================================="
+echo "city   : $CITY"
+echo "years  : $YEARS"
+echo "job    : ${LSB_JOBID:-interactive}   host $(hostname)"
+echo "git    : $(git rev-parse --short HEAD 2>/dev/null)"
+echo "spec   : uncorrected curves, no ERA5 shift - only the hazard year varies"
+echo "==================================================================="
+
+python -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+"$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks 01 \
+  --timeout "$CELL_TIMEOUT" --skip-completed \
+  >/dev/null 2>&1 || { echo "FATAL: NB01 failed for $CITY"; exit 1; }
+
+for Y in $YEARS; do
+  [[ -f "$STATE/$Y.csv" ]] && { echo "### $Y already done"; continue; }
+  rem=$(remaining_min)
+  (( rem < RESERVE_MIN )) && { echo "### ${rem}min left - stopping cleanly, resubmit to continue"; break; }
+  echo
+  echo "### $CITY  year $Y   (${rem}min wall left)   $(date +%H:%M:%S)"
+  t0=$(date +%s)
+  # Every member must rebuild the hazard, so NB02 is always in the range.
+  T2M_BASELINE_MODE="observed_year:$Y" \
+  URBAN_HEAT_RUNS_DIR="$STATE/nb_$Y" \
+    "$PY" scripts/run_agnostic_batch.py --cities "$CITY" \
+      --notebooks 02 03 04 05 06 07 08 --timeout "$CELL_TIMEOUT" \
+    && [[ -f "$DEATHS" ]] \
+    && cp "$DEATHS" "$STATE/$Y.csv" \
+    && echo "### $Y DONE in $(( ($(date +%s)-t0)/60 ))min" \
+    || echo "### $Y FAILED after $(( ($(date +%s)-t0)/60 ))min - continuing"
+done
+
+echo
+echo "=== ensemble so far ==="
+"$PY" - "$STATE" "$CITY" <<'EOF'
+import glob, os, sys
+import pandas as pd
+state, city = sys.argv[1], sys.argv[2]
+rows = []
+for f in sorted(glob.glob(os.path.join(state, "20??.csv"))):
+    d = pd.read_csv(f)
+    v = d.loc[d.year == 2020, "deaths_overall"]
+    if len(v):
+        rows.append({"member_year": int(os.path.basename(f)[:4]), "deaths_2020": float(v.iloc[0])})
+if not rows:
+    print("no members yet"); raise SystemExit
+t = pd.DataFrame(rows).sort_values("member_year")
+print(t.to_string(index=False, float_format=lambda x: f"{x:,.2f}"))
+print()
+print(f"members            : {len(t)}")
+print(f"MEAN of f(year)    : {t.deaths_2020.mean():,.2f}   <- the exact multi-year calculation")
+print(f"spread across years: {t.deaths_2020.max()/max(t.deaths_2020.min(),1e-9):,.1f}x")
+t.to_csv(os.path.join(state, "ensemble_members.csv"), index=False)
+print(f"\nwrote {os.path.join(state, 'ensemble_members.csv')}")
+print("Compare that mean against the uncorrected and variance-only runs for this city:")
+print("  exact factor     = mean_of_f(year) / deaths(uncorrected)")
+print("  applied factor   = deaths(variance arm) / deaths(uncorrected)")
+EOF
