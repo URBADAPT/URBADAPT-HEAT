@@ -39,9 +39,15 @@ sys.path.insert(0, HERE)
 JUNO = r"C:\Users\giaco\OneDrive - IIASA\Documents\juno"
 ARM_NONE = r"G:\Il mio Drive\adaptation_infrastructure_database\juno_pull\n128_results"
 ARM_VAR = os.path.join(JUNO, "arm_variance")
-# The caches live in the main checkout; this worktree has none of its own.
-CACHE = r"C:\Users\giaco\Documents\Github\URBADAPT-HEAT\urban-heat\validation\cache"
-AUX = os.path.join(JUNO, "corrected40")
+CACHE = os.path.join(HERE, "cache")
+if not os.path.isdir(CACHE):  # fall back to the main checkout's caches
+    CACHE = r"C:\Users\giaco\Documents\Github\URBADAPT-HEAT\urban-heat\validation\cache"
+# The hazard tree that supplies the climatology MUST be the uncorrected one, because
+# both arms being compared here (none, variance) ran with T2M_ERA5_BIAS_CORRECT=0.
+# Taking it from the corrected tree instead anchors the curve 0.2-2.5 C too cool
+# depending on the city, and on a convex curve that alone moves the predicted variance
+# factor by tens of percent - an artefact of the check, not a property of the pipeline.
+AUX = r"G:\Il mio Drive\adaptation_infrastructure_database\juno_pull\n128_interim_for_figures"
 
 
 def deaths_2020(base: str, city: str) -> float:

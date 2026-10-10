@@ -34,10 +34,16 @@ for CITY in "$@"; do
       skip=$((skip+1)); continue
     fi
     rm -f "$F"
-    if curl -sS -m 1800 --retry 3 --retry-delay 5 -o "$F" \
+    # --retry-all-errors because this endpoint drops connections mid-transfer
+    # (curl 56, "server closed abruptly"); plain --retry covers only transient HTTP
+    # statuses and timeouts, so without it a dropped year is simply lost.
+    if curl -sS -m 1800 --retry 5 --retry-delay 5 --retry-all-errors -o "$F" \
          "$BASE/$CITY/T2M_year_daily_mean_$Y.nc" \
        && [[ "$(stat -c%s "$F" 2>/dev/null || echo 0)" -ge "$MIN_BYTES" ]]; then
-      got=$((got+1)); printf "  %s ok (%.0f MB)\n" "$Y" "$(stat -c%s "$F" | awk '{print $1/1048576}')"
+      # awk prints the integer MB directly: under a comma-decimal locale bash's
+      # printf rejects awk's "33.4" as an invalid number and the line turns into an
+      # error, which reads as a failed download when the file is in fact fine.
+      got=$((got+1)); echo "  $Y ok ($(stat -c%s "$F" | awk '{printf "%d", $1/1048576}') MB)"
     else
       rm -f "$F"; fail=$((fail+1)); echo "  $Y FAILED"
     fi

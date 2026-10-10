@@ -75,8 +75,15 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=HERE / "outputs")
     args = ap.parse_args()
 
+    # A city qualifies if its domain-mean cache exists OR its raw UrbClim does: the
+    # cache is the actual input here, and the netCDF is only how the cache gets built.
+    # Without the first branch a worktree that holds the caches but not the ~300 MB of
+    # netCDF per city silently drops those cities, which is how the check came to cover
+    # seven cities while nine were available.
     local = find_local_cities()
-    slugs = [s for s in (args.cities or local) if s in local]
+    for p in sorted((HERE / "cache").glob("urbclim_*_domainmean.csv")):
+        local.setdefault(p.name[len("urbclim_"):-len("_domainmean.csv")], "")
+    slugs = [s for s in (args.cities or sorted(local)) if s in local]
     if not slugs:
         print("[error] no cities with cached UrbClim data; run test_baseline_mode.py first")
         return 2
