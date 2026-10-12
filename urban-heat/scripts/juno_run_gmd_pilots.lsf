@@ -50,7 +50,10 @@ VARIANT="${VARIANT:-masselot_main_gmd}"
 REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
 cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
 
-STATE="$REPO/runs/gmd_pilots"
+# STATE_TAG separates the completion markers of one notebook selection from another.
+# Without it a follow-up pass over a different notebook range - NB10 for the summary
+# figures, say - sees every city already marked done and exits having run nothing.
+STATE="$REPO/runs/gmd_pilots${STATE_TAG:+_$STATE_TAG}"
 mkdir -p "$REPO/juno_logs" "$STATE"
 CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
 RESERVE_MIN="${RESERVE_MIN:-150}"
