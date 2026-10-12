@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.ticker import MaxNLocator
 
-from archive_io import load_samples, read_csv, verify_checksum
+from archive_io import DirArchive, campaigns_in_tree, load_samples, read_csv, verify_checksum
 
 RUN = "n128_seed42_v3_616fbc2d5131"     # headline Masselot N=128
 BURKE_RUN = "gmd4_n128_burke_seed42_v3_616fbc2d5131"
@@ -34,12 +34,35 @@ CITY = "rome"
 AC, EWS, TREE = "#d1495b", "#1f77b4", "#2a9d3a"
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--archive", required=True, type=Path, help="Verified GMD four-pilot .tgz")
+parser.add_argument("--archive", type=Path, help="Verified GMD four-pilot .tgz")
+# The archive is a packaged, checksummed campaign. --tree reads the same layout
+# straight out of an output tree, so a figure can be rebuilt from a run before it
+# has been packaged - which is otherwise the long pole after a recalibration.
+parser.add_argument("--tree", type=Path,
+                    help="Output tree root (e.g. outputs_variants/masselot_main_gmd), "
+                         "read in place of a packaged archive")
+parser.add_argument("--campaign", help="Campaign id within --tree; the newest is used "
+                                       "when omitted")
 parser.add_argument("--out-dir", required=True, type=Path, help="Directory for fig_uncertainty.png")
 args = parser.parse_args()
-verify_checksum(args.archive)
+if (args.archive is None) == (args.tree is None):
+    parser.error("give exactly one of --archive or --tree")
 
-with tarfile.open(args.archive, "r:gz") as tar:
+if args.tree is not None:
+    found = campaigns_in_tree(args.tree, CITY)
+    camp = args.campaign or (found[0] if found else None)
+    if camp is None:
+        parser.error(f"no campaign under {args.tree}/{CITY}/tables/uncertainty_runs")
+    print(f"[tree] {args.tree}  city {CITY}  campaign {camp}"
+          + (f"   (of {len(found)}: {', '.join(found)})" if len(found) > 1 else ""))
+    # Every family comes from the one campaign this run produced, rather than the
+    # two separate campaign ids the packaged archive carries.
+    FAMILIES = [(k, lab, camp, br, m, f) for k, lab, _, br, m, f in FAMILIES]
+else:
+    verify_checksum(args.archive)
+
+with (DirArchive(args.tree) if args.tree is not None
+      else tarfile.open(args.archive, "r:gz")) as tar:
     fam = {}
     for key, _, campaign, branch, _, _ in FAMILIES:
         fprefix, fsamples = load_samples(tar, CITY, campaign, 128, branch=branch)

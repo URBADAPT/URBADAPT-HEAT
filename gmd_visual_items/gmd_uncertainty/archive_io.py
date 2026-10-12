@@ -33,6 +33,52 @@ def verify_checksum(archive: Path) -> None:
         raise ValueError(f"SHA-256 mismatch for {archive}")
 
 
+class DirArchive:
+    """A filesystem stand-in for a TarFile, so a figure can be rebuilt from an
+    output tree that has not been packaged and checksummed yet.
+
+    The archive stores members under ROOT (the variant directory), whereas a tree
+    root IS that directory, so the prefix is stripped on lookup. It duck-types the
+    two TarFile methods the readers use and raises the same exceptions, so every
+    validation in load_samples still applies.
+    """
+
+    class _Member:
+        def __init__(self, path: Path):
+            self.path = path
+
+        def isfile(self) -> bool:
+            return self.path.is_file()
+
+    def __init__(self, root: Path | str):
+        self.root = Path(root)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def getmember(self, member: str):
+        rel = member[len(ROOT) + 1:] if member.startswith(ROOT + "/") else member
+        p = self.root / rel
+        if not p.exists():
+            raise KeyError(member)
+        return self._Member(p)
+
+    def extractfile(self, info):
+        return info.path.open("rb")
+
+
+def campaigns_in_tree(root: Path | str, city: str) -> list[str]:
+    """Campaign ids present for a city in an output tree, newest first."""
+    d = Path(root) / city / "tables" / "uncertainty_runs"
+    if not d.is_dir():
+        return []
+    return [p.name for p in sorted(d.iterdir(), key=lambda q: q.stat().st_mtime,
+                                   reverse=True) if p.is_dir()]
+
+
 def _member_stream(tar: tarfile.TarFile, member: str):
     try:
         info = tar.getmember(member)
