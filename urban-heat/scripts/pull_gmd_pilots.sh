@@ -49,11 +49,15 @@ echo "dest   : $DEST"
 
 # Inventory of what is already here, as "<city>/<relative path><TAB><bytes>".
 INV="$(mktemp)"; trap 'rm -f "$INV"' EXIT
+# A sentinel so the inventory is NEVER empty. awk's NR==FNR idiom silently inverts on an
+# empty first file - the wanted list becomes the "already have" set and nothing is sent -
+# which on the first run means a clean exit 0 that transfers no files at all.
+printf '__sentinel__\t-1\n' > "$INV"
 for c in $CITIES; do
   [[ -d "$DEST/$c" ]] || continue
   ( cd "$DEST" && find "$c" -type f -printf '%p\t%s\n' 2>/dev/null ) >> "$INV"
 done
-echo "local  : $(wc -l < "$INV") file(s) already present"
+echo "local  : $(( $(wc -l < "$INV") - 1 )) file(s) already present"
 echo
 
 # The find expression evaluated on the remote, per city directory.
