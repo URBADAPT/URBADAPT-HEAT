@@ -137,6 +137,17 @@ city_district_data <- function(city) {
   d$shift <- if (is.finite(city_total) && city_total > 0)
     100 * (ce - cu) / city_total else NA_real_
 
+  # Report each exemplar's own ranges, not just the pooled caption range. The
+  # manuscript describes these cities one at a time, and a per-city number
+  # recomputed outside this function will not match: the shift spans all three
+  # pathways, so an AC-only reconstruction of it is out by a wide margin.
+  message(sprintf(
+    "    [exemplar] %s: baseline AC %.0f-%.0f%%, targeting adds %.1f-%.1f pp, budget shift %+.1f to %+.1f%% of city total",
+    city,
+    100 * min(d$ac_base_muni, na.rm = TRUE), 100 * max(d$ac_base_muni, na.rm = TRUE),
+    min(d$equity, na.rm = TRUE), max(d$equity, na.rm = TRUE),
+    min(d$shift, na.rm = TRUE), max(d$shift, na.rm = TRUE)))
+
   # drop the duplicated name before rejoining geometry, or merge yields
   # muni_name.x / muni_name.y
   d$muni_name <- NULL
