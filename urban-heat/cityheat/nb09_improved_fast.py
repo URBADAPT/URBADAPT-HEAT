@@ -978,9 +978,19 @@ class NB09ImprovedFast:
         def tagged_haz_path(year: int, mode: str, scen: str = self.ref_scen, band: str = self.ref_band) -> Path:
             stem = (
                 f"T2M_daily_mean_{year}_FUA_degC__bm-{_mode_tag(mode)}__sc-{str(scen).lower()}"
-                f"__pb-{str(band).lower()}.nc"
+                f"__pb-{str(band).lower()}"
             )
-            return haz_dir / stem
+            exact = haz_dir / f"{stem}.nc"
+            if exact.exists():
+                return exact
+            # NB02 appends further provenance tags to the run tag - __bc-era5 when the
+            # ERA5-Land reference correction is applied - so an exact filename finds
+            # nothing and every baseline mode is reported as unavailable. Match the
+            # prefix instead, which tolerates tags added later. The non-existent exact
+            # path is returned when nothing matches, so the caller's .exists() test
+            # still filters the mode out.
+            hits = sorted(haz_dir.glob(f"{stem}__*.nc"))
+            return hits[0] if hits else exact
 
         self.tagged_haz_path = tagged_haz_path
         self.baseline_modes = [m for m in modes_cfg if all(tagged_haz_path(y, m).exists() for y in self.years)]
