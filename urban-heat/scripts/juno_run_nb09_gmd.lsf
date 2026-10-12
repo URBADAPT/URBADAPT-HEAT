@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# NB09 for one city of the GMD four-pilot tree: the headline Masselot LHS and both
+# Burke-conditional bands in ONE campaign, which is the layout
+# gmd_visual_items/gmd_uncertainty/build_fig_uncertainty.py --tree reads.
+#
+#   Central parity only (minutes):  CENTRAL_ONLY=1 bsub -W 2:00 < scripts/juno_run_nb09_gmd.lsf
+#   Full run (Rome ~20 h):          bsub < scripts/juno_run_nb09_gmd.lsf
+#   Another pilot:                  CITY=lisbon bsub < scripts/juno_run_nb09_gmd.lsf
+#
+# The campaign id is pinned to the commit, so the full run reuses the central
+# control the check verified, and resubmitting the same command at the same commit
+# resumes from the sample checkpoints rather than starting again. The Rome Burke
+# band alone took 6.4 h at N=128 (Sep 2026); headline plus two bands is ~20 h.
+#
+# Memory: NB09 on this tree has not been profiled. Read the central check's peak,
+#   bjobs -l <JOBID> | grep -iE "MAX MEM|Total Requested Memory"
+# and size the full run from it on the command line (overrides the lines below):
+#   bsub -M <G>G -R "rusage[mem=<G>G]" < scripts/juno_run_nb09_gmd.lsf
+#
+#BSUB -J nb09_gmd
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 16G
+#BSUB -R "rusage[mem=16G]"
+#BSUB -W 24:00
+#BSUB -o juno_logs/nb09_gmd.%J.out
+#BSUB -e juno_logs/nb09_gmd.%J.err
+
+set -euo pipefail
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+mkdir -p juno_logs
+
+CITY="${CITY:-rome}"
+VARIANT="${VARIANT:-masselot_main_gmd}"
+N="${NB09_N:-128}"
+SEED="${NB09_SEED:-42}"
+CENTRAL_ONLY="${CENTRAL_ONLY:-0}"
+CITY_DIR="$REPO/outputs_variants/$VARIANT/$CITY"
+
+# NB09 records the commit as the code that produced the run, so it must describe it.
+git diff --quiet -- . && git diff --cached --quiet -- . \
+  || { echo "FATAL: tracked changes under urban-heat; commit and sync first"; exit 1; }
+HEAD12="$(git rev-parse --short=12 HEAD)"
+export NB09_CAMPAIGN_ID="${NB09_CAMPAIGN_ID:-gmd_n${N}_seed${SEED}_v3_${HEAD12}}"
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export OPENBLAS_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export PYTHONPATH="$REPO${PYTHONPATH:+:$PYTHONPATH}"
+
+export URBAN_HEAT_OUTPUT_VARIANT="$VARIANT"
+export HAZARD_TRACK=standard
+# A label, not the curves: NB04's if_family_manifest decides whether the Masselot
+# families are the variance-corrected ones.
+export IF_MAIN_FAMILY=masselot_tail
+
+echo "==================================================================="
+echo "job        : ${LSB_JOBID:-interactive}   host $(hostname)   $(date -Iseconds)"
+echo "git        : $(git rev-parse --abbrev-ref HEAD) @ $HEAD12"
+echo "python     : $(command -v python)"
+echo "city       : $CITY   variant $VARIANT   N=$N seed=$SEED   central_only=$CENTRAL_ONLY"
+echo "campaign   : $NB09_CAMPAIGN_ID"
+echo "ERA5 corr. : $(grep -o '"applied": [a-z]*' "$CITY_DIR/interim/hazard_manifest.json" | head -1 || true)"
+echo "IF source  : $(grep -o '"canonical_source_family": "[^"]*"' "$CITY_DIR/interim/if_family_manifest_${CITY}.json" || true)"
+echo "2020 hazard files:"; { ls "$CITY_DIR/hazard" | grep '_2020_' || true; } | sed 's/^/  /'
+echo "==================================================================="
+
+if [[ "$CENTRAL_ONLY" == "1" ]]; then
+  mode=(--central-check-only)
+else
+  mode=(--burke-sensitivity)
+fi
+status=0
+python -m cityheat.nb09_improved_fast_masselot_main \
+  --city "$CITY" --n "$N" --seed "$SEED" "${mode[@]}" || status=$?
+
+parity="$CITY_DIR/tables/uncertainty_runs/$NB09_CAMPAIGN_ID/central_parity_${CITY}_improved_fast.csv"
+if [[ -f "$parity" ]]; then
+  echo; echo "--- EWS rows of $parity"
+  grep -E '^metric|^ews_' "$parity" | cut -d, -f1-6 || true
+  echo "--- rows not passing:"
+  awk -F, 'NR > 1 && $6 != "pass"' "$parity" | cut -d, -f1-6
+fi
+echo "exit=$status"
+exit "$status"
