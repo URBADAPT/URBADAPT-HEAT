@@ -626,7 +626,52 @@ def test_central_parity_names_a_warning_day_mismatch():
         assert parity.loc["ews_threshold_ref_deaths_per_day", "status"] == "pass"
 
 
+def _masselot_main_runner(int_dir: Path, requested: str):
+    from cityheat import nb09_improved_fast_masselot_main as nb09mm
+
+    runner = object.__new__(nb09mm.NB09ImprovedFastMasselotMain)
+    runner.slug = "test-city"
+    runner.int_dir = int_dir
+    runner._if_main_family_requested = requested
+    runner.if_main_family = nb09mm._strip_varcorr(requested)
+    return runner
+
+
+def test_masselot_bracket_shares_the_canonical_variance_treatment():
+    with tempfile.TemporaryDirectory() as directory:
+        int_dir = Path(directory)
+        manifest = int_dir / "if_family_manifest_test-city.json"
+
+        # Corrected run: the notebook pins IF_MAIN_FAMILY=masselot_tail, NB04
+        # built the canonical curves from masselot_tail_varcorr.
+        manifest.write_text('{"canonical_source_family": "masselot_tail_varcorr"}')
+        for requested in ("masselot_tail", "masselot_tail_varcorr"):
+            runner = _masselot_main_runner(int_dir, requested)
+            assert runner.if_main_family == "masselot_tail"
+            candidates = runner._if_family_candidates()
+            assert candidates["masselot"] == [int_dir / "if_curves_by_year_test-city_masselot_varcorr.json"]
+            assert candidates["masselot_tail"] == [
+                int_dir / "if_curves_by_year_test-city.json",
+                int_dir / "if_curves_by_year_test-city_masselot_tail_varcorr.json",
+            ]
+
+        # Uncorrected run: unchanged pairing.
+        manifest.write_text('{"canonical_source_family": "masselot_tail"}')
+        runner = _masselot_main_runner(int_dir, "masselot_tail")
+        assert runner._if_family_candidates()["masselot"] == [int_dir / "if_curves_by_year_test-city_masselot.json"]
+
+        # Asking for corrected curves from an uncorrected NB04 run is an error.
+        runner = _masselot_main_runner(int_dir, "masselot_tail_varcorr")
+        try:
+            runner._if_family_candidates()
+        except RuntimeError as exc:
+            assert "variance-corrected" in str(exc)
+        else:
+            raise AssertionError("A varcorr request on uncorrected NB04 curves was accepted.")
+
+
 if __name__ == "__main__":
+    test_masselot_bracket_shares_the_canonical_variance_treatment()
     test_activation_threshold_matches_notebook05_rule()
     test_central_ews_keeps_the_calibration_day_under_rounding()
     test_central_parity_names_a_warning_day_mismatch()

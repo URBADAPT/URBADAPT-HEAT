@@ -42,6 +42,13 @@ IF_FAMILY_ORDER_BY_MAIN = {
 }
 
 
+_VARCORR = "_varcorr"
+
+
+def _strip_varcorr(family: str) -> str:
+    return family[: -len(_VARCORR)] if family.endswith(_VARCORR) else family
+
+
 def _ensure_default_campaign_id(n: int, seed: int) -> str:
     """Give direct notebook/CLI runs the same isolated identity as Juno."""
     existing = os.environ.get("NB09_CAMPAIGN_ID", "").strip()
@@ -98,7 +105,11 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
         self.base_dir = self.base
 
         self.output_variant = get_output_variant()
-        self.if_main_family = get_if_main_family()
+        # The Masselot labels name the extrapolation only. Whether the curves are
+        # variance-corrected is a property of the run, read from NB04's manifest
+        # in _if_family_candidates, so a *_varcorr request maps onto its label.
+        self._if_main_family_requested = get_if_main_family()
+        self.if_main_family = _strip_varcorr(self._if_main_family_requested)
         if self.if_main_family not in _base.IF_FAMILIES:
             raise ValueError(
                 f"Unsupported IF_MAIN_FAMILY={self.if_main_family!r}; "
@@ -231,12 +242,35 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
         order = IF_FAMILY_ORDER_BY_MAIN.get(self.if_main_family, _base.IF_FAMILIES)
         return [family for family in order if family in _base.IF_FAMILIES]
 
+    def _masselot_varcorr(self) -> bool:
+        """Whether NB04's canonical curves are the variance-corrected Masselot ones.
+
+        The headline LHS brackets the extrapolation with the other Masselot
+        family, which must share the canonical curves' variance treatment.
+        Pairing the corrected canonical curve with the uncorrected constant-tail
+        file mixes the two inside the headline band (Rome: ~40% fewer deaths
+        on the uncorrected curve).
+        """
+        manifest_path = self.int_dir / f"if_family_manifest_{self.slug}.json"
+        requested = getattr(self, "_if_main_family_requested", self.if_main_family)
+        if not manifest_path.exists():
+            return requested.endswith(_VARCORR)
+        with open(manifest_path, "r") as f:
+            source = str(json.load(f).get("canonical_source_family") or "")
+        if requested.endswith(_VARCORR) and not source.endswith(_VARCORR):
+            raise RuntimeError(
+                f"[{self.slug}] IF_MAIN_FAMILY={requested!r} asks for variance-corrected curves, "
+                f"but NB04 built the canonical curves from {source!r} ({manifest_path})."
+            )
+        return source.endswith(_VARCORR)
+
     def _if_family_candidates(self) -> dict[str, list[Path]]:
         canonical = self.int_dir / f"if_curves_by_year_{self.slug}.json"
         burke_poly = self.int_dir / f"if_curves_by_year_{self.slug}_burke_polynomial.json"
         burke_power = self.int_dir / f"if_curves_by_year_{self.slug}_powerlaw.json"
-        masselot_const = self.int_dir / f"if_curves_by_year_{self.slug}_masselot.json"
-        masselot_tail = self.int_dir / f"if_curves_by_year_{self.slug}_masselot_tail.json"
+        suffix = _VARCORR if self._masselot_varcorr() else ""
+        masselot_const = self.int_dir / f"if_curves_by_year_{self.slug}_masselot{suffix}.json"
+        masselot_tail = self.int_dir / f"if_curves_by_year_{self.slug}_masselot_tail{suffix}.json"
 
         if self.if_main_family == "masselot_tail":
             return {
@@ -345,6 +379,7 @@ class NB09ImprovedFastMasselotMain(_base.NB09ImprovedFast):
                 {
                     "output_variant": self.output_variant,
                     "if_main_family": self.if_main_family,
+                    "masselot_variance_corrected": self._masselot_varcorr(),
                     "if_main_source": if_main_source(self.if_main_family),
                     "masselot_extrapolation": masselot_extrapolation(self.if_main_family),
                     "if_sensitivity_families": [
