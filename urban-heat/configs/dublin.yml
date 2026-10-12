@@ -8,6 +8,7 @@
 
 slug: dublin # city name
 city_name: Dublin
+urau_code: IE001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: IRL
 wp_country: Ireland
 pop_k: 590                       # approx population (thousands), from eu_urbclim_cities_urbadapt

@@ -8,6 +8,7 @@
 
 slug: vienna # city name
 city_name: Vienna
+urau_code: AT001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: AUT
 wp_country: Austria
 pop_k: 1920                       # approx population (thousands), from eu_urbclim_cities_urbadapt

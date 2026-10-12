@@ -2,7 +2,9 @@
 # 00_city_meta.R  --  build cached city metadata: climate metrics + clusters
 # Produces natcities_visual_items/tables/city_metadata.csv with, per city:
 #   country/iso3/pop_k/capital  (from configs/<city>.yml)
-#   warmseason_mean_t2m, t2m_p95, hot_days  (from 2020 baseline hazard netCDF)
+#   warmseason_mean_t2m, t2m_p95, hot_days  (from the OBSERVED ERA5-Land daily
+#                   distribution; NATCITIES_HEAT_SOURCE=model reverts to the
+#                   model hazard, which is what the published figures used)
 #   climate_cluster (k=3 on [intensity, frequency], labelled by centroid heat)
 #   is_exemplar     (cluster medoid = city nearest its cluster centroid)
 #   coef_lst_coverage_pct  (greening-cooling coefficient coverage; see below)
@@ -48,7 +50,13 @@ read_config <- function(city) {
     country   = y$wp_country %||% NA_character_,
     pop_k     = suppressWarnings(as.numeric(y$pop_k %||% NA)),
     capital   = isTRUE(y$capital),
+    urau_code = y$urau_code %||% NA_character_,
     stringsAsFactors = FALSE)
+}
+
+urau_of <- function(city) {
+  cfg <- read_config(city)
+  if (is.null(cfg) || is.na(cfg$urau_code)) NA_character_ else cfg$urau_code
 }
 
 # ---- heat metrics for the 2020 baseline hazard -------------------------------
@@ -117,7 +125,82 @@ heat_metrics_nc <- function(city) {
   .heat_from_daily(city, day_mean, mon, "netcdf")
 }
 
+# ---- heat metrics from the OBSERVED ERA5-Land distribution -------------------
+# The preferred source, and the default. The two sources above read the model's
+# own 2020 baseline, which is a day-of-year climatological mean: a variance-free
+# series. Counting threshold crossings on it is the same Jensen fault that
+# suppressed the mortality burden, and it bites hard here. Against the observed
+# UrbClim years, the climatology gives Vienna 0 hot days where the record
+# averages ~15 (range 1-32), Berlin 0 against ~5, Budapest 5 against ~25.
+#
+# It also made the climate class a function of the hazard calibration: applying
+# the ERA5-Land reference correction moved 8 of 40 cities between classes and
+# halved the Hot group, taking Rome, Milan, Barcelona and Naples out of it.
+# Climate class is an external annotation in this design, so it must not move
+# when the model's hazard is recalibrated.
+#
+# Masselot's `tmean_distribution.csv` carries the observed ERA5-Land daily-mean
+# distribution as 119 percentiles for each of the 854 URAU cities - all 40 of
+# ours match. Both metrics are read off it with their original definitions:
+# the warm season is the warmest 153/365 of days (May-Sep by length) and the hot
+# days are 365 x (1 - F(25 C)). Being observational and fixed, it is immune to
+# any future change in the model hazard.
+TMEAN_DIST <- file.path(REPO_ROOT, "urban-heat", "10288665", "tmean_distribution.csv")
+WARM_FRAC  <- 153 / 365
+.tmean_dist_cache <- NULL
+
+tmean_dist <- function() {
+  if (is.null(.tmean_dist_cache)) {
+    if (!file.exists(TMEAN_DIST)) return(NULL)
+    .tmean_dist_cache <<- suppressWarnings(
+      readr::read_csv(TMEAN_DIST, show_col_types = FALSE, progress = FALSE))
+  }
+  .tmean_dist_cache
+}
+
+heat_metrics_era5 <- function(city) {
+  d <- tmean_dist()
+  if (is.null(d)) return(NULL)
+  u <- urau_of(city)
+  if (is.na(u)) { message(sprintf("  [skip] %s: no urau_code in config", city)); return(NULL) }
+  row <- d[d$URAU_CODE == u, , drop = FALSE]
+  if (!nrow(row)) { message(sprintf("  [skip] %s: URAU %s not in tmean_distribution", city, u)); return(NULL) }
+
+  pc   <- grep("%$", names(d), value = TRUE)
+  prob <- as.numeric(sub("%$", "", pc)) / 100
+  val  <- as.numeric(row[1, pc])
+  o    <- order(prob); prob <- prob[o]; val <- val[o]
+  keep <- !is.na(val); prob <- prob[keep]; val <- val[keep]
+  if (length(val) < 3) return(NULL)
+
+  warm <- prob >= (1 - WARM_FRAC)
+  # Probability-weighted, because the percentile columns are not equally spaced.
+  warm_mean <- if (sum(warm) > 1)
+    .trapz(prob[warm], val[warm]) / (max(prob[warm]) - min(prob[warm]))
+  else val[warm][1]
+  p_hot <- stats::approx(val, prob, xout = T_HOT, rule = 2, ties = "ordered")$y
+
+  data.frame(
+    city                = city,
+    warmseason_mean_t2m = round(warm_mean, 3),
+    t2m_p95             = round(stats::approx(prob, val, xout = 0.95, rule = 2)$y, 3),
+    hot_days            = round(365 * (1 - p_hot), 1),
+    heat_source         = "era5_land",
+    stringsAsFactors = FALSE)
+}
+
+.trapz <- function(x, y) sum(diff(x) * (head(y, -1) + tail(y, -1)) / 2)
+
+# Source order. HEAT_SOURCE=model falls back to the model hazard, which is what
+# the published figures used; keep it only for reproducing them.
+HEAT_SOURCE <- Sys.getenv("NATCITIES_HEAT_SOURCE", "era5")
+
 heat_metrics <- function(city) {
+  if (!identical(HEAT_SOURCE, "model")) {
+    m <- heat_metrics_era5(city)
+    if (!is.null(m)) return(m)
+    message(sprintf("  [note] %s: falling back to the model hazard", city))
+  }
   m <- heat_metrics_csv(city)
   if (!is.null(m)) return(m)
   m <- heat_metrics_nc(city)
@@ -156,6 +239,17 @@ load_or_compute_heat <- function(cities, force = FALSE) {
   # column; discard it so the whole set is derived from one consistent source.
   if (!is.null(cache) && !"heat_source" %in% names(cache)) {
     message("  [note] discarding pre-existing heat cache (no heat_source column).")
+    cache <- NULL
+  }
+  # And discard a cache built from a different source, so the whole set stays on
+  # one basis. Without this the switch to ERA5-Land is a silent no-op: every city
+  # is already in the cache under `events_csv`, so nothing is recomputed and the
+  # clusters keep their model-hazard values under the new label.
+  want <- if (identical(HEAT_SOURCE, "model")) c("events_csv", "netcdf") else "era5_land"
+  if (!is.null(cache) && !all(cache$heat_source %in% want)) {
+    message(sprintf("  [note] discarding heat cache built from '%s'; want '%s'.",
+                    paste(unique(cache$heat_source), collapse = "/"),
+                    paste(want, collapse = "/")))
     cache <- NULL
   }
   have <- if (!is.null(cache)) cache$city else character(0)

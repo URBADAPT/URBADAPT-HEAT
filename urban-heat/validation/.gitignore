@@ -1,0 +1,4 @@
+# Raw upstream payloads: the MoMo export alone is ~720 MB. Re-fetch with
+# fetch_benchmarks.py; only the small annual aggregates in benchmarks/ are tracked.
+cache/
+# Cached UrbClim domain-mean extractions (rebuilt by test_baseline_mode.py --refresh)

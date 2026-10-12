@@ -8,6 +8,7 @@
 
 slug: nantes # city name
 city_name: Nantes
+urau_code: FR007C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: FRA
 wp_country: France
 pop_k: 320                       # approx population (thousands), from eu_urbclim_cities_urbadapt

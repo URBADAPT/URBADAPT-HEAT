@@ -8,6 +8,7 @@
 
 slug: bratislava # city name
 city_name: Bratislava
+urau_code: SK001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: SVK
 wp_country: Slovakia
 pop_k: 475                       # approx population (thousands), from eu_urbclim_cities_urbadapt

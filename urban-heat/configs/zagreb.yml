@@ -8,6 +8,7 @@
 
 slug: zagreb # city name
 city_name: Zagreb
+urau_code: HR001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: HRV
 wp_country: Croatia
 pop_k: 770                       # approx population (thousands), from eu_urbclim_cities_urbadapt

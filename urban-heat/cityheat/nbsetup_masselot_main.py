@@ -19,7 +19,16 @@ from .nbsetup import find_repo_root
 DEFAULT_OUTPUT_VARIANT = "masselot_main"
 DEFAULT_IF_MAIN_FAMILY = "masselot_tail"
 _VARIANT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
-_IF_FAMILIES = {"masselot", "masselot_tail", "burke_polynomial", "burke_powerlaw"}
+# The *_varcorr families are the same Masselot curves with the variance the
+# climatological hazard discards folded back in (see cityheat/hazard_reconciliation.py).
+_IF_FAMILIES = {
+    "masselot",
+    "masselot_tail",
+    "masselot_varcorr",
+    "masselot_tail_varcorr",
+    "burke_polynomial",
+    "burke_powerlaw",
+}
 
 
 def get_output_variant(default: str = DEFAULT_OUTPUT_VARIANT) -> str:
@@ -46,6 +55,8 @@ def masselot_extrapolation(if_family: str | None = None) -> str | None:
     return {
         "masselot": "constant_tail",
         "masselot_tail": "loglinear_tail",
+        "masselot_varcorr": "constant_tail",
+        "masselot_tail_varcorr": "loglinear_tail",
     }.get(family)
 
 

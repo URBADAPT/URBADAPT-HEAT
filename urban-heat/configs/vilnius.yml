@@ -8,6 +8,7 @@
 
 slug: vilnius # city name
 city_name: Vilnius
+urau_code: LT001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: LTU
 wp_country: Lithuania
 pop_k: 580                       # approx population (thousands), from eu_urbclim_cities_urbadapt

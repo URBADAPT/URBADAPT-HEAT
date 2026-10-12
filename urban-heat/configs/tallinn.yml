@@ -8,6 +8,7 @@
 
 slug: tallinn # city name
 city_name: Tallinn
+urau_code: EE001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: EST
 wp_country: Estonia
 pop_k: 460                       # approx population (thousands), from eu_urbclim_cities_urbadapt

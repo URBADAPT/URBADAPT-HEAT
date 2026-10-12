@@ -252,3 +252,8 @@ natcities_visual_items/R/.Rhistory
 gmd_visual_items/gmd_uncertainty/*.png
 gmd_visual_items/gmd_uncertainty/*.pdf
 gmd_visual_items/**/__pycache__/
+
+# Working calibration-arm trees: regenerable from JUNO, not deliverables.
+# masselot_main (the published pilot outputs) stays tracked.
+/urban-heat/outputs_variants/masselot_main_variance_only/
+/urban-heat/outputs_variants/masselot_main_gmd/

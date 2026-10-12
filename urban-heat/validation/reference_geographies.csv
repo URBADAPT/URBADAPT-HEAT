@@ -1,0 +1,41 @@
+slug,urau_code,source,source_geo_code,source_geo_name,nuts3,counterfactual,geo_match,notes
+amsterdam,NL001C,,,,,,,no independent national series located
+athens,EL001C,,,,,,,no independent national series located
+barcelona,ES002C,momo,B,Barcelona,ES511,threshold,province_much_larger,"province 5.51M vs model 1.91M; includes cool inland comarques"
+berlin,DE001C,,,,,,,no independent national series located
+bologna,IT009C,,,,,,,SISMG excess is seasonal-norm referenced - not comparable
+bratislava,SK001C,,,,,,,no independent national series located
+brussels,BE001C,,,,,,,no independent national series located
+bucharest,RO001C,,,,,,,no independent national series located
+budapest,HU001C,,,,,,,no independent national series located
+cologne,DE004C,,,,,,,no independent national series located
+copenhagen,DK001C,,,,,,,no independent national series located
+dublin,IE001C,,,,,,,no independent national series located
+hamburg,DE002C,,,,,,,no independent national series located
+helsinki,FI001C,,,,,,,no independent national series located
+lisbon,PT001C,,,,,,,no independent national series located
+ljubljana,SI001C,,,,,,,no independent national series located
+lyon,FR002C,spf,69,Rhone,FRK26,mmt,dept_larger,"dept 1.89M vs model 0.57M; includes rural Rhone"
+madrid,ES001C,momo,M,Madrid,ES300,threshold,province_larger,"province 6.46M vs model 3.31M; province dominated by the city"
+marseille,FR004C,spf,13,Bouches-du-Rhone,FRL04,mmt,dept_larger,"dept 2.06M vs model 0.88M"
+milan,IT002C,,,,,,,SISMG excess is seasonal-norm referenced - not comparable
+munich,DE003C,,,,,,,no independent national series located
+nantes,FR007C,spf,44,Loire-Atlantique,FRG01,mmt,dept_much_larger,"dept 1.46M vs model 0.32M"
+naples,IT003C,,,,,,,SISMG excess is seasonal-norm referenced - not comparable
+palermo,IT005C,,,,,,,SISMG excess is seasonal-norm referenced - not comparable
+paris,FR001C,spf,75,Paris,FR101,mmt,close,"dept 2.13M vs model 2.32M - cleanest geographic match in the sample"
+porto,PT002C,,,,,,,no independent national series located
+prague,CZ001C,,,,,,,no independent national series located
+riga,LV001C,,,,,,,no independent national series located
+rome,IT001C,,,,,,,SISMG excess is seasonal-norm referenced - not comparable
+rotterdam,NL037C,,,,,,,no independent national series located
+sevilla,ES004C,momo,SE,Sevilla,ES618,threshold,province_larger,"province 1.94M vs model 0.68M"
+sofia,BG001C,,,,,,,no independent national series located
+stockholm,SE001C,,,,,,,no independent national series located
+tallinn,EE001C,,,,,,,no independent national series located
+thessaloniki,EL002C,,,,,,,no independent national series located
+varna,BG003C,,,,,,,no independent national series located
+vienna,AT001C,,,,,,,no independent national series located
+vilnius,LT001C,,,,,,,no independent national series located
+warsaw,PL001C,,,,,,,no independent national series located
+zagreb,HR001C,,,,,,,no independent national series located

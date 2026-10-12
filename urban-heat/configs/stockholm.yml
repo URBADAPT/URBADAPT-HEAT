@@ -8,6 +8,7 @@
 
 slug: stockholm # city name
 city_name: Stockholm
+urau_code: SE001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: SWE
 wp_country: Sweden
 pop_k: 980                       # approx population (thousands), from eu_urbclim_cities_urbadapt

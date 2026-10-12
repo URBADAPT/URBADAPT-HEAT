@@ -8,6 +8,7 @@
 
 slug: helsinki # city name
 city_name: Helsinki
+urau_code: FI001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: FIN
 wp_country: Finland
 pop_k: 660                       # approx population (thousands), from eu_urbclim_cities_urbadapt

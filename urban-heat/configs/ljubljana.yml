@@ -8,6 +8,7 @@
 
 slug: ljubljana # city name
 city_name: Ljubljana
+urau_code: SI001C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: SVN
 wp_country: Slovenia
 pop_k: 285                       # approx population (thousands), from eu_urbclim_cities_urbadapt

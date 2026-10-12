@@ -8,6 +8,7 @@
 
 slug: thessaloniki # city name
 city_name: Thessaloniki
+urau_code: EL002C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: GRC
 wp_country: Greece
 pop_k: 320                       # approx population (thousands), from eu_urbclim_cities_urbadapt

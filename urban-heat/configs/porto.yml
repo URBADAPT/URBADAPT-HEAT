@@ -8,6 +8,7 @@
 
 slug: porto # city name
 city_name: Porto
+urau_code: PT002C                  # Masselot URAU (10288665); for t2m_era5_bias_correct
 wp_iso3: PRT
 wp_country: Portugal
 pop_k: 230                       # approx population (thousands), from eu_urbclim_cities_urbadapt
