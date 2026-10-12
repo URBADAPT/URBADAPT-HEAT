@@ -17,6 +17,26 @@ approximation where it is actually used.
 
 Agreement means the convolution behaves in the pipeline as it did in the reconstruction.
 
+SETTLED, 2026-10-11. The two do NOT agree, and the reconstruction is the one that is
+wrong. juno_run_ensemble_city.lsf drove all ten observed years through the full chain for
+Stockholm - the most extreme cool city, where this script's reconstruction predicted a
+17.3x correction against the pipeline's 10.7x:
+
+    exact ensemble mean, 10 members   39.972 deaths
+    pipeline, variance arm            39.904 deaths     -0.17%
+    uncorrected climatology            3.716 deaths
+
+So the pipeline reproduces the exact multi-year calculation to a fifth of a percent, and
+the reconstruction overstates the correction by 61%. That is the predicted behaviour: the
+reconstruction evaluates the curve at city-mean temperatures and therefore attributes the
+whole Jensen gap to temporal variance, while the pipeline integrates pixel by pixel and
+spatial spread has already supplied part of it. Read `pipeline_vs_exact` below as the
+distance to an upper bound, never as a pipeline error.
+
+(Worth recording from those members: the uncorrected climatology lands BELOW all ten
+years - the mildest, 2017, still gives 3.97 - so f(mean year) is below the minimum of
+f(year), not merely below its mean. The members span 27.6x.)
+
 Usage:
     python validation/verify_convolution_in_pipeline.py
 """
@@ -122,8 +142,15 @@ def main() -> int:
              "actual_pipeline", "conv_vs_exact", "pipeline_vs_exact"]]
           .to_string(index=False, float_format=lambda v: f"{v:,.3f}"))
 
+    # The second row is NOT a pipeline error. The reconstruction evaluates the curve at
+    # city-mean temperatures, so it carries the whole Jensen suppression, while the
+    # pipeline integrates pixelwise and spatial spread already supplies part of it. The
+    # reconstruction is therefore an upper bound on the correction, and this row measures
+    # how far above the pipeline that bound sits - see the header for the ensemble run
+    # that settled it.
     for lbl, c in (("convolution vs exact ensemble (reconstruction)", "conv_vs_exact"),
-                   ("PIPELINE vs exact ensemble", "pipeline_vs_exact")):
+                   ("pipeline vs the reconstruction's UPPER BOUND (not an error)",
+                    "pipeline_vs_exact")):
         v = t[c].dropna()
         if v.empty:
             continue
