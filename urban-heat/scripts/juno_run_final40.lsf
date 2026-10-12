@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# The definitive 40-city run with both corrections, including NB09, across as many
+# 24 h jobs as it takes.
+#
+# Submit:  bsub < scripts/juno_run_final40.lsf
+# Status:  bash scripts/juno_run_final40.lsf --status
+# Stop:    touch runs/final40/STOP      (the current job finishes its city, then exits)
+#
+# WHY A CHAIN RATHER THAN ONE JOB
+# The corrected 40-city outputs no longer exist on the cluster: every calibration arm
+# wrote to outputs_variants/masselot_main_agnostic and the last one to run overwrote the
+# rest, so the chain has to be re-run from NB01. At roughly 30 min per city for NB01-08,
+# plus NB09, that does not fit the 24 h queue limit. This job therefore works until it
+# is nearly out of wall clock, submits its own successor, and exits. Progress lives in
+# per-city marker files, so the successor simply continues.
+#
+# SAFEGUARDS, because a self-resubmitting job that is wrong runs forever
+#   * It only resubmits when there is still unfinished work.
+#   * MAX_GEN caps the chain (default 8 generations, i.e. up to 8 days).
+#   * `touch runs/final40/STOP` ends the chain at the next city boundary.
+#   * A city that fails is marked failed, not retried in the same chain, so one bad city
+#     cannot consume every generation.
+#
+#### LSF resource request ###########################################################
+#BSUB -J urbadapt40
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 16G
+#BSUB -R "rusage[mem=16G]"
+#BSUB -W 24:00
+#BSUB -o juno_logs/urbadapt40.%J.out
+#BSUB -e juno_logs/urbadapt40.%J.err
+#
+# Memory: NB01-08 peaked at 8.8 GB measured. NB09 holds 128 draws and has never been
+# profiled on this chain, so 16 G with -M equal to rusage (a smaller rusage silently
+# clamps -M). After the first generation, tighten or raise it from the evidence:
+#   bjobs -l <JOBID> | grep -iE "MAX MEM|Total Requested Memory"
+#####################################################################################
+
+set -uo pipefail
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+
+SCRIPT="$REPO/scripts/juno_run_final40.lsf"   # not $0: LSF runs a spooled copy
+VARIANT="${VARIANT:-masselot_main_v2}"
+NOTEBOOKS="${NOTEBOOKS:-01 02 03 04 05 06 07 08 09}"
+STATE="$REPO/runs/final40"
+GEN="${GEN:-1}"
+MAX_GEN="${MAX_GEN:-8}"
+WALL_MIN="${WALL_MIN:-1440}"
+RESERVE_MIN="${RESERVE_MIN:-180}"   # must exceed the slowest single city
+CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
+
+mkdir -p "$REPO/juno_logs" "$STATE"
+START=$(date +%s)
+remaining_min() { echo $(( WALL_MIN - ( ($(date +%s) - START) / 60 ) )); }
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export OPENBLAS_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+
+export IF_MAIN_FAMILY=masselot_tail_varcorr
+export T2M_ERA5_BIAS_CORRECT=1
+export URBAN_HEAT_OUTPUT_VARIANT="$VARIANT"
+PY="$(command -v python)"
+
+mapfile -t CITIES < <("$PY" scripts/run_agnostic_batch.py --list-cities)
+[[ ${#CITIES[@]} -gt 0 ]] || { echo "FATAL: empty city roster"; exit 1; }
+
+todo_count() {
+  local n=0 c
+  for c in "${CITIES[@]}"; do
+    [[ -f "$STATE/$c.done" || -f "$STATE/$c.failed" ]] || n=$((n+1))
+  done
+  echo "$n"
+}
+
+if [[ "${1:-}" == "--status" ]]; then
+  d=0; f=0; t=0
+  for c in "${CITIES[@]}"; do
+    if   [[ -f "$STATE/$c.done"   ]]; then d=$((d+1))
+    elif [[ -f "$STATE/$c.failed" ]]; then f=$((f+1)); echo "  FAILED: $c"
+    else t=$((t+1)); fi
+  done
+  echo "variant $VARIANT: $d done, $f failed, $t to go (of ${#CITIES[@]})"
+  [[ -f "$STATE/STOP" ]] && echo "STOP file present - the chain will not continue"
+  exit 0
+fi
+
+echo "==================================================================="
+echo "generation : $GEN of max $MAX_GEN"
+echo "variant    : $VARIANT"
+echo "notebooks  : $NOTEBOOKS"
+echo "spec       : IF_MAIN_FAMILY=$IF_MAIN_FAMILY  T2M_ERA5_BIAS_CORRECT=$T2M_ERA5_BIAS_CORRECT"
+echo "job        : ${LSB_JOBID:-interactive}   host $(hostname)"
+echo "git        : $(git rev-parse --abbrev-ref HEAD 2>/dev/null) @ $(git rev-parse --short HEAD 2>/dev/null)"
+echo "to go      : $(todo_count) of ${#CITIES[@]} cities"
+echo "==================================================================="
+
+"$PY" -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+resubmit_and_exit() {
+  local why="$1"
+  if [[ -f "$STATE/STOP" ]]; then
+    echo "### $why, but STOP file present - not continuing"; exit 0
+  fi
+  if [[ "$(todo_count)" -eq 0 ]]; then
+    echo "### $why, and nothing left to do - chain complete"; exit 0
+  fi
+  if (( GEN >= MAX_GEN )); then
+    echo "### $why, but generation $GEN has reached MAX_GEN=$MAX_GEN."
+    echo "### $(todo_count) cities remain. Resubmit by hand after checking why it is slow:"
+    echo "###   GEN=1 bsub < $SCRIPT"
+    exit 0
+  fi
+  echo "### $why - submitting generation $((GEN+1)) for $(todo_count) remaining cities"
+  GEN=$((GEN+1)) VARIANT="$VARIANT" NOTEBOOKS="$NOTEBOOKS" MAX_GEN="$MAX_GEN" \
+    bsub < "$SCRIPT" || echo "### WARNING: bsub of the successor FAILED - the chain stops here"
+  exit 0
+}
+
+for CITY in "${CITIES[@]}"; do
+  [[ -f "$STATE/STOP" ]] && { echo "### STOP file present - stopping cleanly"; exit 0; }
+  [[ -f "$STATE/$CITY.done"   ]] && continue
+  [[ -f "$STATE/$CITY.failed" ]] && { echo "### $CITY previously failed - skipping"; continue; }
+
+  rem=$(remaining_min)
+  (( rem < RESERVE_MIN )) && resubmit_and_exit "${rem}min of wall left"
+
+  echo
+  echo "### $CITY   (${rem}min wall left)   $(date +%H:%M:%S)"
+  t0=$(date +%s)
+
+  if [[ ! -s "$REPO/10288665/masselot_if_curves_${CITY}_tail_varcorr.json" ]]; then
+    echo "--- [$CITY] building variance-corrected impact functions ---"
+    if ! "$PY" scripts/build_variance_corrected_ifs.py --cities "$CITY"; then
+      echo "### $CITY FAILED building corrected curves"; touch "$STATE/$CITY.failed"; continue
+    fi
+  fi
+
+  if URBAN_HEAT_RUNS_DIR="$STATE/nb_$CITY" \
+       "$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks $NOTEBOOKS \
+         --timeout "$CELL_TIMEOUT"; then
+    touch "$STATE/$CITY.done"
+    echo "### $CITY DONE in $(( ($(date +%s)-t0)/60 ))min"
+  else
+    touch "$STATE/$CITY.failed"
+    echo "### $CITY FAILED after $(( ($(date +%s)-t0)/60 ))min - marked, not retried"
+  fi
+done
+
+echo
+echo "=== generation $GEN finished its pass ==="
+bash "$SCRIPT" --status
+
+if [[ "$(todo_count)" -gt 0 ]]; then
+  resubmit_and_exit "cities still unfinished"
+else
+  echo
+  echo "=== provenance check (must read true for every city) ==="
+  for CITY in "${CITIES[@]}"; do
+    man="$REPO/outputs_variants/$VARIANT/$CITY/interim/hazard_manifest.json"
+    if [[ -f "$man" ]]; then
+      printf '  %-14s %s\n' "$CITY" "$(grep -o '"applied": [a-z]*' "$man" | head -1)"
+    else
+      printf '  %-14s no manifest\n' "$CITY"
+    fi
+  done
+  echo
+  echo "chain complete - $(ls "$STATE"/*.done 2>/dev/null | wc -l) cities"
+fi

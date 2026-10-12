@@ -63,7 +63,7 @@ echo
 # The find expression evaluated on the remote, per city directory.
 # .npz is matched anywhere, not just under interim/: ac_coverage_maps_<city>.npz sits at
 # the top of the tree, and an interim-only pattern silently costs the AC penetration map.
-FIND_EXPR='\( -path "*/tables/*" -not -path "*/uncertainty_*/*" \) -o -name "*.npz" -o \( -path "*/interim/*" \( -name "*.csv" -o -name "*.json" -o -name "*.gpkg" \) \) -o -name "*_muni_cov_yearly.csv" -o -name "*_fua.gpkg" -o -name "lcz_masked_fua.tif"'
+FIND_EXPR='\( -path "*/tables/*" -not -path "*/uncertainty_*/*" \) -o -name "*.npz" -o -path "*/figures/*" -o \( -path "*/interim/*" \( -name "*.csv" -o -name "*.json" -o -name "*.gpkg" \) \) -o -name "*_muni_cov_yearly.csv" -o -name "*_fua.gpkg" -o -name "lcz_masked_fua.tif"'
 [[ "$MODE" == "full" ]] && FIND_EXPR="$FIND_EXPR"' -o -name "T2M_daily_mean_*_FUA_degC.nc"'
 
 < "$INV" ssh "$SSH_HOST" "
