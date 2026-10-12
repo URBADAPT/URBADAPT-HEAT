@@ -1,0 +1,100 @@
+{
+  "costs": {
+    "trees": {
+      "pv_capex": 160926926.74548197,
+      "pv_om_base": 133852322.95039888,
+      "pv_om_5x": 804634633.7274098,
+      "pv_total_base": 294779249.69588083,
+      "pv_total_5x": 965561560.4728918,
+      "eac_base": 16928544.736545887,
+      "eac_5x": 55450144.7751762
+    },
+    "ac": {
+      "pv_capex": 724991845.4413556,
+      "pv_maint": 210956853.9928988,
+      "pv_elec": 361743445.64992625,
+      "pv_elec_no_veg": 361743445.64992625,
+      "pv_elec_veg_saving": 1575193.9081751108,
+      "pv_total": 1297692145.0841806,
+      "eac": 74523697.15638341,
+      "added_users_final": 166991.5490754319
+    },
+    "ac_with_trees_interaction": {
+      "pv_capex": 724991845.4413556,
+      "pv_maint": 210956853.9928988,
+      "pv_elec": 360168251.74175113,
+      "pv_total": 1296116951.1760056,
+      "eac": 74433237.12376311,
+      "added_users_final": 166991.5490754319
+    },
+    "ews": {
+      "pv_total": 25408812.23017723,
+      "eac": 1459173.9920120304
+    }
+  },
+  "benefits": {
+    "trees": {
+      "avoided_deaths_25y": 169.66905865916735,
+      "on_top_of_ac_25y": 159.37751259480225
+    },
+    "ac": {
+      "gross_25y": 1057.4212499542407,
+      "net_25y": 945.499423287448,
+      "waste_heat_penalty_25y": 111.92182666679264
+    },
+    "ac_with_trees_interaction": {
+      "gross_25y": 1057.4212499542407,
+      "net_25y": 945.9402152984885,
+      "waste_heat_penalty_25y": 111.48103465575207
+    },
+    "ews": {
+      "avoided_deaths_25y": 1113.9645140781904
+    }
+  },
+  "cost_effectiveness": {
+    "trees_base": 1737377.763661882,
+    "trees_5x": 5690852.345756925,
+    "ac_net": 1372493.851526824,
+    "ac_net_with_trees": 1370189.077717792,
+    "ac_gross": 1227223.441121821,
+    "ews": 22809.355153654167
+  },
+  "vegetation_feedbacks": {
+    "falchetta_electricity": {
+      "enabled": true,
+      "pct_per_gvi_point": 0.009273723303430669,
+      "summer_fraction": 0.25,
+      "pv_ac_elec_saving": 1575193.9081751108,
+      "pv_ac_elec_saving_incremental_users": 1575193.9081751108,
+      "pv_total_elec_saving_all_users": 11599199.434841147,
+      "pv_tree_elec_saving_current_ac_users": 10024005.526666086,
+      "pv_tree_elec_saving_all_policy_ac_users": 11599199.434841147,
+      "cum_kwh_saved_25y": 101893271.78170109,
+      "cum_kwh_saved_current_ac_users_25y": 88272092.20880997,
+      "cum_kwh_saved_all_policy_ac_users_25y": 101893271.78170109,
+      "cum_co2_avoided_t_25y": 18340.788920706196,
+      "cum_co2_avoided_current_ac_users_t_25y": 15888.976597585794,
+      "cum_co2_avoided_all_policy_ac_users_t_25y": 18340.788920706196,
+      "tree_cost_coverage_current_ac_users_pct": 3.4005125995156362,
+      "tree_cost_coverage_all_policy_ac_users_pct": 3.9348765039628333,
+      "co2_intensity_gCO2_per_kwh": 180.0
+    },
+    "lambda_y_waste_heat": {
+      "enabled": true,
+      "mean_lambda": 0.9960342856067501,
+      "lambda_year_0": 0.9979484465280255,
+      "lambda_year_final": 0.9954480847753384,
+      "penalty_standalone_25y": 111.92182666679264,
+      "penalty_with_trees_25y": 111.48103465575207
+    }
+  },
+  "parameters": {
+    "discount_rate": 0.03,
+    "horizon_years": 25,
+    "tree_maturity_years": 12,
+    "tree_start_age": 5,
+    "delta_gvi": 23.10422698965677,
+    "waste_heat_case": "central",
+    "waste_heat_enabled": true
+  }
+}

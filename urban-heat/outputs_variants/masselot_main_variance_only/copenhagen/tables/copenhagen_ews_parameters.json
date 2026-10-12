@@ -1,0 +1,198 @@
+{
+  "city": "Copenhagen",
+  "slug": "copenhagen",
+  "interpretation": "counterfactual",
+  "age_differentiated": false,
+  "cost_model": "pavanello",
+  "threshold": {
+    "value_baseline": 0.5998603170432011,
+    "recalib_interval": 5,
+    "by_year": {
+      "2020": 0.5998603170432011,
+      "2030": 0.6260362445610491,
+      "2040": 0.628380819481353,
+      "2050": 0.637290616020205
+    },
+    "warning_fallback_used": false,
+    "warning_fallback_note": null,
+    "method": "epi_deaths_file",
+    "file": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/interim/ews_threshold_deaths_copenhagen.json",
+    "key": "threshold_deaths_per_day",
+    "unit": "heat_deaths_per_day",
+    "baseline_year": 2020,
+    "target_activation_days": 15
+  },
+  "warning_months": [
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "warning_season": {
+    "mode": "exact_dates",
+    "start_md": "05-15",
+    "end_md": "09-30"
+  },
+  "warning_season_resolved": {
+    "mode": "exact_dates",
+    "start_md": "05-15",
+    "end_md": "09-30",
+    "source": "warning_season"
+  },
+  "archetype": "cold_city_extreme_focus",
+  "operational_trigger_mode": "epi_deaths_file",
+  "alert_tiers": {
+    "levels": [
+      "advisory",
+      "watch",
+      "warning"
+    ],
+    "source": "Copenhagen adaptation pathway for warm-season extremes"
+  },
+  "targeting": {
+    "primary_groups": [
+      "65+",
+      "chronic conditions",
+      "socially isolated"
+    ],
+    "channels": [
+      "health services",
+      "municipal outreach",
+      "digital alerts"
+    ]
+  },
+  "cost_components": {
+    "model_default": "pavanello",
+    "source_note": "See pavanello/chiabai subsections below"
+  },
+  "efficacy": {
+    "low": 0.08,
+    "central": 0.15,
+    "high": 0.28
+  },
+  "displacement": {
+    "<15": {
+      "low": 0.05,
+      "central": 0.1,
+      "high": 0.2
+    },
+    "15-64": {
+      "low": 0.05,
+      "central": 0.1,
+      "high": 0.2
+    },
+    "65+": {
+      "low": 0.1,
+      "central": 0.25,
+      "high": 0.4
+    }
+  },
+  "ac_overlap_factor": {
+    "low": 0.1,
+    "central": 0.2,
+    "high": 0.4
+  },
+  "residual_life_years": {
+    "<15": 60,
+    "15-64": 25,
+    "65+": 12
+  },
+  "ramp": {
+    "years": 3,
+    "initial_efficacy": 0.1
+  },
+  "costs": {
+    "cost_model": "pavanello",
+    "pavanello": {
+      "usd_per_capita_per_day": 0.014,
+      "eur_usd_rate": 0.92,
+      "cost_source": "Pavanello & Valenti 2024 via Ebi et al. 2004 (Philadelphia HHWS)"
+    },
+    "chiabai": {
+      "opex_per_warning_day_basic": 11896,
+      "opex_per_warning_day_enhanced": 21352,
+      "opex_per_warning_day_incremental": 9456,
+      "cost_source": "Chiabai et al. 2018 (Spain/Madrid) Table 4 (projected 2020; base EUR 2013)"
+    },
+    "capex_setup": 150000,
+    "opex_annual_fixed": 305022,
+    "pv_total_25y": 10389433.521350056
+  },
+  "discount_rate": 0.03,
+  "horizon_years": 25,
+  "study_years": [
+    2020,
+    2030,
+    2040,
+    2050
+  ],
+  "horizon_25y": {
+    "years": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026,
+      2027,
+      2028,
+      2029,
+      2030,
+      2031,
+      2032,
+      2033,
+      2034,
+      2035,
+      2036,
+      2037,
+      2038,
+      2039,
+      2040,
+      2041,
+      2042,
+      2043,
+      2044
+    ],
+    "pv_cost_total": 10389433.521350056,
+    "summary_by_scenario": {
+      "low": {
+        "gross_avoided_deaths_cum": 43.782047586302156,
+        "net_avoided_deaths_cum": 39.58442026613733,
+        "life_years_saved_cum": 519.6156704946007,
+        "net_avoided_deaths_pv": 25.838397265042623,
+        "life_years_saved_pv": 340.3215068902852,
+        "cost_pv": 10389433.521350056,
+        "cost_per_death_net_cum": 262462.69243047986,
+        "cost_per_death_net_pv": 402092.80067870795,
+        "cost_per_lys_cum": 19994.45765648442,
+        "cost_per_lys_pv": 30528.289605568363
+      },
+      "central": {
+        "gross_avoided_deaths_cum": 79.88122562669666,
+        "net_avoided_deaths_cum": 60.89938547229653,
+        "life_years_saved_cum": 807.8929933449327,
+        "net_avoided_deaths_pv": 39.77236201737579,
+        "life_years_saved_pv": 529.5804577027667,
+        "cost_pv": 10389433.521350056,
+        "cost_per_death_net_cum": 170599.973066662,
+        "cost_per_death_net_pv": 261222.44177529888,
+        "cost_per_lys_cum": 12859.912893085646,
+        "cost_per_lys_pv": 19618.23434047721
+      },
+      "high": {
+        "gross_avoided_deaths_cum": 140.86053040538633,
+        "net_avoided_deaths_cum": 86.84069798318014,
+        "life_years_saved_cum": 1162.9561222754758,
+        "net_avoided_deaths_pv": 56.745417345727724,
+        "life_years_saved_pv": 762.9639869724747,
+        "cost_pv": 10389433.521350056,
+        "cost_per_death_net_cum": 119637.83989118038,
+        "cost_per_death_net_pv": 183088.50313059264,
+        "cost_per_lys_cum": 8933.641882396878,
+        "cost_per_lys_pv": 13617.200416728023
+      }
+    }
+  }
+}

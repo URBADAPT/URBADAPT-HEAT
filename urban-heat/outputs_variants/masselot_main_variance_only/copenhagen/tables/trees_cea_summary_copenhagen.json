@@ -1,0 +1,10 @@
+{
+  "policy": "trees_uniform",
+  "pv_cost_base": 254496192.68551403,
+  "pv_cost_5x": 831981783.3241518,
+  "avoided_deaths_25y": 1.3601708106750268,
+  "avoided_deaths_on_top_25y": 1.2860422025762501,
+  "cost_per_death_base": 187106053.65749058,
+  "cost_per_death_5x": 611674487.3471112,
+  "ac_gross_25y": 82.28907191148625
+}

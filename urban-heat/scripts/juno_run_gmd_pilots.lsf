@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# Re-run the four GMD pilot cities with BOTH corrections, into their own output tree.
+#
+# Submit:  bsub < scripts/juno_run_gmd_pilots.lsf
+# Resume:  same command - completed cities are skipped.
+# Status:  bash scripts/juno_run_gmd_pilots.lsf --status
+#
+# WHY THIS EXISTS RATHER THAN REUSING THE ARM PULL
+# Every arm of juno_run_arm.lsf wrote to outputs_variants/masselot_main_agnostic and was
+# pulled off before the next arm overwrote it. Only the subset each pull asked for
+# survives locally - for the "both" arm that was the results tables, not the interim NPZ
+# grids, the district geometry or the per-policy avoided-death series the manuscript
+# figures read. The remote tree now holds the variance-only arm, so those inputs cannot
+# be recovered by pulling; they have to be regenerated.
+#
+# THE FIX THAT MATTERS: A DEDICATED VARIANT
+# This writes to outputs_variants/masselot_main_gmd. Nothing else writes there, so the
+# tree cannot be clobbered by a later arm, and a pull from it is reproducible months
+# later. Confirm provenance after the run rather than trusting the directory name:
+#   grep -o '"applied": [a-z]*' outputs_variants/masselot_main_gmd/rome/interim/hazard_manifest.json
+# It must say true. The local tree that prompted this script said false while being
+# called "corrected".
+#
+# NB09 is included because the manuscript quotes the N=128 Latin Hypercube distributions.
+# It is the expensive step; drop it with NOTEBOOKS="01 02 03 04 05 06 07 08" if the
+# deterministic table is all that is needed first.
+#
+#### LSF resource request ###########################################################
+#BSUB -J urbadaptgmd
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 12G
+#BSUB -R "rusage[mem=12G]"
+#BSUB -W 24:00
+#BSUB -o juno_logs/urbadaptgmd.%J.out
+#BSUB -e juno_logs/urbadaptgmd.%J.err
+#
+# Memory: the measured peak of the 40-city both-corrections run was 8.8 GB (job 419050),
+# so 12 G with -M equal to rusage, which LSF otherwise clamps. Four cities, NB01-09:
+# budget roughly 1.5-2 h per city, so it fits the 24 h wall with room to spare.
+#####################################################################################
+
+set -uo pipefail
+
+CITIES="${CITIES:-rome athens lisbon copenhagen}"
+NOTEBOOKS="${NOTEBOOKS:-01 02 03 04 05 06 07 08 09}"
+VARIANT="${VARIANT:-masselot_main_gmd}"
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+
+STATE="$REPO/runs/gmd_pilots"
+mkdir -p "$REPO/juno_logs" "$STATE"
+CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
+RESERVE_MIN="${RESERVE_MIN:-150}"
+WALL_MIN="${WALL_MIN:-1440}"
+START=$(date +%s)
+remaining_min() { echo $(( WALL_MIN - ( ($(date +%s) - START) / 60 ) )); }
+
+if [[ "${1:-}" == "--status" ]]; then
+  echo "variant $VARIANT"
+  for c in $CITIES; do
+    man="$REPO/outputs_variants/$VARIANT/$c/interim/hazard_manifest.json"
+    if [[ -f "$STATE/$c.done" ]]; then
+      bc=$(grep -o '"applied": [a-z]*' "$man" 2>/dev/null | head -1 | awk '{print $2}')
+      echo "  $c done   (era5 applied: ${bc:-unknown})"
+    else
+      echo "  $c todo"
+    fi
+  done
+  exit 0
+fi
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export OPENBLAS_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+
+# Both corrections, and a tree of their own.
+export IF_MAIN_FAMILY=masselot_tail_varcorr
+export T2M_ERA5_BIAS_CORRECT=1
+export URBAN_HEAT_OUTPUT_VARIANT="$VARIANT"
+PY="$(command -v python)"
+
+echo "==================================================================="
+echo "cities    : $CITIES"
+echo "notebooks : $NOTEBOOKS"
+echo "variant   : $VARIANT"
+echo "spec      : IF_MAIN_FAMILY=$IF_MAIN_FAMILY  T2M_ERA5_BIAS_CORRECT=$T2M_ERA5_BIAS_CORRECT"
+echo "job       : ${LSB_JOBID:-interactive}   host $(hostname)"
+echo "git       : $(git rev-parse --abbrev-ref HEAD 2>/dev/null) @ $(git rev-parse --short HEAD 2>/dev/null)"
+echo "==================================================================="
+
+python -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+for CITY in $CITIES; do
+  [[ -f "$STATE/$CITY.done" ]] && { echo "### $CITY already done"; continue; }
+  rem=$(remaining_min)
+  (( rem < RESERVE_MIN )) && { echo "### ${rem}min left - stopping cleanly, resubmit to continue"; break; }
+  echo
+  echo "### $CITY   (${rem}min wall left)   $(date +%H:%M:%S)"
+  t0=$(date +%s)
+
+  # The variance-corrected curves are a per-city precomputation, not part of the chain.
+  if [[ ! -s "$REPO/10288665/masselot_if_curves_${CITY}_tail_varcorr.json" ]]; then
+    echo "--- [$CITY] building variance-corrected impact functions ---"
+    "$PY" scripts/build_variance_corrected_ifs.py --cities "$CITY" \
+      || { echo "### $CITY FAILED building corrected curves"; continue; }
+  fi
+
+  URBAN_HEAT_RUNS_DIR="$STATE/nb_$CITY" \
+    "$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks $NOTEBOOKS \
+      --timeout "$CELL_TIMEOUT" \
+    && touch "$STATE/$CITY.done" \
+    && echo "### $CITY DONE in $(( ($(date +%s)-t0)/60 ))min" \
+    || echo "### $CITY FAILED after $(( ($(date +%s)-t0)/60 ))min - continuing"
+done
+
+echo
+echo "=== provenance check (must read true for every city) ==="
+for CITY in $CITIES; do
+  man="$REPO/outputs_variants/$VARIANT/$CITY/interim/hazard_manifest.json"
+  if [[ -f "$man" ]]; then
+    printf '  %-12s %s\n' "$CITY" "$(grep -o '"applied": [a-z]*' "$man" | head -1)"
+  else
+    printf '  %-12s no manifest\n' "$CITY"
+  fi
+done
+
+echo
+echo "then, locally:"
+echo "  REMOTE=$REPO/outputs_variants/$VARIANT \\"
+echo "  DEST=\$PWD/outputs_variants/masselot_main_gmd bash scripts/pull_gmd_pilots.sh figures"

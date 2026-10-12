@@ -1,0 +1,5 @@
+Policy,% Reduction,Deaths/100K/year,Mechanism
+EWS (counterfactual),-5.6%,-0.21,Vulnerability (behavior)
+Trees (uniform),-0.1%,-0.00,Hazard (cooling)
+AC (NET),-7.4%,-0.28,Exposure (indoor)
+Urban et al. Italy HPP,-11.6% [-16.4; -6.7],-0.9 [-1.2; -0.5],Full HPP (counterfactual)

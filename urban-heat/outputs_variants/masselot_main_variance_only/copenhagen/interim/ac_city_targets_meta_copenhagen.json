@@ -1,0 +1,13 @@
+{
+  "nuts_ids": [
+    "DK011"
+  ],
+  "scenario": 2,
+  "penetration_file": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/data/copenhagen/ACgridded/ac_penetration_NUTSregions.csv",
+  "columns": {
+    "id": "NUTS_ID",
+    "scenario": "Scenario",
+    "year": "year",
+    "value": "value"
+  }
+}

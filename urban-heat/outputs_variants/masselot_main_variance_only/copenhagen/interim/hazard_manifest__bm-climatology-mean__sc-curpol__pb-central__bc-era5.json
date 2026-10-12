@@ -1,0 +1,33 @@
+{
+  "slug": "copenhagen",
+  "hazard_type": "t2m_daily_mean",
+  "units": "degC",
+  "run_tag": "bm-climatology-mean__sc-curpol__pb-central__bc-era5",
+  "baseline_mode": "climatology_mean",
+  "baseline_description": "2008-2017 month/day climatological mean",
+  "baseline_peak_day": null,
+  "baseline_peak_year": null,
+  "delta_pct_band": "central",
+  "era5_bias_correction": {
+    "applied": true,
+    "urau_code": "DK001C",
+    "method": "quantile map of the city reference onto Masselot ERA5-Land; pixel anomalies preserved",
+    "shift_mean_c": -0.6823076046906761,
+    "shift_min_c": -1.004723215021392,
+    "shift_max_c": -0.05122522793332962
+  },
+  "grid_crs_epsg": 3035,
+  "variable_name": "T2M",
+  "files": {
+    "2020": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2020_FUA_degC__bm-climatology-mean__sc-curpol__pb-central__bc-era5.nc",
+    "2030": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2030_FUA_degC__bm-climatology-mean__sc-curpol__pb-central__bc-era5.nc",
+    "2040": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2040_FUA_degC__bm-climatology-mean__sc-curpol__pb-central__bc-era5.nc",
+    "2050": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2050_FUA_degC__bm-climatology-mean__sc-curpol__pb-central__bc-era5.nc"
+  },
+  "files_legacy": {
+    "2020": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2020_FUA_degC.nc",
+    "2030": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2030_FUA_degC.nc",
+    "2040": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2040_FUA_degC.nc",
+    "2050": "/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/outputs_variants/masselot_main_agnostic/copenhagen/hazard/T2M_daily_mean_2050_FUA_degC.nc"
+  }
+}

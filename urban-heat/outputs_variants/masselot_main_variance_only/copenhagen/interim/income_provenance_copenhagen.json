@@ -1,0 +1,8 @@
+{
+  "income_source": "observed",
+  "n_income_zones": 10,
+  "n_ac_zones": 10,
+  "n_matched": 10,
+  "match_rate": 1.0,
+  "emulator_csv": null
+}

@@ -1,0 +1,27 @@
+{
+  "worldpop_base_year": 2020,
+  "worldpop_2030_year": 2030,
+  "wcde_scale_base_year": 2030,
+  "wcde_years": [
+    2020,
+    2030,
+    2040,
+    2050
+  ],
+  "wcde_country": "Greece",
+  "wcde_iso3": "GRC",
+  "wcde_scenarios": {
+    "SSP1": "Rapid Development (SSP1)",
+    "SSP2": "Medium (SSP2)",
+    "SSP2-DM": "Medium - Double Migration (SSP2-DM)",
+    "SSP2-ZM": "Medium - Zero Migration (SSP2-ZM)",
+    "SSP3": "Stalled Development (SSP3)",
+    "SSP4": "Inequality (SSP4)",
+    "SSP5": "Conventional Development (SSP5)"
+  },
+  "age_groups": [
+    "<15",
+    "15-64",
+    "65+"
+  ]
+}

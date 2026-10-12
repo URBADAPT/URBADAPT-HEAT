@@ -1,0 +1,5 @@
+year,n_warning_days,threshold_deaths_per_day,threshold_method,warning_fallback_used,warning_fallback_note,warning_event_mask_source,season_start_md,season_end_md,season_source
+2020,15,0.5998603170432011,epi_deaths_file,False,,,05-15,09-30,warning_season
+2030,22,0.6260362445610491,epi_deaths_file,False,,,05-15,09-30,warning_season
+2040,31,0.628380819481353,epi_deaths_file,False,,,05-15,09-30,warning_season
+2050,34,0.637290616020205,epi_deaths_file,False,,,05-15,09-30,warning_season
