@@ -1,0 +1,17 @@
+overleaf_name,source,generator,note
+diagram.png,,hand-drawn,static schematic; not produced by the pipeline
+fig_hazard_t2m_maps.png,gmd_visual_items/fig_hazard_t2m_maps_<city>.png,make_figures,drop the city suffix on upload
+fig_exposure_population.png,gmd_visual_items/fig_exposure_population_<city>.png,make_figures,drop the city suffix on upload
+fig_svi_components.png,gmd_visual_items/fig_svi_components_<city>.png,make_figures,drop the city suffix on upload
+fig_ac_penetration_maps.png,gmd_visual_items/fig_ac_penetration_maps_<city>.png,make_figures,drop the city suffix on upload
+fig_policy_levers.png,gmd_visual_items/fig_policy_levers.png,make_figures,all four pilots in one figure
+fig_cba_dashboard.png,gmd_visual_items/fig_cba_dashboard.png,make_figures,all four pilots in one figure
+fig_ac_calibration.png,<variant>/<city>/interim/ac_calibration_<city>.png,NB05,matched on aspect ratio (0.3%); Overleaf copy is a lower-dpi render
+fig_cba_pareto.png,<variant>/<city>/figures/<city>_budget_optimization.png,NB08,matched on pixel dimensions
+fig_ews_results.png,<variant>/<city>/figures/<city>_ews_summary_25y.png,NB06,matched on aspect ratio (0.1%)
+fig_if_family_comparison.png,<variant>/<city>/figures/<city>_IF_masselot_main_burke_sensitivity_comparison.png,NB04,byte-identical match
+fig_svi_trajectory.png,<variant>/<city>/figures/summary/summary_03_vulnerability_<city>.png,NB10,matched on pixel dimensions
+fig_trees_allocation.png,<variant>/<city>/<city>_uniform_vs_equity.png,NB07,matched on aspect ratio (0.2%); written to the tree root
+summary_02_climate_hazard_rome.png,<variant>/<city>/figures/summary/summary_02_climate_hazard_<city>.png,NB10,uploaded with the city suffix
+summary_04_mortality_if_rome.png,<variant>/<city>/figures/summary/summary_04_mortality_if_<city>.png,NB10,uploaded with the city suffix
+fig_uncertainty.png,gmd_visual_items/gmd_uncertainty/fig_uncertainty.png,build_fig_uncertainty.py,needs NB09 for the pilot cities
