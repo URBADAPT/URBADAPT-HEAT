@@ -480,7 +480,156 @@ def test_assembled_trajectory_and_aggregate_qa_contract():
             raise AssertionError("Aggregate QA accepted a broken trajectory export.")
 
 
+def _nb05_pick_threshold_closest(values, target):
+    """Notebook 05's calibration rule, verbatim (prefer_higher=True)."""
+    v = np.asarray(values, dtype=float)
+    v = v[np.isfinite(v)]
+    uniq = np.unique(v)
+    s = np.sort(v)
+    counts_ge = len(s) - np.searchsorted(s, uniq, side="left")
+    diff = np.abs(counts_ge - target)
+    best = np.where(diff == diff.min())[0]
+    return float(uniq[best[-1]])
+
+
+def test_activation_threshold_matches_notebook05_rule():
+    rng = np.random.default_rng(0)
+    distinct = rng.gamma(2.0, 3.0, size=153)
+    assert nb09._activation_threshold(distinct, 23) == _nb05_pick_threshold_closest(distinct, 23)
+    assert int((distinct >= nb09._activation_threshold(distinct, 23)).sum()) == 23
+
+    # A cool city: ten in-season days carry heat deaths. A rank statistic
+    # returns 0 and activates all 153 days; NB05 activates the ten.
+    sparse_deaths = np.zeros(153)
+    sparse_deaths[:10] = rng.uniform(1.0, 5.0, size=10)
+    threshold = nb09._activation_threshold(sparse_deaths, 23)
+    assert threshold == _nb05_pick_threshold_closest(sparse_deaths, 23)
+    assert threshold > 0.0
+    assert int((sparse_deaths >= threshold).sum()) == 10
+
+
+def test_central_ews_keeps_the_calibration_day_under_rounding():
+    """NB09 reproduces NB05's daily deaths only to ~1e-7 (float32 hazard).
+
+    The deterministic threshold is one of NB05's own daily values, so testing
+    NB09's series against it drops the calibration day whenever rounding lands
+    below. Rome 2020 under the ERA5-corrected hazard: 22 days instead of 23.
+    """
+    years = [2020, 2030]
+    runner = object.__new__(nb09.NB09ImprovedFast)
+    runner.slug = "test-city"
+    runner.years = years
+    runner.use_extreme_track = False
+    runner.ews_warning_trigger_mode = "deaths_threshold"
+    runner.ews_threshold_ref_year = 2020
+    runner.season_start_md, runner.season_end_md = "05-01", "09-30"
+    runner.dates_by_year = {
+        y: pd.date_range(f"{y}-01-01", f"{y}-12-31", freq="D").to_numpy(dtype="datetime64[ns]")
+        for y in years
+    }
+    runner.coverage_mean_for_ews = lambda year, ac_ssp, mode="base": 0.0
+    runner.ews_init = 0.10
+    runner.ews_overlap = {"central": 0.5}
+    runner.ews_marg = {age: {"central": 0.10} for age in nb09.AGE_ORDER}
+    runner.ews_cf = {"central": 0.35}
+    runner.ews_disp = {age: {"central": 0.0} for age in nb09.AGE_ORDER}
+    runner.ews_rly = {age: 10 for age in nb09.AGE_ORDER}
+
+    rng = np.random.default_rng(1)
+    nb05_daily: dict[int, np.ndarray] = {}
+    base_anchor_results: dict[int, dict] = {}
+    for y in years:
+        dates = runner.dates_by_year[y]
+        season = nb09._season_mask_by_md(dates, "05-01", "09-30")
+        daily = np.where(season, rng.gamma(2.0, 3.0, size=dates.size), 0.0)
+        nb05_daily[y] = daily
+        nb09_daily = daily * (1.0 - 1e-7)
+        base_anchor_results[y] = {
+            "daily_base_total": nb09_daily,
+            "age_impacts": {"<15": np.zeros_like(nb09_daily), "15-64": np.zeros_like(nb09_daily), "65+": nb09_daily},
+            "season_mask": season,
+            "event_day_mask": np.zeros(dates.size, dtype=bool),
+            "hazard_citymean_daily": np.zeros(dates.size),
+            "pop_total": 1.0,
+        }
+    season_2020 = base_anchor_results[2020]["season_mask"]
+    nb05_threshold = _nb05_pick_threshold_closest(nb05_daily[2020][season_2020], 23)
+    assert int((base_anchor_results[2020]["daily_base_total"][season_2020] >= nb05_threshold).sum()) == 22
+    # The published artifact is present, as on a real run; NB09 must not test against it.
+    runner.ews_cfg = {}
+    runner.threshold_meta = {"threshold_deaths_per_day": nb05_threshold}
+    runner.threshold_meta_path = "ews_threshold_deaths_test-city.json"
+
+    sample = {
+        "_central_control": 1.0,
+        "ac_ssp": 2,
+        "ews_target_days": 23,
+        "ews_recalib_years": 5,
+        "ews_ramp_years": 3,
+        "ews_overlap_level": "central",
+        "ews_interpretation": "marginal",
+        "ews_cf_eff_level": "central",
+        **{f"ews_eff_{key}_level": "central" for key in ("lt15", "15_64", "65p")},
+        **{f"ews_disp_{key}_level": "central" for key in ("lt15", "15_64", "65p")},
+    }
+    anchors, _, threshold_ref = runner._apply_ews_to_base_anchors(
+        sample=sample,
+        base_anchor_results=base_anchor_results,
+        base_pop_totals={y: 1.0 for y in years},
+        ac_mode="base",
+    )
+    assert anchors[2020]["warning_days"] == 23
+    assert np.isclose(threshold_ref, nb05_threshold, rtol=1e-6, atol=0.0)
+
+
+def test_central_parity_names_a_warning_day_mismatch():
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        runner = object.__new__(nb09.NB09ImprovedFast)
+        runner.slug = "test-city"
+        runner.out = base / "outputs"
+        runner.int_dir = runner.out / "interim"
+        runner.tab_dir = runner.out / "tables"
+        runner.unc_dir = runner.tab_dir / "uncertainty"
+        for path in (runner.int_dir, runner.unc_dir):
+            path.mkdir(parents=True)
+        runner.years = [2020, 2030]
+        runner.ac_cfg, runner.trees_cfg, runner.ews_cfg, runner.ews_params = {}, {}, {}, {}
+        runner.ews_params_path = runner.int_dir / "absent.json"
+        runner.ews_warning_trigger_mode = "deaths_threshold"
+        runner.threshold_meta = {"threshold_deaths_per_day": 6.5}
+        runner.threshold_meta_path = str(runner.int_dir / "ews_threshold_deaths_test-city.json")
+        pd.DataFrame(
+            {
+                "year": [2020, 2030],
+                "scenario": ["central", "central"],
+                "baseline_warning_days": [23, 44],
+                "net_avoided_deaths": [1.42, 27.8],
+            }
+        ).to_csv(runner.tab_dir / "annual_heat_deaths_avoided_EWS_test-city.csv", index=False)
+        result = {
+            "ews_avoided_deaths_2020": 1.42,
+            "ews_avoided_deaths_2030": 27.8,
+            "ews_warning_days_2020": 22.0,
+            "ews_warning_days_2030": 44.0,
+            "ews_threshold_ref_deaths_per_day": 6.5 * (1.0 - 1e-7),
+        }
+        try:
+            runner.validate_central_against_deterministic(result)
+        except RuntimeError as exc:
+            assert "ews_warning_days_2020" in str(exc)
+        else:
+            raise AssertionError("Central parity accepted a one-day warning-day mismatch.")
+        parity = pd.read_csv(runner.unc_dir / "central_parity_test-city_improved_fast.csv").set_index("metric")
+        assert parity.loc["ews_warning_days_2020", "status"] == "mismatch"
+        assert parity.loc["ews_warning_days_2030", "status"] == "pass"
+        assert parity.loc["ews_threshold_ref_deaths_per_day", "status"] == "pass"
+
+
 if __name__ == "__main__":
+    test_activation_threshold_matches_notebook05_rule()
+    test_central_ews_keeps_the_calibration_day_under_rounding()
+    test_central_parity_names_a_warning_day_mismatch()
     test_policy_trajectory_contract_and_mathematical_gate()
     test_mathematical_gate_rejects_branch_mismatch()
     test_campaign_path_isolation_and_nonfinite_checkpoint_roundtrip()

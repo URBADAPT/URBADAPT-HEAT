@@ -252,14 +252,23 @@ def _mode_tag(mode: str) -> str:
     return str(mode).strip().lower().replace("_", "-")
 
 
-def _safe_quantile_threshold(values: np.ndarray, target_days: int) -> float:
+def _activation_threshold(values: np.ndarray, target_days: int) -> float:
+    """Return the observed value whose activation count is closest to ``target_days``.
+
+    Mirrors Notebook 05's ``pick_threshold_closest(prefer_higher=True)``, which
+    defines the deterministic EWS threshold: ties prefer the higher threshold.
+    Unlike a plain rank statistic, it never returns a zero threshold that would
+    activate every in-season day when fewer than ``target_days`` days carry
+    heat deaths.
+    """
     vals = np.asarray(values, dtype=float)
     vals = vals[np.isfinite(vals)]
     if vals.size == 0:
         return np.inf
-    target_days = int(np.clip(target_days, 1, vals.size))
-    order = np.sort(vals)[::-1]
-    return float(order[target_days - 1])
+    uniq = np.unique(vals)
+    counts_ge = vals.size - np.searchsorted(np.sort(vals), uniq, side="left")
+    diff = np.abs(counts_ge - int(target_days))
+    return float(uniq[np.flatnonzero(diff == diff.min())[-1]])
 
 
 def _season_mask_by_md(dates: np.ndarray, start_md: str, end_md: str) -> np.ndarray:
@@ -3481,22 +3490,21 @@ class NB09ImprovedFast:
     ) -> tuple[dict[int, dict[str, Any]], dict[int, float], float | None]:
         if self.ews_uses_event_mask_warning():
             threshold_ref = None
-        elif bool(sample.get("_central_control", False)):
-            threshold_key = str(self.ews_cfg.get("threshold_key", "threshold_deaths_per_day"))
-            if threshold_key not in self.threshold_meta:
-                raise KeyError(
-                    f"[{self.slug}] Central EWS parity requires {threshold_key!r} in "
-                    f"{self.threshold_meta_path}."
-                )
-            threshold_ref = float(self.threshold_meta[threshold_key])
         else:
+            # Every draw, the central control included, calibrates on its own
+            # reference-year series exactly as Notebook 05 does.  The threshold
+            # is one of those daily values, so the calibration day sits exactly
+            # on it.  Testing NB09's float32-hazard series against NB05's
+            # published value instead left that day's inclusion to rounding
+            # (Rome 2020 lost it under the ERA5-corrected hazard).  The
+            # published threshold is checked in the central parity table.
             ref_year = self.ews_threshold_ref_year if self.ews_threshold_ref_year in self.years else min(self.years)
             ref_base = base_anchor_results[ref_year]
             season_ref = np.asarray(
                 ref_base.get("season_mask", _season_mask_by_md(self.dates_by_year[ref_year], self.season_start_md, self.season_end_md)),
                 dtype=bool,
             )
-            threshold_ref = _safe_quantile_threshold(ref_base["daily_base_total"][season_ref], sample["ews_target_days"])
+            threshold_ref = _activation_threshold(ref_base["daily_base_total"][season_ref], sample["ews_target_days"])
 
         anchor_results: dict[int, dict[str, Any]] = {}
         for year in self.years:
@@ -4884,6 +4892,33 @@ class NB09ImprovedFast:
                             getattr(item, "net_avoided_deaths"),
                             ews_anchor_path,
                         )
+            # Warning days are integers, so the shared tolerance makes this an
+            # exact check; a one-day disagreement surfaces here by name.
+            if "baseline_warning_days" in ews_anchor.columns:
+                for item in ews_anchor.itertuples(index=False):
+                    year = int(getattr(item, "year"))
+                    key = f"ews_warning_days_{year}"
+                    if key in result:
+                        record(
+                            key,
+                            result[key],
+                            getattr(item, "baseline_warning_days"),
+                            ews_anchor_path,
+                        )
+
+        deaths_trigger = getattr(self, "ews_warning_trigger_mode", "deaths_threshold") == "deaths_threshold"
+        if deaths_trigger:
+            # NB09 calibrates its own threshold; it must reproduce NB05's.
+            threshold_key = str((getattr(self, "ews_cfg", {}) or {}).get("threshold_key", "threshold_deaths_per_day"))
+            threshold_meta = getattr(self, "threshold_meta", {}) or {}
+            threshold_source = Path(getattr(self, "threshold_meta_path", None) or self.int_dir)
+            if threshold_key in threshold_meta and "ews_threshold_ref_deaths_per_day" in result:
+                record(
+                    "ews_threshold_ref_deaths_per_day",
+                    result["ews_threshold_ref_deaths_per_day"],
+                    threshold_meta[threshold_key],
+                    threshold_source,
+                )
 
         wh_path = self.int_dir / f"ac_wasteheat_timeseries_{self.slug}.csv"
         if wh_path.exists():
@@ -5019,6 +5054,8 @@ class NB09ImprovedFast:
             "schema::ews_25y_years",
             *(f"reference_deaths_{year}" for year in self.years),
             *(f"ews_avoided_deaths_{year}" for year in self.years),
+            *(f"ews_warning_days_{year}" for year in self.years),
+            *(["ews_threshold_ref_deaths_per_day"] if deaths_trigger else []),
             "tree_avoided_deaths_25y_cum",
             "ews_net_avoided_deaths_25y_cum",
             "ews_pv_cost_25y",
@@ -5224,7 +5261,7 @@ class NB09ImprovedFast:
         # Standalone EWS is always evaluated against the common reference
         # branch.  Combined-policy EWS outputs can be added explicitly later;
         # they must never replace the standalone EWS headline.
-        ews_policy_anchor_results, ews_policy_pop_totals, _ = self.evaluate_branch_anchors(
+        ews_policy_anchor_results, ews_policy_pop_totals, ews_threshold_ref = self.evaluate_branch_anchors(
             sample,
             ac_mode="base",
             tree_enabled=False,
@@ -5373,6 +5410,7 @@ class NB09ImprovedFast:
             **impact_freq,
             "sample_warning_days": float(ews_year_res["warning_days"]),
             "sample_threshold_deaths_per_day": float(ews_year_res["threshold"]),
+            "ews_threshold_ref_deaths_per_day": float(ews_threshold_ref) if ews_threshold_ref is not None else np.nan,
             "sample_deaths_on_warning_days": float(ews_year_res["deaths_on_warning_days"]),
             "sample_extreme_threshold_pct": float(sample.get("extreme_threshold_pct", np.nan)),
             "sample_extreme_threshold_degC": float(extreme_threshold_c) if extreme_threshold_c is not None else np.nan,
@@ -5608,6 +5646,7 @@ class NB09ImprovedFast:
             result[f"ac_net_avoided_deaths_{year}"] = ref_a - ac_a - wh_penalty_a
             result[f"full_maturity_tree_avoided_deaths_{year}"] = ref_a - tree_full_a
             result[f"ews_avoided_deaths_{year}"] = ref_a - ews_a
+            result[f"ews_warning_days_{year}"] = float(ews_policy_anchor_results[year]["warning_days"])
 
         result.update(ac_costs)
         result.update(
