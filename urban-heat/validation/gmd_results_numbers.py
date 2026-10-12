@@ -59,6 +59,13 @@ def row(city: str) -> dict:
             pen = r["ac_gross_deaths"] - r["ac_net_deaths"]
             r["wasteheat_penalty"] = pen
             r["wasteheat_pct_of_gross"] = 100 * pen / r["ac_gross_deaths"]
+        # tab:city_results "Aggregate standalone ratio": the three standalone PV costs
+        # over the three standalone benefits, AC net of waste heat, trees at base O&M.
+        standalone = ["AC (NET)", "EWS (central)", "Trees (base O&M)"]
+        if set(standalone) <= set(c.index):
+            r["aggregate_standalone_cpd"] = float(
+                c.loc[standalone, "PV_Cost_EUR"].sum() / c.loc[standalone, "Avoided_Deaths_25y"].sum()
+            )
     return r
 
 
@@ -84,7 +91,7 @@ def main() -> int:
          ["ac_gross_deaths", "ac_net_deaths", "ews_deaths", "trees_deaths"])
     show("AC waste-heat penalty", ["wasteheat_penalty", "wasteheat_pct_of_gross"])
     show("Cost per avoided death (EUR)",
-         ["ac_net_cpd", "ews_cpd", "trees_cpd"], "{:,.0f}")
+         ["aggregate_standalone_cpd", "ac_net_cpd", "ews_cpd", "trees_cpd"], "{:,.0f}")
 
     out = os.path.join(HERE, "outputs", "gmd_results_numbers.csv")
     os.makedirs(os.path.dirname(out), exist_ok=True)
