@@ -52,6 +52,8 @@ MAX_GEN="${MAX_GEN:-8}"
 WALL_MIN="${WALL_MIN:-1440}"
 RESERVE_MIN="${RESERVE_MIN:-180}"   # must exceed the slowest single city
 CELL_TIMEOUT="${CELL_TIMEOUT:-21600}"
+ABORT_AFTER="${ABORT_AFTER:-3}"   # consecutive failures, with no success, that abort the chain
+consec_fail=0
 
 mkdir -p "$REPO/juno_logs" "$STATE"
 START=$(date +%s)
@@ -148,10 +150,23 @@ for CITY in "${CITIES[@]}"; do
        "$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks $NOTEBOOKS \
          --timeout "$CELL_TIMEOUT"; then
     touch "$STATE/$CITY.done"
+    consec_fail=0
     echo "### $CITY DONE in $(( ($(date +%s)-t0)/60 ))min"
   else
     touch "$STATE/$CITY.failed"
     echo "### $CITY FAILED after $(( ($(date +%s)-t0)/60 ))min - marked, not retried"
+    consec_fail=$((consec_fail+1))
+    # Marking a city failed and moving on keeps one bad city from eating the chain.
+    # But when nothing has ever succeeded and several in a row have failed, the fault
+    # is the run, not the city, and continuing would burn a full generation marking
+    # all 40 failed - each after its ~30 min of NB01-08. Stop and say so.
+    if (( consec_fail >= ABORT_AFTER )) && [[ -z "$(ls "$STATE"/*.done 2>/dev/null)" ]]; then
+      echo
+      echo "### ABORTING: $consec_fail consecutive failures and no city has ever succeeded."
+      echo "### This is a run-wide fault, not a per-city one. Fix it, then:"
+      echo "###   rm -f $STATE/*.failed && bsub < $SCRIPT"
+      exit 1
+    fi
   fi
 done
 
