@@ -8,6 +8,8 @@
 # Usage:
 #   bash scripts/pull_gmd_pilots.sh [figures|full]
 #
+#   uncertainty  figures plus the uncertainty_*/ Monte Carlo draws, which
+#            fig_uncertainty reads and nothing else does. No rasters.
 #   figures  (default) everything the figure pipeline and the results table read:
 #            tables/, the interim CSV/JSON/NPZ/GPKG grids, the FUA and LCZ geometry.
 #            No hazard rasters, so the T2M map figure cannot be rebuilt from this mode.
@@ -34,7 +36,7 @@
 set -uo pipefail
 
 MODE="${1:-figures}"
-case "$MODE" in figures|full) ;; *) echo "usage: bash scripts/pull_gmd_pilots.sh [figures|full]"; exit 2 ;; esac
+case "$MODE" in figures|uncertainty|full) ;; *) echo "usage: bash scripts/pull_gmd_pilots.sh [figures|uncertainty|full]"; exit 2 ;; esac
 
 CITIES="${CITIES:-rome athens lisbon copenhagen}"
 SSH_HOST="${JUNO_HOST:-juno}"
@@ -63,7 +65,14 @@ echo
 # The find expression evaluated on the remote, per city directory.
 # .npz is matched anywhere, not just under interim/: ac_coverage_maps_<city>.npz sits at
 # the top of the tree, and an interim-only pattern silently costs the AC penetration map.
-FIND_EXPR='\( -path "*/tables/*" -not -path "*/uncertainty_*/*" \) -o -name "*.npz" -o -path "*/figures/*" -o \( -path "*/interim/*" \( -name "*.csv" -o -name "*.json" -o -name "*.gpkg" \) \) -o -name "*_muni_cov_yearly.csv" -o -name "*_fua.gpkg" -o -name "lcz_masked_fua.tif"'
+# The uncertainty_*/ subtrees are 128 Monte Carlo draws per city. They are excluded in
+# `figures` mode because no figure reads them and across 40 cities they are gigabytes -
+# but fig_uncertainty reads exactly those draws, so `full` mode keeps them. For four
+# pilot cities the cost is modest; do not lift the exclusion for a 40-city pull.
+TABLES_EXPR='\( -path "*/tables/*" -not -path "*/uncertainty_*/*" \)'
+[[ "$MODE" == "uncertainty" || "$MODE" == "full" ]] && TABLES_EXPR='-path "*/tables/*"'
+
+FIND_EXPR="$TABLES_EXPR"' -o -name "*.npz" -o -name "*.png" -o -path "*/figures/*" -o \( -path "*/interim/*" \( -name "*.csv" -o -name "*.json" -o -name "*.gpkg" \) \) -o -name "*_muni_cov_yearly.csv" -o -name "*_fua.gpkg" -o -name "lcz_masked_fua.tif"'
 [[ "$MODE" == "full" ]] && FIND_EXPR="$FIND_EXPR"' -o -name "T2M_daily_mean_*_FUA_degC.nc"'
 
 < "$INV" ssh "$SSH_HOST" "
