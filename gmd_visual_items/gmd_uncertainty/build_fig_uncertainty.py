@@ -158,6 +158,11 @@ for ax, (name, col, title, color) in zip([e, f, g], [
     ax.set_title(title, fontsize=10); ax.set_xlabel("median PAWN KS statistic")
 
 # (h) annual mortality by impact-function family: draws, IQR, P5-P95, median
+def deaths(v: float) -> str:
+    """Whole deaths, but keep sub-one Burke tails readable instead of printing 0."""
+    return f"{v:,.0f}" if v >= 1 else f"{v:.2g}"
+
+
 rng = np.random.default_rng(0)
 fam_stats = {}
 for j, (key, label, _, _, marker, filled) in enumerate(FAMILIES):
@@ -171,7 +176,7 @@ for j, (key, label, _, _, marker, filled) in enumerate(FAMILIES):
     h.plot(j + .24, med, marker, color=tone, mfc=tone if filled else "white", mew=1.5, ms=7)
 h.set_yscale("log")
 h.set_xticks(np.arange(3) + .1)
-h.set_xticklabels([f"{f[1]}\n{fam_stats[f[0]][0]:,.0f} [{fam_stats[f[0]][1]:,.0f}–{fam_stats[f[0]][2]:,.0f}]"
+h.set_xticklabels([f"{f[1]}\n{deaths(fam_stats[f[0]][0])} [{deaths(fam_stats[f[0]][1])}–{deaths(fam_stats[f[0]][2])}]"
                    for f in FAMILIES], fontsize=8)
 h.set_xlim(-.4, 2.6)
 h.set_title("(h) Annual heat mortality by IF family", fontsize=10)
@@ -189,4 +194,4 @@ plt.close(fig)
 print("saved:", out)
 print(f"(a) {CITY.title()} P5/P95 ratios: x{p5:.2f} / x{p95:.2f}")
 for key, (med, lo_, hi_) in fam_stats.items():
-    print(f"(h) {key}: median {med:,.0f}, P5-P95 {lo_:,.0f}-{hi_:,.0f}")
+    print(f"(h) {key}: median {deaths(med)}, P5-P95 {deaths(lo_)}-{deaths(hi_)}")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import tarfile
 from pathlib import Path
 
@@ -51,7 +52,12 @@ class DirArchive:
             return self.path.is_file()
 
     def __init__(self, root: Path | str):
-        self.root = Path(root)
+        self.root = Path(root).resolve()
+        # The Burke members sit two levels below the headline campaign, which puts
+        # them past Windows' 260-character MAX_PATH from a repo checkout; the
+        # extended-length prefix lifts the limit and needs an absolute path.
+        if os.name == "nt" and not str(self.root).startswith("\\\\?\\"):
+            self.root = Path("\\\\?\\" + str(self.root))
 
     def __enter__(self):
         return self
