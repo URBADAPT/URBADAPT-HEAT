@@ -4,25 +4,25 @@
 # gmd_visual_items/gmd_uncertainty/build_fig_uncertainty.py --tree reads.
 #
 #   Central parity only (minutes):  CENTRAL_ONLY=1 bsub -W 2:00 < scripts/juno_run_nb09_gmd.lsf
-#   Full run (Rome ~20 h):          bsub < scripts/juno_run_nb09_gmd.lsf
-#   Another pilot:                  CITY=lisbon bsub < scripts/juno_run_nb09_gmd.lsf
+#   Full run (Rome ~16 h):          bsub < scripts/juno_run_nb09_gmd.lsf
+#   Headline LHS only (Rome ~4 h):  BURKE=0 CITY=lisbon bsub < scripts/juno_run_nb09_gmd.lsf
+#   Sample-size comparison:         BURKE=0 NB09_N=64 CITY=rome bsub < scripts/juno_run_nb09_gmd.lsf
 #
 # The campaign id is pinned to the commit, so the full run reuses the central
 # control the check verified, and resubmitting the same command at the same commit
-# resumes from the sample checkpoints rather than starting again. The Rome Burke
-# band alone took 6.4 h at N=128 (Sep 2026); headline plus two bands is ~20 h.
+# resumes from the sample checkpoints rather than starting again. Rome at N=128
+# (Oct 2026): headline 4.0 h, each Burke band 5.6-5.9 h.
 #
-# Memory: NB09 on this tree has not been profiled. Read the central check's peak,
-#   bjobs -l <JOBID> | grep -iE "MAX MEM|Total Requested Memory"
-# and size the full run from it on the command line (overrides the lines below):
+# Memory: Rome peaked at 4.2 GB for the full run (3.1 GB for the central check).
+# Override on the command line for a larger city:
 #   bsub -M <G>G -R "rusage[mem=<G>G]" < scripts/juno_run_nb09_gmd.lsf
 #
 #BSUB -J nb09_gmd
 #BSUB -P 0628
 #BSUB -q s_long
 #BSUB -n 1
-#BSUB -M 16G
-#BSUB -R "rusage[mem=16G]"
+#BSUB -M 6G
+#BSUB -R "rusage[mem=6G]"
 #BSUB -W 24:00
 #BSUB -o juno_logs/nb09_gmd.%J.out
 #BSUB -e juno_logs/nb09_gmd.%J.err
@@ -38,6 +38,7 @@ VARIANT="${VARIANT:-masselot_main_gmd}"
 N="${NB09_N:-128}"
 SEED="${NB09_SEED:-42}"
 CENTRAL_ONLY="${CENTRAL_ONLY:-0}"
+BURKE="${BURKE:-1}"
 CITY_DIR="$REPO/outputs_variants/$VARIANT/$CITY"
 
 # NB09 records the commit as the code that produced the run, so it must describe it.
@@ -65,7 +66,7 @@ echo "==================================================================="
 echo "job        : ${LSB_JOBID:-interactive}   host $(hostname)   $(date -Iseconds)"
 echo "git        : $(git rev-parse --abbrev-ref HEAD) @ $HEAD12"
 echo "python     : $(command -v python)"
-echo "city       : $CITY   variant $VARIANT   N=$N seed=$SEED   central_only=$CENTRAL_ONLY"
+echo "city       : $CITY   variant $VARIANT   N=$N seed=$SEED   central_only=$CENTRAL_ONLY   burke=$BURKE"
 echo "campaign   : $NB09_CAMPAIGN_ID"
 echo "ERA5 corr. : $(grep -o '"applied": [a-z]*' "$CITY_DIR/interim/hazard_manifest.json" | head -1 || true)"
 echo "IF source  : $(grep -o '"canonical_source_family": "[^"]*"' "$CITY_DIR/interim/if_family_manifest_${CITY}.json" || true)"
@@ -74,12 +75,14 @@ echo "==================================================================="
 
 if [[ "$CENTRAL_ONLY" == "1" ]]; then
   mode=(--central-check-only)
-else
+elif [[ "$BURKE" == "1" ]]; then
   mode=(--burke-sensitivity)
+else
+  mode=()   # headline Masselot LHS only
 fi
 status=0
 python -m cityheat.nb09_improved_fast_masselot_main \
-  --city "$CITY" --n "$N" --seed "$SEED" "${mode[@]}" || status=$?
+  --city "$CITY" --n "$N" --seed "$SEED" ${mode[@]+"${mode[@]}"} || status=$?
 
 parity="$CITY_DIR/tables/uncertainty_runs/$NB09_CAMPAIGN_ID/central_parity_${CITY}_improved_fast.csv"
 if [[ -f "$parity" ]]; then
