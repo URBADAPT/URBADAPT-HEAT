@@ -1581,7 +1581,11 @@ class NB09ImprovedFast:
             end_date = pd.Timestamp(year=2021, month=end_month, day=1) + pd.offsets.MonthEnd(0)
             self.season_end_md = f"{end_month:02d}-{end_date.day:02d}"
 
+        # NB06 recalibrates the threshold on the reference series it counts warning
+        # days on, and writes the value it used here; NB05's file is the fallback
+        # for trees produced before that change.
         thr_candidates = [
+            self.int_dir / f"ews_threshold_deaths_{self.slug}_nb06.json",
             self.int_dir / f"ews_threshold_deaths_{self.slug}.json",
             self.int_dir / f"ews_threshold_deaths_{self.slug}_climate_only.json",
         ]

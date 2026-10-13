@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Rerun NB06 (EWS) and NB08 (CBA) after NB06 began calibrating its activation
+# threshold on the series it counts warning days on.
+#
+#   40 cities:        VARIANT=masselot_main_v2 bsub < scripts/juno_rerun_ews.lsf
+#   GMD pilots:       VARIANT=masselot_main_gmd CITIES="athens lisbon copenhagen" bsub < scripts/juno_rerun_ews.lsf
+#   A slice in parallel: add CITIES="..." and -J <name>; markers are per variant and city,
+#   so slices never repeat each other and a resubmission skips finished cities.
+#
+# WHY
+# NB05 calibrated the threshold on its own AC-attenuated series, which fills gaps in the
+# coverage map differently from the current-AC reference branch NB06 evaluates. Where the
+# map has holes inside the city, 2020 activation exceeded the target: 40 days instead of
+# 23 in Athens, 31 in Lisbon, 15 of 40 cities in all. Nothing upstream of NB06 changes,
+# and NB07 does not read EWS outputs, so NB06 and NB08 are all that need rerunning.
+#
+#BSUB -J urbadapt_ews
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 10G
+#BSUB -R "rusage[mem=10G]"
+#BSUB -W 12:00
+#BSUB -o juno_logs/urbadapt_ews.%J.out
+#BSUB -e juno_logs/urbadapt_ews.%J.err
+#
+# Memory: NB01-08 peaked at 8.6 GB per city in the 40-city run; NB06 and NB08 are a subset.
+
+set -uo pipefail
+
+REPO="${URBAN_HEAT_REPO:-/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat}"
+cd "$REPO" || { echo "FATAL: no repo at $REPO"; exit 1; }
+VARIANT="${VARIANT:-masselot_main_v2}"
+STATE="$REPO/runs/ews_fix/$VARIANT"
+CELL_TIMEOUT="${CELL_TIMEOUT:-7200}"
+mkdir -p "$REPO/juno_logs" "$STATE"
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export MKL_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export OPENBLAS_NUM_THREADS="${LSB_DJOB_NUMPROC:-1}"
+export IF_MAIN_FAMILY=masselot_tail_varcorr
+export T2M_ERA5_BIAS_CORRECT=1
+export URBAN_HEAT_OUTPUT_VARIANT="$VARIANT"
+PY="$(command -v python)"
+
+if [[ -z "${CITIES:-}" ]]; then
+  CITIES="$("$PY" scripts/run_agnostic_batch.py --list-cities | tr '\n' ' ')"
+fi
+
+echo "==================================================================="
+echo "job      : ${LSB_JOBID:-interactive}   host $(hostname)   $(date -Iseconds)"
+echo "git      : $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
+echo "variant  : $VARIANT"
+echo "cities   : $CITIES"
+echo "==================================================================="
+grep -q "calibrate_on_reference_series" notebooks/city_agnostic/March2026_agnostic/template/06_EWS_0126.ipynb \
+  || { echo "FATAL: NB06 does not recalibrate the threshold yet - pull first"; exit 1; }
+"$PY" -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+failed=0
+for CITY in $CITIES; do
+  [[ -f "$STATE/$CITY.done" ]] && { echo "### $CITY already done"; continue; }
+  t0=$(date +%s)
+  if URBAN_HEAT_RUNS_DIR="$STATE/nb_$CITY" \
+       "$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks 06 08 --timeout "$CELL_TIMEOUT"; then
+    touch "$STATE/$CITY.done"
+    echo "### $CITY DONE in $(( ($(date +%s)-t0)/60 ))min"
+  else
+    failed=$((failed+1))
+    echo "### $CITY FAILED after $(( ($(date +%s)-t0)/60 ))min"
+  fi
+done
+
+echo
+echo "=== 2020 activation days against the target (must match for every city) ==="
+for CITY in $CITIES; do
+  j="outputs_variants/$VARIANT/$CITY/interim/ews_threshold_deaths_${CITY}_nb06.json"
+  w="outputs_variants/$VARIANT/$CITY/tables/${CITY}_ews_warning_days.csv"
+  if [[ -f "$j" && -f "$w" ]]; then
+    "$PY" - "$j" "$w" "$CITY" <<'PY'
+import csv, json, sys
+meta = json.load(open(sys.argv[1]))
+rows = {r["year"]: r for r in csv.DictReader(open(sys.argv[2]))}
+target, got = meta["target_activation_days"], int(rows["2020"]["n_warning_days"])
+flag = "ok" if got == target else "MISMATCH"
+print(f"  {sys.argv[3]:14s} target {target:3d}  NB06 2020 {got:3d}  2050 {rows['2050']['n_warning_days']:>3s}  "
+      f"threshold {meta['threshold_deaths_per_day']:.4f} (NB05 {meta['nb05_threshold_deaths_per_day']:.4f})  {flag}")
+PY
+  else
+    printf '  %-14s no NB06 output\n' "$CITY"
+  fi
+done
+echo "failed cities: $failed"
+exit $(( failed > 0 ))
