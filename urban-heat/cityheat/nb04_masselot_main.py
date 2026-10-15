@@ -17,6 +17,7 @@ import yaml
 from climada.engine import ImpactCalc
 from climada.entity.exposures import Exposures
 from climada.entity.impact_funcs import ImpactFunc, ImpactFuncSet
+from .nbsetup_masselot_main import DEFAULT_IF_MAIN_FAMILY
 
 
 AGE_ORDER = ["<15", "15-64", "65+"]
@@ -784,7 +785,7 @@ def run_nb04_masselot_main(
     out_dir = Path(out_dir)
     int_dir = Path(int_dir)
     slug = str(slug).strip().lower()
-    main_family = (main_family or os.environ.get("IF_MAIN_FAMILY") or "masselot_tail").strip()
+    main_family = (main_family or os.environ.get("IF_MAIN_FAMILY") or DEFAULT_IF_MAIN_FAMILY).strip()
     output_variant = (output_variant or os.environ.get("URBAN_HEAT_OUTPUT_VARIANT") or "masselot_main").strip()
     if audit_strict is None:
         audit_strict = os.environ.get("NB04_BURKE_AUDIT_STRICT", "0").strip().lower() in {"1", "true", "yes", "y"}
