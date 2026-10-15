@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -805,7 +807,7 @@ def run_nb04_masselot_main(
     # pair unconditionally would make NB04 require *_varcorr.json for every city - only
     # the handful with local UrbClim have them - and would change the uncorrected run's
     # outputs. So the corrected pair is read only when it is the selected main family,
-    # which keeps the default path byte-identical to before.
+    # which keeps an uncorrected run (IF_MAIN_FAMILY=masselot_tail) byte-identical to before.
     active_families = list(BASE_MASSELOT_FAMILIES)
     if main_family in VARCORR_MASSELOT_FAMILIES:
         active_families += list(VARCORR_MASSELOT_FAMILIES)
@@ -813,9 +815,22 @@ def run_nb04_masselot_main(
         family: masselot_dir / MASSELOT_SOURCE_FILE[family].format(slug=slug)
         for family in active_families
     }
+    # The variance-corrected curves are derived per city from its UrbClim record, which
+    # NB01 downloads, and are not shipped with the repository: build them on first use.
+    missing_varcorr = [f for f in VARCORR_MASSELOT_FAMILIES
+                       if f in masselot_sources and not masselot_sources[f].exists()]
+    if missing_varcorr:
+        builder = root / "scripts" / "build_variance_corrected_ifs.py"
+        print(f"[NB04] building variance-corrected curves for {slug}: {builder.name} --cities {slug}")
+        subprocess.run([sys.executable, str(builder), "--cities", slug], cwd=root, check=False)
     missing_sources = [str(path) for path in masselot_sources.values() if not path.exists()]
     if missing_sources:
-        raise FileNotFoundError("Missing Masselot IF source JSON(s):\n" + "\n".join(missing_sources))
+        raise FileNotFoundError(
+            "Missing Masselot IF source JSON(s):\n" + "\n".join(missing_sources)
+            + ("\nThe *_varcorr curves need the city's UrbClim daily T2M (NB01 downloads it); "
+               "set IF_MAIN_FAMILY=masselot_tail to run without the variance correction."
+               if missing_varcorr else "")
+        )
 
     canonical_path = int_dir / f"if_curves_by_year_{slug}.json"
     legacy_path = int_dir / f"if_curves_frozen_{slug}.json"

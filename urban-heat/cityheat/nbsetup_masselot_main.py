@@ -17,7 +17,9 @@ from .nbsetup import find_repo_root
 
 
 DEFAULT_OUTPUT_VARIANT = "masselot_main"
-DEFAULT_IF_MAIN_FAMILY = "masselot_tail"
+# The canonical configuration: log-linear-tail Masselot curves with the interannual
+# variance correction. IF_MAIN_FAMILY=masselot_tail runs without the correction.
+DEFAULT_IF_MAIN_FAMILY = "masselot_tail_varcorr"
 _VARIANT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 # The *_varcorr families are the same Masselot curves with the variance the
 # climatological hazard discards folded back in (see cityheat/hazard_reconciliation.py).
