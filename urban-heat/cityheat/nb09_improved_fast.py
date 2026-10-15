@@ -5587,8 +5587,15 @@ class NB09ImprovedFast:
             float(np.asarray(ac_plus1_anchor_results[sample_year]["daily_residual_total"]).sum())
             - sample_ac_gross_annual
         )
-        sample_activity = self.waste_heat_activity_share(
-            ref_anchor_results[sample_year]["hazard_citymean_daily"]
+        sample_activity_current = self.waste_heat_deathweighted_share(
+            ref_anchor_results[sample_year]["hazard_citymean_daily"],
+            ref_plus1_anchor_results[sample_year]["daily_residual_total"],
+            ref_anchor_results[sample_year]["daily_residual_total"],
+        )
+        sample_activity_policy = self.waste_heat_deathweighted_share(
+            ref_anchor_results[sample_year]["hazard_citymean_daily"],
+            ac_plus1_anchor_results[sample_year]["daily_residual_total"],
+            ac_gross_anchor_results[sample_year]["daily_residual_total"],
         )
         sample_d_t_current = float(
             self.waste_heat_dailymean_delta(
@@ -5622,9 +5629,9 @@ class NB09ImprovedFast:
         )
         sample_wh_penalty = 0.0
         if sample["wh_enabled"]:
-            sample_wh_penalty = sample_activity * (
-                sample_marginal_policy * sample_d_t_policy
-                - sample_marginal_current * sample_d_t_current
+            sample_wh_penalty = (
+                sample_activity_policy * sample_marginal_policy * sample_d_t_policy
+                - sample_activity_current * sample_marginal_current * sample_d_t_current
             )
         result.update(
             {
@@ -5651,8 +5658,16 @@ class NB09ImprovedFast:
             )
             wh_penalty_a = 0.0
             if sample["wh_enabled"]:
-                activity_a = self.waste_heat_activity_share(
-                    ref_anchor_results[year]["hazard_citymean_daily"]
+                # Death-weighted per branch, as in NB05 and the 25-year series above.
+                activity_current_a = self.waste_heat_deathweighted_share(
+                    ref_anchor_results[year]["hazard_citymean_daily"],
+                    ref_plus1_anchor_results[year]["daily_residual_total"],
+                    ref_anchor_results[year]["daily_residual_total"],
+                )
+                activity_policy_a = self.waste_heat_deathweighted_share(
+                    ref_anchor_results[year]["hazard_citymean_daily"],
+                    ac_plus1_anchor_results[year]["daily_residual_total"],
+                    ac_gross_anchor_results[year]["daily_residual_total"],
                 )
                 d_t_current_a = float(
                     self.waste_heat_dailymean_delta(
@@ -5684,9 +5699,9 @@ class NB09ImprovedFast:
                         sample,
                     )[0]
                 )
-                wh_penalty_a = activity_a * (
-                    (ac_plus1_a - ac_a) * d_t_policy_a
-                    - (ref_plus1_a - ref_a) * d_t_current_a
+                wh_penalty_a = (
+                    activity_policy_a * (ac_plus1_a - ac_a) * d_t_policy_a
+                    - activity_current_a * (ref_plus1_a - ref_a) * d_t_current_a
                 )
             result[f"reference_deaths_{year}"] = ref_a
             result[f"ac_gross_deaths_{year}"] = ac_a
