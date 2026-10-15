@@ -293,8 +293,8 @@ ews:
   threshold_unit: heat_deaths_per_day
   nonpositive_threshold_fallback: event_mask
   event_mask_file: null
-  target_activation_days: 15
-  target_activation_days_options: [10, 15, 23]
+  target_activation_days: 23
+  target_activation_days_options: [15, 23, 30]
   threshold_ref_year: 2020
   threshold_recalib_interval: 5
   threshold_recalib_interval_options: [3, 5, 7]
