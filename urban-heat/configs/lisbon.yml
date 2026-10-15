@@ -314,7 +314,7 @@ ews:
   threshold_key: threshold_deaths_per_day
   threshold_unit: heat_deaths_per_day
   target_activation_days: 23
-  target_activation_days_options: [15, 23]
+  target_activation_days_options: [15, 23, 30]
   threshold_ref_year: 2020
   threshold_recalib_interval: 5   # recalibrate every N years (GHHIN guidance)
   threshold_recalib_interval_options: [3, 5, 7]
