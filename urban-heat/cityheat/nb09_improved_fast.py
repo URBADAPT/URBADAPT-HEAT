@@ -1400,13 +1400,12 @@ class NB09ImprovedFast:
                 masked = row_vals[self.row_is_city]
                 finite = np.isfinite(masked)
                 mean_val = float(masked[finite].mean()) if np.any(finite) else 0.0
-                # Preserve NB05's missing municipal assignments in the
-                # canonical map.  The mortality calculation does not replace
-                # these with the finite-pixel mean: it first includes them as
-                # zero in a population-weighted city mean and only then fills
-                # the gaps with that diluted mean (see
-                # ``deaths_year_by_age`` in template Notebook 05 and
-                # ``daily_deaths_current_ac`` in template Notebook 06).
+                # Preserve any missing cells of NB05's map as NaN. NB05 now fills
+                # city cells outside the AC zones with the zones' population-weighted
+                # mean before saving, so NaNs should not occur; where one does, the
+                # mortality calculation fills it with the population-weighted mean
+                # of the finite cells, as ``deaths_year_by_age`` in template
+                # Notebook 05 and ``daily_deaths_current_ac`` in Notebook 06 do.
                 raw = np.full_like(row_vals, np.nan, dtype=np.float32)
                 raw_masked = np.where(finite, np.clip(masked, 0.0, 0.98), np.nan)
                 raw[self.row_is_city] = raw_masked.astype(np.float32)
@@ -2395,6 +2394,39 @@ class NB09ImprovedFast:
         activity = np.clip((arr - self.wh_t_on_c) / denom, 0.0, 1.0)
         return float(activity.mean())
 
+    def waste_heat_activity_weights(self, citymean_daily: np.ndarray) -> np.ndarray:
+        """Per-day cooling-activity weight on the Kou ramp; 0 where the temperature is missing."""
+        arr = np.asarray(citymean_daily, dtype=float)
+        if self.wh_activation_method != "kou_cdd_share":
+            return np.ones(arr.size, dtype=float)
+        out = np.zeros(arr.size, dtype=float)
+        ok = np.isfinite(arr)
+        denom = float(self.wh_t_full_c - self.wh_t_on_c)
+        if denom <= 0:
+            out[ok] = (arr[ok] > self.wh_t_on_c).astype(float)
+        else:
+            out[ok] = np.clip((arr[ok] - self.wh_t_on_c) / denom, 0.0, 1.0)
+        return out
+
+    def waste_heat_deathweighted_share(
+        self,
+        citymean_daily: np.ndarray,
+        deaths_plus: np.ndarray,
+        deaths_base: np.ndarray,
+    ) -> float:
+        """Cooling activity averaged over days, weighted by each day's marginal deaths per degree.
+
+        Times the annual marginal this equals the sum over days of activity x marginal deaths,
+        as Notebook 05 computes it. An unweighted annual mean would spread the waste-heat
+        warming over winter days too, although marginal deaths concentrate on hot days.
+        """
+        m_day = np.asarray(deaths_plus, dtype=float) - np.asarray(deaths_base, dtype=float)
+        q_day = self.waste_heat_activity_weights(citymean_daily)
+        if q_day.size != m_day.size:
+            raise ValueError(f"activity weights ({q_day.size}) and daily deaths ({m_day.size}) differ in length")
+        total = float(m_day.sum())
+        return float((q_day * m_day).sum() / total) if total != 0 else 0.0
+
     def interpolate_coverage_pattern(self, year: int, mode: str = "base") -> np.ndarray:
         year = int(year)
         mode_key = "policy" if str(mode).lower() == "policy" else "base"
@@ -2526,10 +2558,9 @@ class NB09ImprovedFast:
                 mode=canonical_mode,
             ).astype(float)
             if np.any(populated & ~np.isfinite(coverage)):
-                numerator = float(
-                    np.sum(np.nan_to_num(coverage[populated], nan=0.0) * pop_by_centroid[populated])
-                )
-                denominator = float(np.sum(pop_by_centroid[populated]))
+                have = populated & np.isfinite(coverage)
+                numerator = float(np.sum(coverage[have] * pop_by_centroid[have]))
+                denominator = float(np.sum(pop_by_centroid[have]))
                 fallback = numerator / denominator if denominator > 0 else 0.0
                 coverage[populated & ~np.isfinite(coverage)] = fallback
             coverage[~np.isfinite(coverage)] = 0.0
@@ -4016,12 +4047,17 @@ class NB09ImprovedFast:
         om_scale = float(sample["tree_om_mult"])
         om_per_index = base_om_per_index * om_scale
 
-        delta_index_total = float(
+        delta_index_total_central = float(
             self.tree_cost_params.get(
                 "delta_index_total",
                 self.tree_cost_params.get("delta_gvi_total", self.tree_cost_params.get("total_dGVI_points", 0.0)),
             )
         )
+        # The sampled canopy uplift scales the greening delivered, and with it the cooling
+        # (tree_dt2m_for_day), so it scales the GVI points paid for too. The ratio is 1 at
+        # the central configuration, which keeps NB08 parity.
+        cap_ratio = float(sample["TREE_CAP_UPLIFT"]) / max(self.tree_base_cap, 1e-6)
+        delta_index_total = delta_index_total_central * cap_ratio
         lifetime = int(trees_cfg.get("lifetime_years", self.tree_cost_params.get("lifetime_years", HORIZON_YEARS)))
         capex_stream = _tree_capex_linear_stream(delta_index_total, years, capex_per_index)
         discount = (1.0 + r) ** np.arange(1, years + 1, dtype=float)
@@ -4041,6 +4077,7 @@ class NB09ImprovedFast:
             "tree_pv_om_25y": pv_om,
             "tree_pv_cost_25y": pv_capex + pv_om,
             "tree_delta_index_total": delta_index_total,
+            "tree_cap_ratio": cap_ratio,
             "_tree_cost_streams": {
                 "capex": capex_stream,
                 "om": om_stream,
@@ -5464,14 +5501,25 @@ class NB09ImprovedFast:
         ac_tree_gross_avoided_25y = ref_annual_25y - ac_tree_gross_annual_25y
         ews_reference_avoided_25y = ref_annual_25y - ews_policy_annual_25y
 
-        # NB05 aggregate waste-heat accounting: activity-weighted marginal
-        # deaths under current and policy AC, multiplied by each branch's
-        # daily-mean warming.  The policy externality is the difference.
-        activity_anchor = np.array(
-            [self.waste_heat_activity_share(ref_anchor_results[y]["hazard_citymean_daily"]) for y in self.years],
-            dtype=float,
-        )
-        activity_25y = _interp_1d_years(anchor_years, activity_anchor, years_all)
+        # NB05 aggregate waste-heat accounting: marginal deaths under current and
+        # policy AC, weighted day by day by cooling activity, multiplied by each
+        # branch's daily-mean warming.  The policy externality is the difference.
+        def _deathweighted_activity_25y(plus_results, base_results):
+            shares = np.array(
+                [
+                    self.waste_heat_deathweighted_share(
+                        ref_anchor_results[y]["hazard_citymean_daily"],
+                        plus_results[y]["daily_residual_total"],
+                        base_results[y]["daily_residual_total"],
+                    )
+                    for y in self.years
+                ],
+                dtype=float,
+            )
+            return _interp_1d_years(anchor_years, shares, years_all)
+
+        activity_current_25y = _deathweighted_activity_25y(ref_plus1_anchor_results, ref_anchor_results)
+        activity_policy_25y = _deathweighted_activity_25y(ac_plus1_anchor_results, ac_gross_anchor_results)
         marginal_current_25y = ref_plus1_annual_25y - ref_annual_25y
         marginal_policy_25y = ac_plus1_annual_25y - ac_gross_annual_25y
         pen_current_25y = self.coverage_series_for_waste_heat(
@@ -5489,8 +5537,8 @@ class NB09ImprovedFast:
         d_t_current_25y = self.waste_heat_dailymean_delta(pen_current_25y, sample)
         d_t_policy_25y = self.waste_heat_dailymean_delta(pen_policy_25y, sample)
         if sample["wh_enabled"]:
-            wh_penalty_current_25y = activity_25y * marginal_current_25y * d_t_current_25y
-            wh_penalty_policy_25y = activity_25y * marginal_policy_25y * d_t_policy_25y
+            wh_penalty_current_25y = activity_current_25y * marginal_current_25y * d_t_current_25y
+            wh_penalty_policy_25y = activity_policy_25y * marginal_policy_25y * d_t_policy_25y
             ac_penalty_raw_25y = wh_penalty_policy_25y - wh_penalty_current_25y
         else:
             wh_penalty_current_25y = np.zeros_like(ref_annual_25y)
