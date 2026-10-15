@@ -76,6 +76,9 @@ build_tab_city_characteristics <- function() {
   cap <- paste(
     "Per-city characterisation of the 40-city sample, ordered by descending",
     "warm-season mean temperature.",
+    "\\emph{Pop} is the population of the modelled area, the part of the Functional",
+    "Urban Area inside the UrbClim domain, and the denominator of every per-capita",
+    "and per-100\\,000 figure.",
     "\\emph{Class} is the descriptive climate cluster (k-means on warm-season mean",
     "2\\,m temperature and hot-day count).",
     "\\emph{65+ deaths} is the share of the modelled 2020 baseline heat-attributable",

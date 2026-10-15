@@ -18,12 +18,15 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 
 import numpy as np
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
+sys.path.insert(0, os.path.join(os.path.dirname(REPO), "urban-heat", "validation"))
+from modelled_population import modelled_population  # noqa: E402
 
 PUB_OUT = r"G:\Il mio Drive\adaptation_infrastructure_database\juno_pull\n128_results"
 COR_OUT = r"C:\Users\giaco\OneDrive - IIASA\Documents\juno\corrected40"
@@ -48,9 +51,8 @@ def city_rows(base: str, meta_path: str) -> pd.DataFrame:
     for _, m in meta.iterrows():
         c = m.city
         cea = os.path.join(base, c, "tables", f"{c}_cea_summary.csv")
-        pol = os.path.join(base, c, "tables", f"{c}_policy_comparison.csv")
         dea = os.path.join(base, c, "tables", f"annual_heat_deaths_baseline_current_ac_{c}.csv")
-        if not all(os.path.exists(p) for p in (cea, pol, dea)):
+        if not all(os.path.exists(p) for p in (cea, dea)):
             continue
         d = pd.read_csv(cea)
         rec = {"city": c, "cluster": m.climate_cluster}
@@ -67,10 +69,14 @@ def city_rows(base: str, meta_path: str) -> pd.DataFrame:
             # understates the gradient - which is how the trees row came out at x6.7
             # against the x12 the figures show.
             rec[name] = np.nan if not np.isfinite(cost) or avoided < NO_BENEFIT_DEATHS else cost
-        pop = pd.read_csv(pol)["population"].sum()
+        # The population of the modelled area does not depend on the corrections, so
+        # fall back to the corrected tree where an older export lacks the EWS tables.
+        pop = modelled_population(os.path.join(base, c, "tables"), c)
+        if not np.isfinite(pop):
+            pop = modelled_population(os.path.join(COR_OUT, c, "tables"), c)
         dd = pd.read_csv(dea)
         v = dd.loc[dd.year == 2020, "deaths_overall"]
-        rec["per100k"] = float(v.iloc[0]) / pop * 1e5 if len(v) and pop else np.nan
+        rec["per100k"] = float(v.iloc[0]) / pop * 1e5 if len(v) and np.isfinite(pop) else np.nan
         out.append(rec)
     return pd.DataFrame(out)
 

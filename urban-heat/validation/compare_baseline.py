@@ -25,9 +25,10 @@ Two framing points the outputs are built around:
      a LOWER bound on the city rate: model_over_ref slightly above 1 is the expected
      result, and below 1 is a red flag. reference_geographies.csv grades each match.
 
-Rates are per 100k. The model denominator is its own exposure population (the sum of
-`population` in <city>_policy_comparison.csv), not config pop_k, which is unusable for
-four cities and off by >2x for Porto.
+Rates are per 100k. The model denominator is the population of the modelled area, which
+the deaths are summed over (modelled_population.py). It is neither the sum of
+`population` in <city>_policy_comparison.csv, which covers only the greening regions,
+nor config pop_k, which is unusable for four cities and off by >2x for Porto.
 
 The averaging window is not a free choice. The modelled hazard is a climatology over
 UrbClim 2008-2017, so the benchmark mean should cover years with a comparable climate.
@@ -57,6 +58,9 @@ import numpy as np
 import pandas as pd
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from modelled_population import modelled_population  # noqa: E402
+
 URBAN_HEAT = HERE.parent
 MASSELOT_CITY = URBAN_HEAT / "10288665" / "results" / "city.csv"
 DEFAULT_OUTPUTS = Path(
@@ -70,7 +74,6 @@ def read_model(base: Path, slugs: list[str]) -> pd.DataFrame:
     for slug in slugs:
         tables = base / slug / "tables"
         deaths_csv = tables / f"annual_heat_deaths_baseline_current_ac_{slug}.csv"
-        pop_csv = tables / f"{slug}_policy_comparison.csv"
         if not deaths_csv.exists():
             print(f"  [skip]  {slug}: {deaths_csv.name} not found")
             continue
@@ -79,7 +82,7 @@ def read_model(base: Path, slugs: list[str]) -> pd.DataFrame:
         if v.empty:
             print(f"  [skip]  {slug}: no 2020 row")
             continue
-        pop = pd.read_csv(pop_csv)["population"].sum() if pop_csv.exists() else np.nan
+        pop = modelled_population(tables, slug)
         rows.append({"slug": slug, "model_deaths": float(v.iloc[0]), "model_pop": pop})
     return pd.DataFrame(rows)
 

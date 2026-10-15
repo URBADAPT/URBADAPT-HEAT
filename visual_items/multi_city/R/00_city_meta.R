@@ -403,9 +403,10 @@ build_city_meta <- function(force_heat = FALSE, force_lcz = FALSE) {
   heat <- load_or_compute_heat(cities, force = force_heat)
   meta <- merge(cfg, heat, by = "city", all = TRUE)
 
-  # Population: prefer the model's own exposure population over the approximate
-  # hand-entered config value (see city_pop_k_model() in _helpers.R). Both are
-  # kept in the metadata so the choice stays auditable.
+  # Population: prefer the population of the modelled area, which deaths and costs
+  # are summed over, to the approximate hand-entered config value (see
+  # city_pop_k_model() in _helpers.R). Both are kept in the metadata so the choice
+  # stays auditable.
   meta$pop_k_config <- meta$pop_k
   meta$pop_k_model  <- vapply(meta$city, city_pop_k_model, numeric(1))
   meta$pop_k        <- ifelse(is.na(meta$pop_k_model), meta$pop_k_config,

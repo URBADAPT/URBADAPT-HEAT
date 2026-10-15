@@ -188,13 +188,26 @@ every greening number against `coef_lst_coverage_pct` in `city_metadata.csv`.
 
 ## Population denominator
 
-Per-100k / per-capita normalisation uses **the model's own exposure population**
-— the sum of per-region `population` in `<city>_policy_comparison.csv`, which is
-the denominator the mortality results are actually computed on. The hand-entered
-`pop_k` in `configs/<city>.yml` is only a fallback: it is absent for 4 cities and
-off by >2× for others (Porto: 230k in config vs 537k in the model, city-proper vs
-wider area). `city_metadata.csv` keeps `pop_k_model`, `pop_k_config` and
-`pop_source` so the choice stays auditable.
+Per-100k / per-capita normalisation uses **the population of the modelled area**:
+every populated cell of the FUA inside the UrbClim domain, which is what deaths
+and the warning-system costs are summed over. No table stores it, so
+`city_pop_k_model()` recovers it exactly from the variable warning cost NB06
+charges to it (`cost_opex_variable / (n_warning_days × usd_per_capita_per_day ×
+eur_usd_rate)` in `<city>_ews_costs_annual.csv` and `<city>_ews_parameters.json`);
+`urban-heat/validation/modelled_population.py` is the Python twin.
+
+Until 2026-10-15 the denominator was the sum of per-region `population` in
+`<city>_policy_comparison.csv`. That table covers only the greening regions,
+often just the core municipality (Athens 0.67M of 3.42M, Paris 2.32M of 9.04M), so
+every per-100k and per-capita figure was too high, by a median ×1.27 and up to
+×5.1. The hand-entered `pop_k` in `configs/<city>.yml` remains only a fallback: it
+is absent for 4 cities and off by >2× for others. `city_metadata.csv` keeps
+`pop_k_model`, `pop_k_config` and `pop_source` so the choice stays auditable.
+
+The modelled area is not the footprint of every policy: AC users and costs are
+counted over the AC zones (`<city>_muni_cov_yearly.csv`) and greening acts only
+on its regions, both often smaller than the area. Per-capita costs here are per
+resident of the modelled area, not per resident served.
 
 ## ⚠️ Run under PowerShell, not Git Bash
 

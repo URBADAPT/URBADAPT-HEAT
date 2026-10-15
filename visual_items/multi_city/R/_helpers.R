@@ -438,16 +438,28 @@ attach_meta <- function(df, meta = load_city_meta()) {
   dplyr::left_join(df, meta[, intersect(cols, names(meta))], by = "city")
 }
 
-# City population (thousands) as used by the model itself: the sum of the
-# per-region exposure population in <city>_policy_comparison.csv. This is the
-# denominator the mortality figures are actually computed on, so it is the
-# correct one for per-100k / per-capita normalisation -- the hand-entered
-# `pop_k` in configs/<city>.yml is an approximation that is absent for some
-# cities and off by >2x for others (e.g. porto, city-proper vs FUA).
-city_pop_k_model <- function(city) {
-  d <- read_city_csv(city, sprintf("%s_policy_comparison.csv", city), quiet = TRUE)
-  if (is.null(d) || !"population" %in% names(d)) return(NA_real_)
-  p <- sum(as.numeric(d$population), na.rm = TRUE) / 1000
+# Population (thousands) of the modelled area: every populated cell of the FUA
+# inside the UrbClim domain. Deaths and the warning-system costs are summed over
+# exactly this area, so it is the denominator for per-100k / per-capita figures.
+# No table stores it, but NB06 charges the variable warning cost to it
+# (cost_opex_variable = population x warning days x usd_per_capita_per_day x
+# eur_usd_rate), so inverting that recovers the gridded total exactly; the
+# Python twin is urban-heat/validation/modelled_population.py.
+# Two other populations are wrong here: the per-region `population` in
+# <city>_policy_comparison.csv covers only the greening regions (Athens: 0.67M
+# of 3.42M), and the hand-entered `pop_k` in configs/<city>.yml is absent for
+# some cities and off by >2x for others.
+city_pop_k_model <- function(city, year = 2020) {
+  costs <- read_city_csv(city, sprintf("%s_ews_costs_annual.csv", city), quiet = TRUE)
+  par   <- read_city_json(city, sprintf("%s_ews_parameters.json", city), quiet = TRUE)
+  if (is.null(costs) || is.null(par) || !identical(par$costs$cost_model, "pavanello"))
+    return(NA_real_)
+  unit <- as.numeric(par$costs$pavanello$usd_per_capita_per_day) *
+    as.numeric(par$costs$pavanello$eur_usd_rate)
+  r <- costs[costs$year == year, , drop = FALSE]
+  if (!nrow(r) || length(unit) != 1 || !is.finite(unit) || unit <= 0 ||
+      !(r$n_warning_days[1] > 0)) return(NA_real_)
+  p <- r$cost_opex_variable[1] / (r$n_warning_days[1] * unit) / 1000
   if (!is.finite(p) || p <= 0) NA_real_ else round(p, 1)
 }
 

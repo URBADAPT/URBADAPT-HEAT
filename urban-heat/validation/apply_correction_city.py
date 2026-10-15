@@ -55,6 +55,7 @@ from test_baseline_mode import (  # noqa: E402
     load_if,
 )
 from test_convolved_if import convolve_if  # noqa: E402
+from modelled_population import modelled_population  # noqa: E402
 
 OUTPUTS = Path(
     r"G:\Il mio Drive\adaptation_infrastructure_database\juno_pull\n128_results"
@@ -110,7 +111,7 @@ def main() -> int:
 
     # ---- production numbers for this city -------------------------------------------
     T = OUTPUTS / slug / "tables"
-    pop = pd.read_csv(T / f"{slug}_policy_comparison.csv")["population"].sum()
+    pop = modelled_population(T, slug)
     base = pd.read_csv(T / f"annual_heat_deaths_baseline_current_ac_{slug}.csv")
     base_2020 = float(base.loc[base.year == 2020, "deaths_overall"].iloc[0])
     eff = pd.read_csv(T / f"{slug}_policy_effectiveness.csv")

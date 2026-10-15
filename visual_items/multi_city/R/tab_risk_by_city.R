@@ -43,7 +43,10 @@ build_tab_risk <- function(cities = discover_cities(require_tables = FALSE)) {
     check.names = FALSE)
 
   save_table(out, "tab_risk_by_city",
-             caption = "Heat hazard, exposure, and baseline risk by city and climate cluster.",
+             caption = paste("Heat hazard, exposure, and baseline risk by city and",
+               "climate cluster. \\emph{Pop} is the population of the modelled area,",
+               "the part of the Functional Urban Area inside the UrbClim domain, and",
+               "is the denominator of the rate per 100\\,000."),
              label = "tab:risk_by_city",
              longtable = TRUE, size = "\\footnotesize",
              align = c("l", "l", "l", "l", "r", "r", "r", "r", "r"),

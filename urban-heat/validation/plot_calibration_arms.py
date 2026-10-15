@@ -14,12 +14,11 @@ no categorical palette here to validate.
 
 Two rows because the two measures answer different questions and must not share an axis:
 
-  total deaths   the fair comparison where the modelled domain is much smaller than
-                 Masselot's URAU, since heat deaths concentrate in the core our domain
-                 covers and the suburbs add population but few deaths
-  deaths/100k    the fair comparison where the geographies are comparable; contaminated
-                 otherwise, which is why the two are shown side by side rather than one
-                 being picked
+  total deaths   comparable only where the modelled domain and Masselot's URAU cover a
+                 similar population
+  deaths/100k    robust to a difference in extent, as long as the rate changes little
+                 between the core and the edge; the denominator is the population of the
+                 modelled area (modelled_population.py), which the deaths are summed over
 
 Only arms whose output tree exists are drawn, so this is runnable before all four exist.
 
@@ -61,6 +60,8 @@ ANNOTATE = {"athens", "dublin", "paris"}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+from modelled_population import modelled_population  # noqa: E402
 INK, INK2, MUT = "#1a1a18", "#55554f", "#8d8d86"
 ACCENT, REF = "#1f6f4a", "#b9b8b2"
 
@@ -71,11 +72,14 @@ def arm_frame(base: str, geo: pd.DataFrame, mas: pd.DataFrame) -> pd.DataFrame:
     for _, g in geo.iterrows():
         s = g.slug
         f = os.path.join(base, s, "tables", f"annual_heat_deaths_baseline_current_ac_{s}.csv")
-        # Population is correction-independent, so take it from whichever tree has it.
-        pc = os.path.join(base, s, "tables", f"{s}_policy_comparison.csv")
-        if not os.path.exists(pc):
-            pc = os.path.join(ARM_PATHS["none"], s, "tables", f"{s}_policy_comparison.csv")
-        if not (os.path.exists(f) and os.path.exists(pc)):
+        # The population of the modelled area, which the deaths are summed over, is
+        # correction-independent, so take it from whichever tree has the EWS tables.
+        pop = np.nan
+        for tree in (base, *ARM_PATHS.values()):
+            pop = modelled_population(os.path.join(tree, s, "tables"), s)
+            if np.isfinite(pop):
+                break
+        if not (os.path.exists(f) and np.isfinite(pop)):
             continue
         d = pd.read_csv(f)
         v = d.loc[d.year == 2020, "deaths_overall"]
@@ -83,7 +87,7 @@ def arm_frame(base: str, geo: pd.DataFrame, mas: pd.DataFrame) -> pd.DataFrame:
             continue
         rows.append({"slug": s, "urau_code": g.urau_code,
                      "deaths": float(v.iloc[0]),
-                     "pop": pd.read_csv(pc)["population"].sum()})
+                     "pop": pop})
     t = pd.DataFrame(rows)
     if t.empty:
         return t
