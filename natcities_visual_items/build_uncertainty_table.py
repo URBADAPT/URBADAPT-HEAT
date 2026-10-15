@@ -47,12 +47,12 @@ def long_path(p: Path) -> Path:
 
 def campaign_dir(tree: Path, city: str, pattern: str) -> Path:
     runs = tree / city / "tables" / "uncertainty_runs"
-    hits = sorted(p for p in runs.iterdir() if p.is_dir() and fnmatch.fnmatch(p.name, pattern)) \
+    # Only completed campaigns count, so an aborted attempt beside the real run is ignored.
+    hits = sorted(p for p in runs.iterdir()
+                  if p.is_dir() and fnmatch.fnmatch(p.name, pattern) and (p / "CAMPAIGN_COMPLETE.json").is_file()) \
         if runs.is_dir() else []
     if len(hits) != 1:
-        raise SystemExit(f"{city}: expected one campaign matching {pattern!r} in {runs}, found {[h.name for h in hits]}")
-    if not (hits[0] / "CAMPAIGN_COMPLETE.json").exists():
-        raise SystemExit(f"{city}: campaign {hits[0].name} has no completion marker")
+        raise SystemExit(f"{city}: expected one completed campaign matching {pattern!r} in {runs}, found {[h.name for h in hits]}")
     return hits[0]
 
 
@@ -212,13 +212,22 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=HERE / "tables")
     ap.add_argument("--legacy-columns", action="store_true",
                     help="September layout: P(EWS cheapest) and unconditional P(trees < AC)")
+    ap.add_argument("--allow-missing", action="store_true",
+                    help="preview only: skip cities without a completed campaign instead of failing")
     args = ap.parse_args()
 
     meta = pd.read_csv(args.meta).set_index("city")
     tree = long_path(args.tree)
     rows = []
     for city in meta.index:
-        d = load(campaign_dir(tree, city, args.campaign), city)
+        try:
+            run = campaign_dir(tree, city, args.campaign)
+        except SystemExit as exc:
+            if not args.allow_missing:
+                raise
+            print(f"  [preview] skipping {exc}")
+            continue
+        d = load(run, city)
         rows.append({"city": city, "city_name": meta.loc[city, "city_name"],
                      "climate_class": meta.loc[city, args.class_col], **city_row(d)})
     t = pd.DataFrame(rows)

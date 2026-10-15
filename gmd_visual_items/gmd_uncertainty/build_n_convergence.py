@@ -39,11 +39,13 @@ def fmt(x: float, city: str) -> str:
 
 
 def tree_campaign(tree: DirArchive, city: str, pattern: str) -> str:
+    """The one completed campaign matching ``pattern``; aborted attempts are ignored."""
     runs = tree.root / city / "tables" / "uncertainty_runs"
-    hits = sorted(p.name for p in runs.iterdir() if p.is_dir() and fnmatch.fnmatch(p.name, pattern)) \
+    hits = sorted(p.name for p in runs.iterdir()
+                  if p.is_dir() and fnmatch.fnmatch(p.name, pattern) and (p / "CAMPAIGN_COMPLETE.json").is_file()) \
         if runs.is_dir() else []
     if len(hits) != 1:
-        raise SystemExit(f"{city}: expected one campaign matching {pattern!r}, found {hits}")
+        raise SystemExit(f"{city}: expected one completed campaign matching {pattern!r}, found {hits}")
     return hits[0]
 
 
@@ -100,10 +102,8 @@ def main() -> None:
             f"& {fmt(b1, city)} & {fmt(b0, city)} \\\\"
         )
 
-    median_deltas = ", ".join(
-        rf"\({difference:+.1f}\,\%\) in {city.title()}"
-        for city, difference in zip(CITIES, dm)
-    )
+    parts = [rf"\({difference:+.1f}\,\%\) in {city.title()}" for city, difference in zip(CITIES, dm)]
+    median_deltas = ", ".join(parts[:-1]) + ", and " + parts[-1]
     if min(dp95) > 0:
         p95_text = f"\\(N=64\\) P95 estimates are {min(dp95):.1f}--{max(dp95):.1f}\\,\\% higher"
     elif max(dp95) < 0:
