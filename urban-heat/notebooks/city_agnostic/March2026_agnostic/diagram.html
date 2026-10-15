@@ -446,7 +446,8 @@
                     <div class="nb-desc">
                         Reference grid + FUA mask (100 m, EPSG:3035)<br>
                         <strong>Hazard fields:</strong> synthetic baseline year (month/day
-                        climatology of the historical archive) + monthly CMIP6 warming deltas →
+                        climatology of the historical archive), reconciled with the ERFs'
+                        <strong>ERA5-Land reference</strong>, + monthly CMIP6 warming deltas →
                         daily T2M for each future target year<br>
                         <strong>Exposure:</strong> WorldPop age-structured population (&lt;15 · 15&ndash;64 · 65+),
                         conservative reprojection; WCDE age-specific scaling for future years<br>
@@ -487,7 +488,8 @@
                             <strong>Main:</strong> Masselot city- <em>and</em> age-specific ERFs —
                             genuinely local, not a European average.
                             <code>IF_MAIN_FAMILY</code> selects the high-<em>T</em> tail:
-                            constant vs <strong>log-linear</strong> (default)<br>
+                            constant vs <strong>log-linear</strong> (default); curves carry the
+                            <strong>interannual variance correction</strong> by default<br>
                             <strong>Sensitivity:</strong> Burke polynomial &amp; convex
                             power-law (city-agnostic); cold-city variant for Track B<br>
                             Annual scaling by projected baseline mortality (WCDE life tables)
@@ -551,7 +553,7 @@
                         <div class="nb-desc">
                             Warning days triggered by a <strong>baseline-deaths threshold</strong>
                             (<code>epi_deaths_file</code>, periodically recalibrated;
-                            <code>event_mask</code> fallback where heat deaths are too few — Track B)<br>
+                            <code>event_mask</code> fallback where the threshold is non-positive)<br>
                             Efficacy interpretation follows a city-specific
                             <strong>three-tier maturity taxonomy</strong>:<br>
                             &nbsp;&nbsp;<strong>marginal</strong> — mature epidemiological HHWS with
@@ -611,8 +613,8 @@
                 <div class="couplings">
                     <div class="coupling">
                         <strong>NB5 → NB6</strong> <span class="to">calibration</span><br>
-                        Current-AC baseline daily deaths (NB4 IFs × AC coverage) calibrate the
-                        deaths-per-day threshold that defines warning days
+                        Current-AC baseline daily deaths (NB4 IFs × AC coverage): NB6 calibrates the
+                        deaths-per-day threshold on the same series it counts warning days on
                     </div>
                     <div class="coupling">
                         <strong>NB5 → NB8</strong> <span class="to">externality</span><br>
