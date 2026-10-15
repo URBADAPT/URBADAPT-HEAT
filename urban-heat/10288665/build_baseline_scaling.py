@@ -35,6 +35,7 @@ import pandas as pd
 
 HERE = Path(__file__).resolve().parent               # .../urban-heat/10288665
 URBAN_HEAT = HERE.parent                              # .../urban-heat
+COMMITTED_SCALING_DIR = URBAN_HEAT / "baseline_scaling"
 
 SCEN_TO_WCDE = {
     "SSP1": 1, "SSP2": 2, "SSP3": 3, "SSP4": 4, "SSP5": 5,
@@ -61,8 +62,9 @@ CITY_COUNTRY = {
 PILOTS = ["rome", "athens", "lisbon", "copenhagen"]
 
 
-def _r_code(country_name: str, scenario_id: int, baseline_out: Path) -> str:
-    """Verbatim R body from March2026 Burke NB04 cell 43 (country/scenario/path substituted)."""
+def _r_code(country_name: str, scenario_id: int, baseline_out: Path, subband_out: Path) -> str:
+    """R body from March2026 Burke NB04 cell 43 (country/scenario/path substituted), plus the
+    65-74 / 75-84 / 85+ split of the 65+ bucket written to `subband_out`."""
     return f"""
 if (!requireNamespace("wcde", quietly = TRUE)) {{
   install.packages("wcde", repos = "https://cloud.r-project.org")
@@ -185,15 +187,68 @@ baseline_df <- joined |>
   arrange(year, age_group)
 
 write_csv(baseline_df, "{baseline_out.as_posix()}")
+
+# The same population-weighted collapse within 65+, by the sub-bands of the Masselot curves.
+subband_df <- joined |>
+  filter(age_lo >= 65) |>
+  mutate(subband = case_when(
+    age_lo < 75 ~ "65-74",
+    age_lo < 85 ~ "75-84",
+    TRUE ~ "85+"
+  )) |>
+  group_by(decade, subband) |>
+  summarise(
+    pop_bucket = sum(pop, na.rm = TRUE),
+    asmr_5y_pw = ifelse(
+      pop_bucket > 0,
+      sum(asmr_5y * pop, na.rm = TRUE) / pop_bucket,
+      NA_real_
+    ),
+    deaths_per_100k = asmr_5y_pw * 1e5 / 5,
+    .groups = "drop"
+  ) |>
+  filter(decade %in% c(2020, 2030, 2040, 2050)) |>
+  transmute(
+    year = decade,
+    subband = subband,
+    pop = pop_bucket,
+    deaths_per_100k = deaths_per_100k
+  ) |>
+  arrange(year, subband)
+
+write_csv(subband_df, "{subband_out.as_posix()}")
 """
 
 
-def build_baselinedeaths(country_name: str, scenario_id: int, baseline_out: Path) -> None:
+def build_baselinedeaths(country_name: str, scenario_id: int, baseline_out: Path, subband_out: Path) -> None:
     baseline_out.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
-        ["Rscript", "--vanilla", "-e", _r_code(country_name, scenario_id, baseline_out)],
-        check=True,
-    )
+    # Run from a script file: on Windows, passing this much code through `Rscript -e`
+    # makes R crash with an access violation before it executes anything.
+    script = baseline_out.with_suffix(".R")
+    script.write_text(_r_code(country_name, scenario_id, baseline_out, subband_out), encoding="utf-8")
+    try:
+        subprocess.run(["Rscript", "--vanilla", str(script)], check=True)
+    finally:
+        script.unlink(missing_ok=True)
+
+
+def subband_from_baselinedeaths(subband_csv: Path) -> pd.DataFrame:
+    """Per 65+ sub-band and year: death-rate trend and population share within 65+, relative to 2020.
+
+    `aggregate_masselot_ifs.py` uses these to age the 65+ curve: each sub-band curve is scaled
+    by its own death-rate trend and weighted by its projected share of the 65+ population, in
+    place of one 65+ scalar that already contains the shift towards older ages.
+    """
+    df = pd.read_csv(subband_csv)
+    df["year"] = df["year"].astype(int)
+    df["pop_share"] = df["pop"] / df.groupby("year")["pop"].transform("sum")
+    ref = df[df["year"] == 2020].set_index("subband")
+    if ref.empty:
+        raise ValueError(f"{subband_csv} has no 2020 rows")
+    df["death_rate_scale"] = df["deaths_per_100k"] / df["subband"].map(ref["deaths_per_100k"])
+    df["pop_share_ratio"] = df["pop_share"] / df["subband"].map(ref["pop_share"])
+    return df[["year", "subband", "pop", "deaths_per_100k", "pop_share",
+               "death_rate_scale", "pop_share_ratio"]].sort_values(["year", "subband"])
 
 
 def scaling_from_baselinedeaths(baseline_csv: Path) -> pd.DataFrame:
@@ -215,10 +270,25 @@ def build_city(slug: str, scenario: str, out_root: Path, validate: bool) -> pd.D
     int_dir = out_root / slug / "interim"
     int_dir.mkdir(parents=True, exist_ok=True)
     baseline_out = int_dir / f"baselinedeaths_{slug}_{scenario}.csv"
+    subband_raw = int_dir / f"baselinedeaths_subband_{slug}_{scenario}.csv"
 
     print(f"[{slug}] WCDE assr+pop  country={country!r}  scenario={scenario}({scenario_id}) ...")
-    build_baselinedeaths(country, scenario_id, baseline_out)
+    build_baselinedeaths(country, scenario_id, baseline_out, subband_raw)
     scale = scaling_from_baselinedeaths(baseline_out)
+
+    # The sub-band file is committed beside the 3-bin scaling the IF JSONs are built from.
+    sub = subband_from_baselinedeaths(subband_raw)
+    if scenario == "SSP2":
+        sub_path = COMMITTED_SCALING_DIR / f"baseline_heat_subband_{slug}.csv"
+        sub_path.parent.mkdir(parents=True, exist_ok=True)
+        sub.to_csv(sub_path, index=False)
+        print(f"[{slug}] wrote {sub_path}")
+    committed = COMMITTED_SCALING_DIR / f"baseline_heat_scaling_{slug}.csv"
+    if committed.exists():
+        existing = pd.read_csv(committed, index_col="year")
+        new = scale.reindex(index=existing.index, columns=existing.columns)
+        maxdiff = float((new - existing).abs().to_numpy().max())
+        print(f"[{slug}] 3-bin scaling vs committed {committed.name}: max abs diff = {maxdiff:.3e}")
 
     sf_path = int_dir / f"baseline_heat_scaling_{slug}.csv"
     if validate and sf_path.exists():

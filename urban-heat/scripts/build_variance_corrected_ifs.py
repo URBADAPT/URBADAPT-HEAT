@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import hashlib
 import json
 import re
 import sys
@@ -114,7 +115,8 @@ def daily_by_year(city_dir: str) -> pd.DataFrame:
 
 
 def correct_json(src: Path, dst: Path, anomalies: np.ndarray, dry: bool) -> str:
-    data = json.loads(src.read_text())
+    raw = src.read_bytes()
+    data = json.loads(raw.decode("utf-8"))
     n_curves = 0
     for year, block in data.get("ifs_by_year", {}).items():
         for age, rec in block.items():
@@ -129,6 +131,8 @@ def correct_json(src: Path, dst: Path, anomalies: np.ndarray, dry: bool) -> str:
         "n_anomaly_samples": int(len(anomalies)),
         "anomaly_sd_c": float(np.std(anomalies)),
         "source_file": src.name,
+        # NB04 rebuilds this file whenever the source curves change (hash mismatch).
+        "source_sha256": hashlib.sha256(raw).hexdigest(),
         "rationale": "the production hazard is a day-of-year climatological mean, so the "
                      "burden is f(mean of the years) where an average year's burden is "
                      "mean of f(year); convolving the curve restores the discarded "

@@ -23,8 +23,9 @@ import xarray as xr
 from pathlib import Path
 
 # paths 
-BASE = Path("/Users/armandeaboudrar-meda/Desktop/CMCC/URBADAPT-HEAT/urban-heat/10288665")
+BASE = Path(__file__).resolve().parent   # .../urban-heat/10288665
 URBAN_HEAT = BASE.parent
+COMMITTED_SCALING_DIR = URBAN_HEAT / "baseline_scaling"
 RR_CSV = BASE / "reconstructed_rr_curves.csv"
 CITYAGE_CSV = BASE / "results" / "cityage.csv"
 TMEAN_DIST_CSV = BASE / "tmean_distribution.csv"
@@ -250,12 +251,14 @@ def load_baseline_scaling(city_label):
     the canonical location written by 10288665/build_baseline_scaling.py:
     outputs/<slug>/interim/baseline_heat_scaling_<slug>.csv.
     """
+    slug = SLUGS[city_label]
     candidates = SCALING_CSVS.get(city_label)
     if candidates is None:
-        slug = SLUGS[city_label]
         candidates = [
             URBAN_HEAT / "outputs" / slug / "interim" / f"baseline_heat_scaling_{slug}.csv"
         ]
+    # The committed copies (identical to what build_baseline_scaling.py writes) come last.
+    candidates = list(candidates) + [COMMITTED_SCALING_DIR / f"baseline_heat_scaling_{slug}.csv"]
     path = first_existing(candidates)
     if path is None or not path.exists():
         print(
@@ -347,12 +350,14 @@ def interpolate_loglinear_tail(rr_sub, ca_df, urau_code, target_grid):
     return np.clip(result, 0.0, 1.0)
 
 
-def aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="constant"):
+def aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="constant", parts_out=None):
     """
     For one city, aggregate Masselot's 5 age groups into URBADAPT's 3 bins.
     Returns dict: age_label -> (target_grid, mdd_array)
 
     tail_mode: "constant" (hold MDD flat) or "loglinear" (extend log-RR tail)
+    parts_out: optional dict, filled with {bin: {masselot_group: (weight, mdd_array)}} so the
+        65+ curve can be recomposed with projected sub-band weights (build_city_json).
     """
     city_rr = rr_df[rr_df["URAU_CODE"] == urau_code].copy()
     results = {}
@@ -383,10 +388,45 @@ def aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="cons
 
             # Weight by population share within this bin
             mdd_agg += weights[mg] * mdd_interp
+            if parts_out is not None:
+                parts_out.setdefault(urbadapt_bin, {})[mg] = (float(weights[mg]), mdd_interp)
 
         results[urbadapt_bin] = np.clip(mdd_agg, 0.0, 1.0)
 
     return results
+
+
+def load_subband_scaling(city_label):
+    """Projected 65+ composition for a city: {year: {sub-band: (death_rate_scale, pop_share_ratio)}}.
+
+    Written by build_baseline_scaling.py from WCDE (country, SSP2), relative to 2020. Returns
+    None when the file is missing, in which case the 65+ curve keeps the single 3-bin scalar.
+    """
+    slug = SLUGS[city_label]
+    path = COMMITTED_SCALING_DIR / f"baseline_heat_subband_{slug}.csv"
+    if not path.exists():
+        print(f"  !! WARNING: no {path.name}; the 65+ curve ages through the 65+ scalar only. "
+              f"Run 10288665/build_baseline_scaling.py --city {slug}.")
+        return None
+    df = pd.read_csv(path)
+    out = {}
+    for _, row in df.iterrows():
+        out.setdefault(int(row["year"]), {})[str(row["subband"])] = (
+            float(row["death_rate_scale"]), float(row["pop_share_ratio"]))
+    return out
+
+
+def compose_65plus(parts65, subband_year):
+    """65+ curve for one year: each sub-band curve scaled by its own death-rate trend and weighted
+    by its projected share of the 65+ population (the city's source-period weights shifted by
+    the national change in shares). This replaces the 65+ scalar, whose crude death-rate trend
+    already contains the shift towards older ages, so applying both would count it twice."""
+    raw = {mg: w0 * subband_year[mg][1] for mg, (w0, _) in parts65.items()}
+    total = sum(raw.values())
+    mdd = np.zeros(len(TARGET_GRID))
+    for mg, (_, curve) in parts65.items():
+        mdd += (raw[mg] / total) * subband_year[mg][0] * curve
+    return np.clip(mdd, 0.0, 1.0)
 
 
 YEARS = [2020, 2030, 2040, 2050]
@@ -418,25 +458,45 @@ def masselot_tmax_by_city(tdist_df):
     return out
 
 
-def build_city_json(mdd_by_age, city_label, scaling_df, tail_mode="constant"):
-    """Build JSON dict matching Burke IF format for all projection years."""
+def build_city_json(mdd_by_age, city_label, scaling_df, tail_mode="constant", parts=None, subband=None):
+    """Build JSON dict matching Burke IF format for all projection years.
+
+    With `parts` (from aggregate_excess_deaths) and `subband` (load_subband_scaling), the 65+
+    curve of each projection year is recomposed from its 65-74 / 75-84 / 85+ curves
+    (compose_65plus); otherwise every bin is the 2020 curve times its 3-bin scalar.
+    """
     scaling_by_year = {
         int(row["year"]): {age: float(row[age]) for age in AGE_ORDER}
         for _, row in scaling_df.iterrows()
     }
+    parts65 = (parts or {}).get("65+")
+    age_65_dynamic = bool(
+        parts65 and subband
+        and all(set(parts65) <= set(subband.get(int(yr), {})) for yr in YEARS)
+    )
     ifs_by_year = {}
     for yr in YEARS:
         block = {}
         for age in AGE_ORDER:
-            scale = scaling_by_year.get(int(yr), {}).get(age, 1.0)
+            if age == "65+" and age_65_dynamic and int(yr) != 2020:
+                mdd = compose_65plus(parts65, subband[int(yr)])
+            else:
+                scale = scaling_by_year.get(int(yr), {}).get(age, 1.0)
+                mdd = np.clip(mdd_by_age[age] * scale, 0.0, 1.0)
             block[age] = {
                 "id": AGE_TO_ID[age],
                 "name": f"{age}_{yr}",
                 "intensity": TARGET_GRID.tolist(),
-                "mdd": np.clip(mdd_by_age[age] * scale, 0.0, 1.0).tolist(),
+                "mdd": mdd.tolist(),
             }
         ifs_by_year[str(yr)] = block
     return {
+        "age_65plus_composition": (
+            "dynamic: 2030-2050 65+ curves recomposed from 65-74/75-84/85+ curves, each scaled "
+            "by its own WCDE death-rate trend and weighted by its projected share of 65+ "
+            f"(baseline_heat_subband_{SLUGS[city_label]}.csv)"
+            if age_65_dynamic else "static: 2020 Masselot sub-band weights, 65+ death-rate scalar"
+        ),
         "reference_year": 2020,
         "years": YEARS,
         "scaling_source": (
@@ -452,7 +512,7 @@ def build_city_json(mdd_by_age, city_label, scaling_df, tail_mode="constant"):
             "Aggregated to URBADAPT bins via population-weighted per-person mdd. "
             "<15 set to zero; 15-64 approximated with Masselot 20-64. "
             "2030/2040/2050 multiply the 2020 Masselot level by existing NB04 "
-            "relative baseline-mortality scaling. "
+            "relative baseline-mortality scaling (for 65+ see age_65plus_composition). "
             + (
                 "Constant extrapolation beyond historical T range (conservative). "
                 if tail_mode == "constant" else
@@ -955,8 +1015,11 @@ def main():
         print(f"  {city_label} ({urau_code})")
         print(f"{'='*60}")
 
-        mdd_by_age = aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="constant")
+        parts = {}
+        mdd_by_age = aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="constant",
+                                             parts_out=parts)
         scaling_df = load_baseline_scaling(city_label)
+        subband = load_subband_scaling(city_label)
 
         # print summary
         for age in AGE_ORDER:
@@ -979,7 +1042,8 @@ def main():
                   f"excess/100k@35°C = {mdd[idx35]*1e5:.2f}")
 
         # save constant-extrapolation JSON
-        js = build_city_json(mdd_by_age, city_label, scaling_df, tail_mode="constant")
+        js = build_city_json(mdd_by_age, city_label, scaling_df, tail_mode="constant",
+                             parts=parts, subband=subband)
         city_jsons[city_label] = js
         slug = SLUGS[city_label]
         out_path = OUT_DIR / f"masselot_if_curves_{slug}.json"
@@ -994,8 +1058,11 @@ def main():
 
         # save log-linear tail JSON
         if has_tail_columns:
-            mdd_by_age_tail = aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="loglinear")
-            js_tail = build_city_json(mdd_by_age_tail, city_label, scaling_df, tail_mode="loglinear")
+            parts_tail = {}
+            mdd_by_age_tail = aggregate_excess_deaths(rr_df, ca_df, city_label, urau_code, tail_mode="loglinear",
+                                                      parts_out=parts_tail)
+            js_tail = build_city_json(mdd_by_age_tail, city_label, scaling_df, tail_mode="loglinear",
+                                      parts=parts_tail, subband=subband)
             city_jsons_tail[city_label] = js_tail
             out_path_tail = OUT_DIR / f"masselot_if_curves_{slug}_tail.json"
             with open(out_path_tail, "w") as f:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import os
 import subprocess
@@ -817,13 +818,34 @@ def run_nb04_masselot_main(
         for family in active_families
     }
     # The variance-corrected curves are derived per city from its UrbClim record, which
-    # NB01 downloads, and are not shipped with the repository: build them on first use.
+    # NB01 downloads, and are not shipped with the repository: build them on first use,
+    # and rebuild them whenever the uncorrected curves they were made from have changed
+    # (their recorded source hash no longer matches), so new source curves pulled from the
+    # repository are never paired with stale corrected ones.
+    varcorr_source = {
+        "masselot_varcorr": masselot_dir / MASSELOT_SOURCE_FILE["masselot"].format(slug=slug),
+        "masselot_tail_varcorr": masselot_dir / MASSELOT_SOURCE_FILE["masselot_tail"].format(slug=slug),
+    }
+
+    def _varcorr_is_stale(family: str) -> bool:
+        path, src = masselot_sources[family], varcorr_source[family]
+        if not path.exists():
+            return True
+        if not src.exists():
+            return False
+        recorded = _load_json(path).get("variance_correction", {}).get("source_sha256")
+        return recorded != hashlib.sha256(src.read_bytes()).hexdigest()
+
     missing_varcorr = [f for f in VARCORR_MASSELOT_FAMILIES
-                       if f in masselot_sources and not masselot_sources[f].exists()]
+                       if f in masselot_sources and _varcorr_is_stale(f)]
     if missing_varcorr:
         builder = root / "scripts" / "build_variance_corrected_ifs.py"
-        print(f"[NB04] building variance-corrected curves for {slug}: {builder.name} --cities {slug}")
+        print(f"[NB04] (re)building variance-corrected curves for {slug}: {builder.name} --cities {slug}")
         subprocess.run([sys.executable, str(builder), "--cities", slug], cwd=root, check=False)
+        still_stale = [f for f in missing_varcorr if masselot_sources[f].exists() and _varcorr_is_stale(f)]
+        if still_stale:
+            print(f"[NB04] WARNING: {still_stale} could not be rebuilt for {slug} (no UrbClim?); "
+                  "using the existing variance-corrected curves, which predate the current source curves.")
     missing_sources = [str(path) for path in masselot_sources.values() if not path.exists()]
     if missing_sources:
         raise FileNotFoundError(
