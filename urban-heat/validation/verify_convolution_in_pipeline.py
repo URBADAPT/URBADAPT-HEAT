@@ -102,7 +102,7 @@ def main() -> int:
         return 2
 
     meta = pd.read_csv(os.path.join(
-        r"C:\Users\giaco\Documents\Github\URBADAPT-HEAT\natcities_visual_items\tables",
+        r"C:\Users\giaco\Documents\Github\URBADAPT-HEAT\visual_items\multi_city\tables",
         "city_metadata.csv"))[["city", "climate_cluster"]]
 
     rows = []

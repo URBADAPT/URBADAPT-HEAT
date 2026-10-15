@@ -1,0 +1,161 @@
+"""Read and validate the four-pilot NB09 archive, or an output tree, without extracting it."""
+
+from __future__ import annotations
+
+import fnmatch
+import hashlib
+import hmac
+import json
+import os
+import tarfile
+from pathlib import Path
+
+import pandas as pd
+
+
+ROOT = "outputs_variants/masselot_main_agnostic"
+SCHEMA = "3.0-explicit-policy-trajectories"
+
+
+def verify_checksum(archive: Path) -> None:
+    """Require the adjacent SHA-256 sidecar to identify this exact archive."""
+    sidecar = archive.with_suffix(".sha256")
+    fields = sidecar.read_text(encoding="utf-8").strip().split()
+    if len(fields) != 2:
+        raise ValueError(f"Expected one SHA-256 entry in {sidecar}")
+    expected, filename = fields
+    if filename != archive.name:
+        raise ValueError(f"Checksum names {filename!r}, not {archive.name!r}")
+
+    digest = hashlib.sha256()
+    with archive.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    if not hmac.compare_digest(digest.hexdigest(), expected.lower()):
+        raise ValueError(f"SHA-256 mismatch for {archive}")
+
+
+class DirArchive:
+    """A filesystem stand-in for a TarFile, so a figure can be rebuilt from an
+    output tree that has not been packaged and checksummed yet.
+
+    The archive stores members under ROOT (the variant directory), whereas a tree
+    root IS that directory, so the prefix is stripped on lookup. It duck-types the
+    two TarFile methods the readers use and raises the same exceptions, so every
+    validation in load_samples still applies.
+    """
+
+    class _Member:
+        def __init__(self, path: Path):
+            self.path = path
+
+        def isfile(self) -> bool:
+            return self.path.is_file()
+
+    def __init__(self, root: Path | str):
+        self.root = Path(root).resolve()
+        # The Burke members sit two levels below the headline campaign, which puts
+        # them past Windows' 260-character MAX_PATH from a repo checkout; the
+        # extended-length prefix lifts the limit and needs an absolute path.
+        if os.name == "nt" and not str(self.root).startswith("\\\\?\\"):
+            self.root = Path("\\\\?\\" + str(self.root))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def getmember(self, member: str):
+        rel = member[len(ROOT) + 1:] if member.startswith(ROOT + "/") else member
+        p = self.root / rel
+        if not p.exists():
+            raise KeyError(member)
+        return self._Member(p)
+
+    def extractfile(self, info):
+        return info.path.open("rb")
+
+
+def resolve_campaign(tar, city: str, pattern: str) -> str:
+    """The one campaign of ``city`` whose directory name matches ``pattern``.
+
+    Campaigns are matched on the parts that identify them - sample size, seed,
+    schema and engine commit - so callers need not carry full run names.
+    """
+    if isinstance(tar, DirArchive):
+        d = tar.root / city / "tables" / "uncertainty_runs"
+        names = {p.name for p in d.iterdir() if p.is_dir()} if d.is_dir() else set()
+    else:
+        prefix = f"{ROOT}/{city}/tables/uncertainty_runs/"
+        names = {n[len(prefix):].split("/", 1)[0] for n in tar.getnames() if n.startswith(prefix)}
+    hits = sorted(n for n in names if fnmatch.fnmatch(n, pattern))
+    if len(hits) != 1:
+        raise ValueError(f"{city}: expected one campaign matching {pattern!r}, found {hits}")
+    return hits[0]
+
+
+def campaigns_in_tree(root: Path | str, city: str) -> list[str]:
+    """Campaign ids present for a city in an output tree, newest first."""
+    d = Path(root) / city / "tables" / "uncertainty_runs"
+    if not d.is_dir():
+        return []
+    return [p.name for p in sorted(d.iterdir(), key=lambda q: q.stat().st_mtime,
+                                   reverse=True) if p.is_dir()]
+
+
+def _member_stream(tar: tarfile.TarFile, member: str):
+    try:
+        info = tar.getmember(member)
+    except KeyError as exc:
+        raise FileNotFoundError(f"Missing archive member: {member}") from exc
+    if not info.isfile():
+        raise ValueError(f"Expected a regular file in archive: {member}")
+    stream = tar.extractfile(info)
+    if stream is None:
+        raise FileNotFoundError(f"Could not read archive member: {member}")
+    return stream
+
+
+def read_csv(tar: tarfile.TarFile, member: str) -> pd.DataFrame:
+    """Read one CSV directly from the compressed archive."""
+    with _member_stream(tar, member) as stream:
+        return pd.read_csv(stream)
+
+
+def load_samples(
+    tar: tarfile.TarFile,
+    city: str,
+    campaign: str,
+    n: int,
+    *,
+    branch: str | None = None,
+) -> tuple[str, pd.DataFrame]:
+    """Validate a completed city campaign and return its sample table."""
+    prefix = f"{ROOT}/{city}/tables/uncertainty_runs/{campaign}"
+    if branch is not None:
+        if branch not in {"burke_polynomial", "burke_powerlaw"}:
+            raise ValueError(f"Unsupported conditional branch: {branch}")
+        prefix = f"{prefix}/burke_sensitivity/{branch}"
+    with _member_stream(tar, f"{prefix}/CAMPAIGN_COMPLETE.json") as stream:
+        marker = json.load(stream)
+
+    actual = (
+        marker.get("slug"),
+        marker.get("campaign_id"),
+        marker.get("n_samples"),
+        marker.get("output_schema_version"),
+    )
+    expected = (city, campaign, n, SCHEMA)
+    if actual != expected:
+        raise ValueError(f"Unexpected completion marker for {city}: {actual!r}")
+
+    samples = read_csv(tar, f"{prefix}/unc_samples_{city}_improved_fast.csv")
+    if "sample_idx" not in samples.columns:
+        raise ValueError(f"Missing sample_idx for {city}/{campaign}")
+    if len(samples) != n or samples["sample_idx"].nunique(dropna=False) != n:
+        raise ValueError(f"{city}/{campaign}: expected {n} distinct samples")
+    if branch is not None:
+        if "if_family" not in samples.columns or not samples["if_family"].eq(branch).all():
+            raise ValueError(f"{city}/{branch}: samples do not all use the conditional IF")
+    return prefix, samples

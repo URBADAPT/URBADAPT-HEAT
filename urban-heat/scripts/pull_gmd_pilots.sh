@@ -104,5 +104,5 @@ echo "exit=$rc"
 
 echo
 echo "next, from the repo root:"
-echo "  cd gmd_visual_items"
+echo "  cd visual_items/pilot_cities"
 echo "  python -m workflow_figures.make_figures --city rome --variant masselot_main_corrected"

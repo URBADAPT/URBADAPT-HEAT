@@ -240,18 +240,20 @@ urban-heat/notebooks/city_agnostic/March2026_agnostic/Rome/
 /manuscripts/
 
 # Generated reporting outputs (build products of the visual-items pipelines)
-/natcities_visual_items/figures
-/natcities_visual_items/tables
-natcities_visual_items/report.html
-natcities_visual_items/R/.Rhistory
+/visual_items/multi_city/figures
+/visual_items/multi_city/tables
+visual_items/multi_city/report.html
+visual_items/multi_city/R/.Rhistory
+# Local before/after builds (make_comparison.py); never part of the record.
+/visual_items/multi_city/compare/
 # Generated GMD figure outputs. Scoped to the top level and to
-# gmd_uncertainty/ so the generators themselves stay tracked:
-# workflow_figures/, workflow_tables/ and gmd_uncertainty/*.py
-/gmd_visual_items/*.pdf
-/gmd_visual_items/*.png
-gmd_visual_items/gmd_uncertainty/*.png
-gmd_visual_items/gmd_uncertainty/*.pdf
-gmd_visual_items/**/__pycache__/
+# uncertainty/ so the generators themselves stay tracked:
+# workflow_figures/, workflow_tables/ and uncertainty/*.py
+/visual_items/pilot_cities/*.pdf
+/visual_items/pilot_cities/*.png
+visual_items/pilot_cities/uncertainty/*.png
+visual_items/pilot_cities/uncertainty/*.pdf
+visual_items/pilot_cities/**/__pycache__/
 
 # Working calibration-arm trees: regenerable from JUNO, not deliverables.
 # masselot_main (the published pilot outputs) stays tracked.

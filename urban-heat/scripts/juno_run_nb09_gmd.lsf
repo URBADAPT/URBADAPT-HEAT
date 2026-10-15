@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # NB09 for one city of the GMD four-pilot tree: the headline Masselot LHS and both
 # Burke-conditional bands in ONE campaign, which is the layout
-# gmd_visual_items/gmd_uncertainty/build_fig_uncertainty.py --tree reads.
+# visual_items/pilot_cities/uncertainty/build_fig_uncertainty.py --tree reads.
 #
 #   Central parity only (minutes):  CENTRAL_ONLY=1 bsub -W 2:00 < scripts/juno_run_nb09_gmd.lsf
 #   Full run (Rome ~16 h):          bsub < scripts/juno_run_nb09_gmd.lsf
