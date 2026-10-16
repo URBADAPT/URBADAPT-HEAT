@@ -4,27 +4,30 @@
 # Heat risk, cross-city adaptation outcome profiles, and public-private policy
 # portfolios across the 40 European cities. Panels:
 #
-#   (a) Baseline annual heat mortality per 100k vs warm-season mean T2M.
+#   (a) Map of the cities and four 100 m zoom-ins of the baseline heat-mortality
+#       rate (fig1_map_band.R).
+#   (b) Baseline annual heat mortality per 100k vs warm-season mean T2M.
 #       Point size = population, colour = descriptive climate class.
-#   (b) Present-value cost per avoided death by pathway and climate class,
+#   (c) Present-value cost per avoided death by pathway and climate class,
 #       with the group medians annotated.
-#   (c) Budget-constrained efficiency frontier, with both axes indexed to the
+#   (d) Budget-constrained efficiency frontier, with both axes indexed to the
 #       grid's smallest budget point so the shape of the returns is visible.
-#   (d) Share of each lever deployed by the benefit-maximising portfolio as
+#   (e) Share of each lever deployed by the benefit-maximising portfolio as
 #       available present-value budget per capita rises. AC is net of the
 #       modelled waste-heat feedback throughout.
 #
 # The standardised outcome-profile heatmap that was panel b is now a figure of
 # its own, fig1b_outcome_profiles.R -- 40 city rows by 15 columns had outgrown a
 # panel slot. Panels c/d/e were retagged b/c/d to keep the sequence contiguous,
-# so caption references to the old letters need updating.
+# so caption references to the old letters need updating. The map band was then
+# added on top as panel a, and those four panels moved to b-e.
 #
 # Absorbs the whole of the former fig3_costeffectiveness, which overlapped it
 # almost entirely: fig3a is panel c (now stratified by climate class rather than
 # pooled), fig3b is panel d, and fig3c was already identical to this figure's
 # deployment panel. fig3_costeffectiveness.R is therefore retired.
 #
-# fig1_risk_effectiveness, whose panel a was this panel a and whose pathway
+# fig1_risk_effectiveness, whose panel a was this panel b and whose pathway
 # boxes duplicated columns of the outcome-profile heatmap, has been deleted.
 # =============================================================================
 
@@ -35,8 +38,14 @@
 }
 if (!exists("REPO_ROOT")) source(file.path(.d, "_helpers.R"))
 # load_city_profiles() lives in 01_city_profiles.R (it supplies mort_100k and the
-# climate class for panel a). Source it for the definitions only -- never let it
+# climate class for panel b). Source it for the definitions only -- never let it
 # rebuild the clustering from here.
+if (!exists("fig1_map_band")) {
+  .had_norun <- exists(".MULTICITY_NORUN")
+  .MULTICITY_NORUN <- TRUE
+  source(file.path(.d, "fig1_map_band.R"))
+  if (!.had_norun) rm(.MULTICITY_NORUN)
+}
 if (!exists("PROFILE_FEATURES")) {
   .had_norun <- exists(".MULTICITY_NORUN")
   .MULTICITY_NORUN <- TRUE
@@ -52,7 +61,7 @@ build_fig1 <- function(cities = discover_cities()) {
 
   arch <- arch[order(-arch$mort_100k), , drop = FALSE]
 
-  # --- (a) baseline risk across the climate gradient -------------------------
+  # --- (b) baseline risk across the climate gradient -------------------------
   fit <- arch[is.finite(arch$mort_100k) & arch$mort_100k > 0 &
                 is.finite(arch$warmseason_mean_t2m), , drop = FALSE]
   lab <- ""
@@ -76,10 +85,10 @@ build_fig1 <- function(cities = discover_cities()) {
     # next time the figure is rebuilt on new data.
     # annotate("text", x = -Inf, y = Inf, hjust = -0.08, vjust = 1.6, size = 3,
     #          color = "grey25", label = lab) +
-    labs(tag = "a", x = "Warm-season mean T2M (°C)",
+    labs(tag = "b", x = "Warm-season mean T2M (°C)",
          y = "Heat deaths / 100k / yr (log)") +
     theme_multicity() +
-    # a and c share the climate legend, b and d the pathway legend. They cannot
+    # b and d share the climate legend, c and e the pathway legend. They cannot
     # be merged by guides="collect" -- b draws box glyphs where d draws lines, so
     # patchwork keeps them as four distinct guides and they overflow the width.
     # Keep one of each pair, on the bottom row, so both sit at the figure's foot.
@@ -89,7 +98,7 @@ build_fig1 <- function(cities = discover_cities()) {
   # fig1b_outcome_profiles.R, and takes its blanked-cell and clipping counts
   # with it.
 
-  # --- (b) cost per avoided death by pathway and climate class --------------
+  # --- (c) cost per avoided death by pathway and climate class --------------
   cea <- gather_cities(cities, function(c) {
     d <- read_cea(c)
     if (is.null(d)) return(NULL)
@@ -146,13 +155,13 @@ build_fig1 <- function(cities = discover_cities()) {
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
       eur_log_scale("Cost per death avoided (€, log)") +
       coord_cartesian(clip = "off") +
-      labs(tag = "b",
+      labs(tag = "c",
            x = "Climate class") +
       theme_multicity() +
       theme(legend.position = "none")
   } else patchwork::plot_spacer()
 
-  # --- (c) deployment as the per-capita budget rises -------------------------
+  # --- (e) deployment as the per-capita budget rises -------------------------
   bud <- gather_cities(cities, function(c) {
     d <- read_city_csv(c, sprintf("%s_budget_sensitivity.csv", c), quiet = TRUE)
     need <- c("budget", "max_cost", "max_benefit",
@@ -167,7 +176,7 @@ build_fig1 <- function(cities = discover_cities()) {
   bud$budget_cap   <- bud$budget   / (bud$pop_k * 1000)
   bud$spent_cap    <- bud$max_cost / (bud$pop_k * 1000)
   bud$benefit_100k <- per_100k(bud$max_benefit, bud$pop_k)
-  # --- (c) efficiency frontier, in per-capita terms --------------------------
+  # --- (d) efficiency frontier, in per-capita terms --------------------------
   # Both axes are per-capita quantities, so the 40 cities are directly
   # comparable and overlap on the x axis:
   #   x = present-value cost actually spent per capita
@@ -247,12 +256,12 @@ build_fig1 <- function(cities = discover_cities()) {
       cluster_scale() +
       scale_x_log10(labels = scales::label_number(prefix = "€", big.mark = ",")) +
       scale_y_log10(labels = scales::label_number(suffix = "%")) +
-      labs(tag = "c", x = "PV cost spent per capita (log)",
+      labs(tag = "d", x = "PV cost spent per capita (log)",
            y = "% of 25y baseline heat deaths avoided (log)") +
       theme_multicity()
   } else patchwork::plot_spacer()
 
-  # --- (d) deployment as the per-capita budget rises (was fig3c) ------------
+  # --- (e) deployment as the per-capita budget rises (was fig3c) ------------
   pd <- if (nrow(bud)) {
     lc <- tidyr::pivot_longer(bud, c("max_ben_trees", "max_ben_ac", "max_ben_ews"),
                               names_to = "lever", values_to = "frac")
@@ -270,7 +279,7 @@ build_fig1 <- function(cities = discover_cities()) {
       # out-of-range rows rather than just not showing them.
       coord_cartesian(ylim = c(0, 100)) +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
-      labs(tag = "d",
+      labs(tag = "e",
            x = "Budget available per capita (log)", y = "% deployment") +
       theme_multicity() +
       theme(legend.position = "bottom")
@@ -284,7 +293,7 @@ build_fig1 <- function(cities = discover_cities()) {
     tops <- fr |> dplyr::group_by(city, climate_cluster) |>
       dplyr::summarise(top = max(share), .groups = "drop")
     byc <- tapply(tops$top, tops$climate_cluster, median)
-    message(sprintf(paste0("  [caption] panel c: spend EUR %.0f-%.0f per capita ",
+    message(sprintf(paste0("  [caption] panel d: spend EUR %.0f-%.0f per capita ",
                            "avoids %.0f-%.0f%% of the 25y baseline burden (median ",
                            "by class: %s); median within-city elasticity %.2f; ",
                            "%d of %d cities saturate inside the grid"),
@@ -297,11 +306,18 @@ build_fig1 <- function(cities = discover_cities()) {
 
   # Four panels of similar visual weight, so a 2x2 grid rather than the old
   # heatmap-dominated top row. In a 2x2 each legend would otherwise be drawn
-  # twice (climate class under a and c, pathway under b and d), so collect them
+  # twice (climate class under b and d, pathway under c and e), so collect them
   # into one shared strip.
-  fig <- ((pa | pb) / (pc | pd)) +
-    patchwork::plot_layout(heights = c(1, 1.1))
-  save_item(fig, "fig1_risk_costs_portfolios", width = 11.5, height = 9)
+  # Top band (fig1_map_band.R): the cities on a map of Europe and four 100 m zoom-ins,
+  # showing that risk is resolved within cities. The four panels below are b-e.
+  # wrap_elements: the band keeps its own internal layout, so its columns and legend
+  # are not aligned with (and do not narrow) the panels below.
+  band <- patchwork::wrap_elements(full = fig1_map_band(cities))
+  fig <- band / (pa | pb) / (pc | pd) +
+    # 'keep': the band collects its own legend; 'auto' would pass it up to the
+    # whole figure's right edge and squeeze panels c and e.
+    patchwork::plot_layout(heights = c(1.65, 1, 1.1), guides = "keep")
+  save_item(fig, "fig1_risk_costs_portfolios", width = 11.5, height = 15)
 }
 
 if (!exists(".MULTICITY_NORUN")) build_fig1()
