@@ -38,6 +38,7 @@ SCRIPTS <- c("fig1_risk_costs_portfolios.R",
              "fig2_distribution.R",
              "fig3_synergies.R", "fig4_city_maps.R",
              "si1_sensitivity.R", "si2_if_comparison.R", "si3_ews.R", "si4_pawn.R",
+             "si5_existing_ac.R",
              "tab_cba_by_city.R", "tab_risk_by_city.R",
              "tab_ews_by_city.R", "tab_synergies_by_city.R",
              "tab_city_characteristics.R", "make_report.R")
@@ -53,6 +54,7 @@ steps <- list(
   si2  = function() build_si2(cities),
   si3  = function() build_si3(cities),
   si4  = function() build_si4(cities),   # skipped unless PAWN_TREE / PAWN_CAMPAIGN are set
+  si5  = function() build_si5(cities),
   tab_cba   = function() build_tab_cba(cities),
   tab_risk  = function() build_tab_risk(),
   tab_ews   = function() build_tab_ews(cities),
