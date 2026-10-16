@@ -362,6 +362,27 @@ def test_alternative_ssp_cost_and_waste_heat_match_spatial_coverage_totals():
         assert np.isclose(np.average(group["policy_share_t"], weights=weights), 0.65, atol=1e-6)
 
 
+def test_base_ssp_waste_heat_penetration_is_over_the_modelled_area():
+    # Two zone cells raised from 0.4 to 0.7, one city cell outside the zones that the policy
+    # leaves at the current coverage, and one non-city cell (NaN). Over the area the policy
+    # penetration rises by the added users over the area population, not to the zones' 0.7.
+    runner = object.__new__(nb09.NB09ImprovedFast)
+    runner.ac_ssp_base = 2
+    runner._coverage_series_cache = {}
+    runner.coverage_years = np.array([2020, 2030])
+    base = np.array([[0.4, 0.4], [0.4, np.nan]])
+    policy = np.array([[0.7, 0.7], [0.4, np.nan]])
+    runner.coverage_full_cube = {"base": np.stack([base, base]), "policy": np.stack([policy, policy])}
+    pop = np.array([[100.0, 100.0], [200.0, 50.0]])
+    runner.population_grid_like_nb05 = lambda year, exp_ssp_idx: pop
+
+    years = np.array([2020, 2025])
+    base_path = runner.coverage_series_for_waste_heat(years, 2, mode="base", exp_ssp_idx=0)
+    policy_path = runner.coverage_series_for_waste_heat(years, 2, mode="policy", exp_ssp_idx=0)
+    np.testing.assert_allclose(base_path, 0.4)
+    np.testing.assert_allclose(policy_path, 0.4 + 60.0 / 400.0)
+
+
 def test_campaign_design_and_sample_checkpoint_resume():
     with tempfile.TemporaryDirectory() as directory:
         runner = object.__new__(nb09.NB09ImprovedFast)

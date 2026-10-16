@@ -1389,6 +1389,9 @@ class NB09ImprovedFast:
         else:
             cov_policy_3d = cov_base_3d.copy()
         self.coverage_years = cov_years
+        # Full-grid NB05 maps, unclipped and including cells outside the hazard rows, for
+        # the waste-heat penetration over the modelled area (waste_heat_area_users).
+        self.coverage_full_cube = {"base": cov_base_3d, "policy": cov_policy_3d}
         self.coverage_raw_by_mode_year: dict[str, dict[int, np.ndarray]] = {"base": {}, "policy": {}}
         self.coverage_pattern_by_mode_year: dict[str, dict[int, np.ndarray]] = {"base": {}, "policy": {}}
         self.coverage_mean_by_mode_year: dict[str, dict[int, float]] = {"base": {}, "policy": {}}
@@ -2835,6 +2838,69 @@ class NB09ImprovedFast:
             self.population_total_cache[key] = float(np.nansum(np.load(pop_path)["pop"]))
         return self.population_total_cache[key]
 
+    def population_grid_like_nb05(self, year: int, exp_ssp_idx: int | None) -> np.ndarray:
+        """NB03 population grid for one year, chosen as Notebook 05 fills ``POP_GRID``.
+
+        A record of the exposure scenario wins, then a direct WorldPop year, then the
+        baseline grid (Notebook 05's ``pop_on_ref_base``: the earliest direct year, or
+        ``pop_on_ref_<slug>.npz`` for a legacy manifest).
+        """
+        year = int(year)
+        direct = self.expo_manifest.get("direct_worldpop", {}) or {}
+        scenarios = self.expo_manifest.get("scenarios", {}) or {}
+        if exp_ssp_idx is not None:
+            scenario = self.exp_ssp_options[int(exp_ssp_idx)]
+        else:
+            scenario = str(self.cfg.get("exp_scenario", "SSP2"))
+        record = (scenarios.get(scenario, {}) or {}).get(str(year))
+        if not (isinstance(record, dict) and record.get("pop_npz")):
+            record = direct.get(str(year))
+        if not (isinstance(record, dict) and record.get("pop_npz")) and direct:
+            record = direct.get(str(min(map(int, direct))))
+        if isinstance(record, dict) and record.get("pop_npz"):
+            path = self._manifest_npz_path(record["pop_npz"])
+        else:
+            path = self._find_first_existing(
+                [self.int_dir / f"pop_on_ref_{self.slug}.npz", self.int_dir / "pop_on_ref.npz"]
+            )
+        cache = self.__dict__.setdefault("_population_grid_cache", {})
+        if str(path) not in cache:
+            cache[str(path)] = np.load(path)["pop"].astype(np.float32)
+        return cache[str(path)]
+
+    def waste_heat_area_users(
+        self,
+        mode: str,
+        exp_ssp_idx: int | None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """AC users and population over the modelled area at the NB05 coverage years.
+
+        The waste-heat warming multiplies the marginal deaths of every city cell, so its
+        penetration is taken over that same area, as Notebook 05 does, from NB05's
+        gap-filled maps; they are NaN outside the city, so those cells drop out. The policy
+        adds users only in the AC zones, so over the area its penetration rises by the
+        added users divided by the area population.
+        """
+        mode_key = "policy" if str(mode).lower() == "policy" else "base"
+        cube = self.coverage_full_cube[mode_key]
+        users, population = [], []
+        for idx, _year in enumerate(self.coverage_years):
+            pop = np.nan_to_num(
+                np.asarray(self.population_grid_like_nb05(int(_year), exp_ssp_idx), dtype=float),
+                nan=0.0,
+            )
+            cov = np.asarray(cube[idx if cube.shape[0] > 1 else 0], dtype=float)
+            if cov.shape != pop.shape:
+                raise ValueError(f"coverage map {cov.shape} and population grid {pop.shape} differ")
+            m = (pop > 0) & np.isfinite(cov)
+            users.append(float(np.sum(pop[m] * cov[m])))
+            population.append(float(np.sum(pop[m])))
+        return (
+            np.asarray(self.coverage_years, dtype=float),
+            np.asarray(users, dtype=float),
+            np.asarray(population, dtype=float),
+        )
+
     def ac_cba_population_series(self, years: np.ndarray, sample: dict[str, Any]) -> np.ndarray:
         """Reproduce Notebook 08's population path for AC expenditure.
 
@@ -3140,12 +3206,14 @@ class NB09ImprovedFast:
         mode: str = "base",
         exp_ssp_idx: int | None = None,
     ) -> np.ndarray:
-        """Return the NB05-compatible citywide AC-penetration path.
+        """Return the NB05-compatible AC-penetration path over the modelled area.
 
-        For the configured AC SSP, Notebook 05 first interpolates municipal
-        users and total population from the anchor years and only then divides
-        the two series; this exact route is retained for central parity. For an
-        alternative AC SSP, anchor coverage is taken from the reconstructed
+        The waste-heat warming multiplies the marginal deaths of the whole modelled
+        area, so penetration is taken over that area rather than the AC zones alone.
+        For the configured AC SSP, Notebook 05 sums users and population over the
+        populated cells of its gap-filled maps at the coverage years, interpolates
+        both and only then divides; this exact route is retained for central parity.
+        For an alternative AC SSP, anchor coverage is taken from the reconstructed
         spatial baseline/policy maps on the sampled exposure, and users and
         population are interpolated separately using the same convention.
         """
@@ -3164,24 +3232,9 @@ class NB09ImprovedFast:
         if cache_key in cache:
             return cache[cache_key].copy()
 
-        if int(ac_ssp) == self.ac_ssp_base and self.ac_muni_cov_yearly is not None:
-            df = self.ac_muni_cov_yearly
-            coverage_col = "ac_policy_muni" if mode_key == "policy" else "ac_base_muni"
-            users_anchors: dict[int, float] = {}
-            pop_anchors: dict[int, float] = {}
-            if coverage_col in df.columns and {"year", "pop_muni"}.issubset(df.columns):
-                for anchor_year, group in df.groupby("year"):
-                    pop = pd.to_numeric(group["pop_muni"], errors="coerce").to_numpy(float)
-                    cov = pd.to_numeric(group[coverage_col], errors="coerce").to_numpy(float)
-                    valid = np.isfinite(pop) & np.isfinite(cov) & (pop >= 0)
-                    if np.any(valid) and float(pop[valid].sum()) > 0:
-                        users_anchors[int(anchor_year)] = float(np.sum(pop[valid] * cov[valid]))
-                        pop_anchors[int(anchor_year)] = float(np.sum(pop[valid]))
-            common_years = sorted(set(users_anchors).intersection(pop_anchors))
-            if common_years:
-                anchor_years = np.asarray(common_years, dtype=float)
-                users = np.asarray([users_anchors[int(y)] for y in anchor_years], dtype=float)
-                population = np.asarray([pop_anchors[int(y)] for y in anchor_years], dtype=float)
+        if int(ac_ssp) == self.ac_ssp_base:
+            anchor_years, users, population = self.waste_heat_area_users(mode_key, exp_ssp_idx)
+            if np.any(population > 0):
                 users_t = np.interp(target_years, anchor_years, users)
                 population_t = np.interp(target_years, anchor_years, population)
                 result = np.divide(
