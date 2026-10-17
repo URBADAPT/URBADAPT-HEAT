@@ -6,6 +6,7 @@ bit-identical against the 40-city both-corrections arm, so the two agree by cons
 
 Usage:
     python validation/gmd_results_numbers.py
+    GMD_TREE=<pilot tree> python validation/gmd_results_numbers.py
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-TREE = os.path.join(ROOT, "outputs_variants", "masselot_main_gmd")
+TREE = os.environ.get("GMD_TREE", os.path.join(ROOT, "outputs_variants", "masselot_main_gmd"))
 CITIES = ("rome", "athens", "lisbon", "copenhagen")
 FAM = "masselot_tail_varcorr"
 

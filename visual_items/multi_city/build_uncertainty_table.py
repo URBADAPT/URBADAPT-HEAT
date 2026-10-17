@@ -95,6 +95,11 @@ def city_row(d: pd.DataFrame) -> dict:
     r["p_ews_cheapest"] = r["ews_cheapest_n"] / len(d)
     r["p_trees_lt_ac"] = float(np.mean(tr < ac))
     r["p_ac_net_positive"] = float(np.mean(d.ac_net_avoided_deaths_25y_cum.to_numpy(float) > 0))
+    # The ensemble samples the waste-heat feedback on or off; with it off, net equals gross.
+    on = d.wh_enabled.astype(bool).to_numpy()
+    r["n_wh_on"] = int(on.sum())
+    r["p_ac_net_positive_wh_on"] = (float(np.mean(d.ac_net_avoided_deaths_25y_cum.to_numpy(float)[on] > 0))
+                                    if on.any() else np.nan)
     r["n_both_positive"] = int(both.sum())
     r["p_trees_lt_ac_given_both"] = float(np.mean(tr[both] < ac[both])) if both.any() else np.nan
     return r
@@ -139,8 +144,15 @@ def probability_caption(t: pd.DataFrame) -> str:
         parts = ", ".join(f"{r.city_name} ({r.ews_cheapest_n}/{r.n})" for r in exc.itertuples(index=False))
         ews = ("Warning systems have the lowest cost per avoided death in every member of every "
                f"city's ensemble except {parts}, so that share is not tabulated.")
-    return ("$P$(AC $>0$) is the share of the 128 members with positive cumulative net AC avoided\n"
-            "deaths. $P$(trees $<$ AC) is the share of members in which trees cost less per avoided death\n"
+    n_on = sorted(set(t.n_wh_on))
+    on = f"the {n_on[0]}" if len(n_on) == 1 else f"the {n_on[0]} to {n_on[-1]}"
+    off = f"the {int(t.n.iloc[0]) - n_on[0]}" if len(n_on) == 1 and t.n.nunique() == 1 else "those"
+    lo = t.loc[t.p_ac_net_positive_wh_on.idxmin()]
+    wh = (f"including {off} in which the waste-heat feedback is switched off and net equals gross; among\n"
+          f"{on} members with it switched on, the share ranges from {100 * lo.p_ac_net_positive_wh_on:.0f}\\,\\%\n"
+          f"({lo.city_name}) to {100 * t.p_ac_net_positive_wh_on.max():.0f}\\,\\% across cities")
+    return ("$P$(AC $>0$) is the share of all 128 members with positive cumulative net AC avoided\n"
+            f"deaths, {wh}. $P$(trees $<$ AC) is the share of members in which trees cost less per avoided death\n"
             "than AC, among members in which both pathways avoid deaths; \\textit{n.a.} where none do.\n"
             f"{ews}\n")
 
