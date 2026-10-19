@@ -141,11 +141,11 @@ build_fig3 <- function(cities = discover_cities()) {
     # waste heat are equally worth pointing at.
     lab_pool$log_ratio <- log10(lab_pool$ac_penalty / lab_pool$trees_alone)
     top <- standouts(lab_pool, "log_ratio", 3, 2)
-    # Reference lines at waste-heat deaths equal to, a tenth of and a hundredth of the
-    # deaths greening avoids. Under the AC heat-flux method every city sits well below
-    # 1:1, so the 1:10 and 1:100 lines are what locate the cloud. Each label sits where
-    # its line leaves the plotted range.
-    ratios <- c(`1:1` = 1, `1:10` = 0.1, `1:100` = 0.01)
+    # Reference line at waste-heat deaths equal to a tenth of the deaths greening avoids.
+    # Under the AC heat-flux method every drawn city sits well below 1:1, which left that
+    # line in an empty corner; 1:10 runs through the cloud. Its label sits where the line
+    # leaves the plotted range.
+    ratios <- c(`1:10` = 0.1)
     xr <- range(wc$trees_alone); yr <- range(wc$ac_penalty)
     xr <- 10^(log10(xr) + c(-0.05, 0.05) * diff(log10(xr)))
     yr <- 10^(log10(yr) + c(-0.05, 0.05) * diff(log10(yr)))
@@ -158,7 +158,7 @@ build_fig3 <- function(cities = discover_cities()) {
     ref_lab <- ref_lab[ref_lab$y >= yr[1] & ref_lab$x >= xr[1], , drop = FALSE]
     ggplot(wc, aes(trees_alone, ac_penalty)) +
       lapply(ratios, function(r) geom_abline(slope = 1, intercept = log10(r), linetype = 2,
-                                             color = if (r == 1) "grey45" else "grey70")) +
+                                             color = "grey55")) +
       geom_text(data = ref_lab, aes(x, y, label = label), inherit.aes = FALSE,
                 hjust = 1.15, vjust = -0.2, size = 2.8, color = "grey40") +
       geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
