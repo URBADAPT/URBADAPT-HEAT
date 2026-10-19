@@ -141,7 +141,9 @@ build_si5 <- function(cities = discover_cities()) {
     `Deaths, no AC` = round(t$deaths_no_ac, 0),
     `Deaths, current AC` = round(t$deaths_cur, 0),
     `Avoided, gross` = round(t$gross, 1),
-    `Own waste heat` = round(t$waste, 1),
+    # Two decimals: under the AC heat-flux method the cool cities' own waste heat is a few
+    # hundredths of a death, which one decimal shows as 0.0.
+    `Own waste heat` = round(t$waste, 2),
     `Avoided, net` = round(t$net, 1),
     `Net (% of no-AC)` = round(t$net_pct, 1),
     `Net / 100k` = round(per_100k(t$net, t$pop_k_area), 2),
@@ -150,7 +152,7 @@ build_si5 <- function(cities = discover_cities()) {
              caption = paste(sprintf("Protection delivered by the existing AC stock in %d.", EXISTING_AC_YEAR),
                "Annual heat-attributable deaths over the modelled area with no AC attenuation and with",
                "current AC coverage; the gross difference; the waste-heat penalty of the current stock",
-               "(outdoor warming from current penetration, weighted by daily cooling activity); and the net",
+               "(outdoor warming from the heat the current stock rejects, weighted by each day's AC electricity); and the net",
                "protection. The exposure-response curves are fitted to observed mortality, which already",
                "reflects historical AC, so `no AC' denotes the curves without the AC attenuation the model",
                "applies, not an observed no-AC counterfactual. Per 100\\,000 divides by the population of",
@@ -158,7 +160,7 @@ build_si5 <- function(cities = discover_cities()) {
              label = "tab:existing_ac_by_city",
              longtable = TRUE, size = "\\scriptsize",
              align = c("l", "l", "l", "r", "r", "r", "r", "r", "r", "r", "r"),
-             digits = c(0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2))
+             digits = c(0, 0, 0, 0, 0, 0, 1, 2, 1, 1, 2))
 
   # Numbers the text quotes, so they are generated rather than transcribed.
   message(sprintf("[caption] %d cities, %d: no-AC %.0f, current AC %.0f deaths; gross %.0f (%.1f%%), own waste heat %.0f, net %.0f (%.1f%%)",
