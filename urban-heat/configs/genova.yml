@@ -20,7 +20,7 @@ ac:
   year: 2050
 
   # AC electricity consumption at NUTS level
-  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv   # unused since 2026-10: AC electricity per user comes from cityheat/ac_heat_energy.py
   kwh_format: nuts_csv
   kwh_columns:
     id: NUTS_ID

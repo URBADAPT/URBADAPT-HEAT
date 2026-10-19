@@ -33,7 +33,7 @@ ac:
   year: 2050
 
   # AC electricity consumption at NUTS level
-  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv   # unused since 2026-10: AC electricity per user comes from cityheat/ac_heat_energy.py
   kwh_format: nuts_csv
   kwh_nuts_ids: ["BE100"]   # NUTS-3 Arr. de Bruxelles-Capitale/Arr. Brussel-Hoofdstad (metro alt: NUTS-2 BE10 Région de Bruxelles-Capitale/ Brussels Hoofdstedelijk Gewest)
   kwh_columns:
@@ -60,6 +60,9 @@ ac:
 
   # AC waste heat feedback (Salamanca et al. 2014 + Kou et al. 2026)
   waste_heat:
+    # Default method: AC heat flux (cityheat/ac_heat_energy.py, docs/ac_heat_energy.md);
+    # override its parameters under ac.heat_energy. The lookup below (Salamanca et al.
+    # 2014) is used only with method: lut, kept for sensitivity runs.
     enabled: true
     lut_case_default: central          # low / central / high
     lut_case_options: [low, central, high]

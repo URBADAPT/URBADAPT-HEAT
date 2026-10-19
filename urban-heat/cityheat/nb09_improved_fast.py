@@ -29,6 +29,7 @@ import yaml
 from rasterio.enums import Resampling
 from rasterio.vrt import WarpedVRT
 from SALib.analyze import pawn
+from cityheat import ac_heat_energy as ahe
 from cityheat.nbsetup import find_repo_root
 from cityheat.vulnerability_layer import (
     get_vuln_config,
@@ -1307,38 +1308,33 @@ class NB09ImprovedFast:
             for _, row in by_year.iterrows():
                 self.pen_lookup[(ssp, int(row["year"]))] = float(row["value"])
 
-        kwh_file = self.P(ac_cfg.get("kwh_file", ""))
-        if not kwh_file.exists():
-            raise FileNotFoundError(f"Missing AC kWh file: {kwh_file}")
-        self.ac_kwh_path = kwh_file
-        kwh_df = pd.read_csv(kwh_file)
-        kwh_cols = ac_cfg.get("kwh_columns", {})
-        kwh_col_id = kwh_cols.get("id", "NUTS_ID")
-        kwh_col_scen = kwh_cols.get("scenario", "Scenario")
-        kwh_col_year = kwh_cols.get("year", "year")
-        kwh_col_val = kwh_cols.get("value", "value")
-        if ac_cfg.get("kwh_nuts_ids"):
-            kwh_target_ids = [str(x) for x in ac_cfg.get("kwh_nuts_ids", [])]
-        else:
-            kwh_target_ids = target_ids
-        kwh_city = kwh_df[kwh_df[kwh_col_id].astype(str).isin(kwh_target_ids)].copy()
-        if kwh_city.empty:
-            raise ValueError(f"No AC kWh rows matched IDs {kwh_target_ids} in {kwh_file}")
-
+        # AC electricity per AC user follows each member's own daily temperatures through the
+        # consumption rule of cityheat/ac_heat_energy.py, which replaced the NUTS kWh table in
+        # 2026-10. NB05's city values, from the deterministic hazard, anchor the municipal
+        # pattern; a member's values are NB05's scaled by the ratio of the two city means.
+        self.ahe = ahe.params(self.cfg)
+        self.ac_kwh_path = self.int_dir / f"ac_per_user_city_{self.slug}.csv"
+        if not self.ac_kwh_path.exists():
+            raise FileNotFoundError(f"Missing NB05 AC electricity per user: {self.ac_kwh_path}")
+        _kwh = pd.read_csv(self.ac_kwh_path)
+        self.kwh_city_nb05 = {int(y): float(v) for y, v in zip(_kwh["year"], _kwh["kwh_per_ac_user_city"])}
         self.kwh_lookup: dict[tuple[int, int], float] = {}
-        for ssp in self.ac_ssp_options:
-            scen_label = f"SSP{ssp}"
-            sub = kwh_city[kwh_city[kwh_col_scen].astype(str).str.upper() == scen_label.upper()].copy()
-            if sub.empty:
-                continue
-            by_year = sub.groupby(kwh_col_year, as_index=False)[kwh_col_val].mean().rename(columns={kwh_col_year: "year", kwh_col_val: "value"})
-            for _, row in by_year.iterrows():
-                self.kwh_lookup[(ssp, int(row["year"]))] = float(row["value"])
+        self._member_kwh_city: dict[int, float] | None = None
 
         self.wh_enabled_default = bool(self.wh_cfg.get("enabled", True))
         self.wh_enabled_options = _bool_options_with_baseline(
             self.wh_cfg.get("enabled_options", [False, True]), self.wh_enabled_default
         )
+        self.wh_method = str(self.ahe["method"]).lower()  # "flux" or "lut"
+        self.wh_sens_range = [float(x) for x in self.ahe["waste_heat"]["sensitivity_range_k_per_wm2"]]
+        self.ac_kwh_full_range = [float(x) for x in self.ahe["electricity"]["kwh_per_household_day_full_range"]]
+        self.wh_built_area_m2 = float("nan")
+        if self.wh_method == "flux":
+            _whp = self.int_dir / f"wasteheat_params_{self.slug}.json"
+            _area = None
+            if _whp.exists():
+                _area = (json.loads(_whp.read_text()).get("heat_energy", {}) or {}).get("built_area_m2")
+            self.wh_built_area_m2 = float(_area) if _area else ahe.built_area_m2(self.out / "lcz_masked_fua.tif", self.ahe)
         self.wh_lut_options = list(self.wh_cfg.get("lut_case_options", ["low", "central", "high"]))
         self.wh_ratio_min, self.wh_ratio_max = map(float, self.wh_cfg.get("dailymean_from_night_range", [0.33, 0.67]))
         activation_cfg = self.wh_cfg.get("activation", {})
@@ -2022,8 +2018,17 @@ class NB09ImprovedFast:
             ParamSpec("GCM_MODEL_IDX", "choice", options=list(range(len(self.gcm_options)))),
             ParamSpec("AC_SSP_IDX", "choice", options=list(range(len(self.ac_ssp_options)))),
             ParamSpec("WH_ENABLED_IDX", "choice", options=list(range(len(self.wh_enabled_options)))),
-            ParamSpec("WH_LUT_CASE_IDX", "choice", options=list(range(len(self.wh_lut_options)))),
-            ParamSpec("WH_RATIO", "uniform", low=self.wh_ratio_min, high=self.wh_ratio_max),
+            *(
+                [
+                    ParamSpec("WH_SENS", "uniform", low=self.wh_sens_range[0], high=self.wh_sens_range[1]),
+                    ParamSpec("AC_KWH_FULL", "uniform", low=self.ac_kwh_full_range[0], high=self.ac_kwh_full_range[1]),
+                ]
+                if self.wh_method == "flux"
+                else [
+                    ParamSpec("WH_LUT_CASE_IDX", "choice", options=list(range(len(self.wh_lut_options)))),
+                    ParamSpec("WH_RATIO", "uniform", low=self.wh_ratio_min, high=self.wh_ratio_max),
+                ]
+            ),
             ParamSpec("COP_ENABLED_IDX", "choice", options=list(range(len(self.cop_enabled_options)))),
             ParamSpec("COP_CASE_IDX", "choice", options=list(range(len(self.cop_case_options)))),
             ParamSpec("TREE_COEFF_SCALE", "uniform", low=0.50, high=1.50),
@@ -2375,6 +2380,21 @@ class NB09ImprovedFast:
             return float(self.kwh_lookup[(2, nearest)])
         return 0.0
 
+    def kwh_per_user_for_member(self, year: int) -> float:
+        """AC electricity per AC user in ``year`` (kWh): the evaluated member's own values
+        when set, else NB05's, linear between anchor years and constant beyond them."""
+        anchors = self._member_kwh_city or self.kwh_city_nb05
+        ys = np.asarray(sorted(anchors), dtype=float)
+        return float(np.interp(float(year), ys, [anchors[int(y)] for y in ys]))
+
+    def kwh_scale_for_member(self, year: int) -> float:
+        """Member's city electricity per user relative to NB05's in ``year``; 1 for NB05's own."""
+        if self._member_kwh_city is None:
+            return 1.0
+        ys = np.asarray(sorted(self.kwh_city_nb05), dtype=float)
+        nb05 = float(np.interp(float(year), ys, [self.kwh_city_nb05[int(y)] for y in ys]))
+        return self.kwh_per_user_for_member(year) / nb05 if nb05 > 0 else 1.0
+
     def dT_night_from_penetration(self, pen: float, case: str) -> float:
         pen_points = np.array(sorted(self.wh_lut.keys()), dtype=float)
         dT_points = np.array([float(self.wh_lut[p][case]) for p in pen_points], dtype=float)
@@ -2384,7 +2404,11 @@ class NB09ImprovedFast:
         alpha = float(cop_sens) * float(dT_night) * (1.0 + 1.0 / self.cop_ref) / self.cop_ref
         return 1.0 + alpha
 
-    def waste_heat_activity_share(self, citymean_daily: np.ndarray) -> float:
+    def waste_heat_activity_share(self, citymean_daily: np.ndarray, e_full: float | None = None) -> float:
+        if self.wh_method == "flux":
+            arr = np.asarray(citymean_daily, dtype=float)
+            arr = arr[np.isfinite(arr)]
+            return float(ahe.consumption_weight(arr, self.ahe, e_full).mean()) if arr.size else 0.0
         if self.wh_activation_method != "kou_cdd_share":
             return 1.0
         arr = np.asarray(citymean_daily, dtype=float)
@@ -2416,6 +2440,7 @@ class NB09ImprovedFast:
         citymean_daily: np.ndarray,
         deaths_plus: np.ndarray,
         deaths_base: np.ndarray,
+        e_full: float | None = None,
     ) -> float:
         """Cooling activity averaged over days, weighted by each day's marginal deaths per degree.
 
@@ -2424,7 +2449,9 @@ class NB09ImprovedFast:
         warming over winter days too, although marginal deaths concentrate on hot days.
         """
         m_day = np.asarray(deaths_plus, dtype=float) - np.asarray(deaths_base, dtype=float)
-        q_day = self.waste_heat_activity_weights(citymean_daily)
+        # Flux method: each day weighted by its AC electricity relative to full activity.
+        q_day = (ahe.consumption_weight(citymean_daily, self.ahe, e_full) if self.wh_method == "flux"
+                 else self.waste_heat_activity_weights(citymean_daily))
         if q_day.size != m_day.size:
             raise ValueError(f"activity weights ({q_day.size}) and daily deaths ({m_day.size}) differ in length")
         total = float(m_day.sum())
@@ -2724,7 +2751,9 @@ class NB09ImprovedFast:
                 # NUTS-level target.
                 cov_yearly.loc[mask, "base_share_t"] = cov_yearly.loc[mask, "base_share_raw"].to_numpy(float)
                 cov_yearly.loc[mask, "policy_share_t"] = cov_yearly.loc[mask, "policy_share_raw"].to_numpy(float)
-                cov_yearly.loc[mask, "kwh_per_user_t"] = cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float)
+                cov_yearly.loc[mask, "kwh_per_user_t"] = (
+                    cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float) * self.kwh_scale_for_member(int(year))
+                )
             else:
                 base_target = alternative_base_targets[int(year)]
                 policy_target = alternative_policy_targets[int(year)]
@@ -2748,7 +2777,7 @@ class NB09ImprovedFast:
                     baseline,
                     1e-9,
                 )
-                target_kwh = self.get_kwh_per_user(sample["ac_ssp"], int(year))
+                target_kwh = self.kwh_per_user_for_member(int(year))
                 cov_yearly.loc[mask, "kwh_per_user_t"] = _scale_pattern_to_weighted_mean(
                     cov_yearly.loc[mask, "kwh_per_user_raw"].to_numpy(float),
                     user_weights,
@@ -3310,7 +3339,7 @@ class NB09ImprovedFast:
             ac_ssp=sample["ac_ssp"],
             ac_mode=ac_mode,
             wh_case=sample["wh_case"],
-            wh_ratio=sample["WH_RATIO"],
+            wh_ratio=sample.get("WH_RATIO", 1.0),
             cop_case=sample["cop_case"],
             wh_enabled=sample["wh_enabled"],
             cop_enabled=sample["cop_enabled"],
@@ -3698,7 +3727,7 @@ class NB09ImprovedFast:
             "gcm_model": self.gcm_options[int(row["GCM_MODEL_IDX"])],
             "ac_ssp": self.ac_ssp_options[int(row["AC_SSP_IDX"])],
             "wh_enabled": self.wh_enabled_options[int(row["WH_ENABLED_IDX"])],
-            "wh_case": self.wh_lut_options[int(row["WH_LUT_CASE_IDX"])],
+            "wh_case": (self.wh_lut_options[int(row["WH_LUT_CASE_IDX"])] if self.wh_method == "lut" else "flux"),
             "cop_enabled": self.cop_enabled_options[int(row["COP_ENABLED_IDX"])],
             "cop_case": self.cop_case_options[int(row["COP_CASE_IDX"])],
             "tree_ramp_years": self.tree_ramp_options[int(row["TREE_RAMP_YEARS_IDX"])],
@@ -3798,10 +3827,19 @@ class NB09ImprovedFast:
             "GCM_MODEL_IDX": self._index_or_default(self.gcm_options, "__none__", 0),
             "AC_SSP_IDX": self._index_or_default(self.ac_ssp_options, self.ac_ssp_base, 0),
             "WH_ENABLED_IDX": self._index_or_default(self.wh_enabled_options, self.wh_enabled_default, 0),
-            "WH_LUT_CASE_IDX": self._index_or_default(
-                self.wh_lut_options, wh_cfg.get("lut_case_default", "central"), 0
+            **(
+                {
+                    "WH_SENS": float(self.ahe["waste_heat"]["sensitivity_k_per_wm2"]),
+                    "AC_KWH_FULL": float(self.ahe["electricity"]["kwh_per_household_day_full"]),
+                }
+                if self.wh_method == "flux"
+                else {
+                    "WH_LUT_CASE_IDX": self._index_or_default(
+                        self.wh_lut_options, wh_cfg.get("lut_case_default", "central"), 0
+                    ),
+                    "WH_RATIO": float(wh_cfg.get("dailymean_from_night_default", 0.5)),
+                }
             ),
-            "WH_RATIO": float(wh_cfg.get("dailymean_from_night_default", 0.5)),
             "COP_ENABLED_IDX": self._index_or_default(self.cop_enabled_options, self.cop_enabled_default, 0),
             "COP_CASE_IDX": self._index_or_default(self.cop_case_options, "central", 0),
             "TREE_COEFF_SCALE": 1.0,
@@ -3908,7 +3946,7 @@ class NB09ImprovedFast:
             )
             users_base_t = np.asarray(pop_25y, dtype=float) * base_share_t
             users_policy_t = np.asarray(pop_25y, dtype=float) * policy_share_t
-            kwh_per_user_t = np.array([self.get_kwh_per_user(sample["ac_ssp"], int(y)) for y in years_all], dtype=float)
+            kwh_per_user_t = np.array([self.kwh_per_user_for_member(int(y)) for y in years_all], dtype=float)
 
             ramp_years = int(sample["tree_ramp_years"])
             start_age = int(sample["tree_start_age"])
@@ -5216,6 +5254,37 @@ class NB09ImprovedFast:
             )
         return parity_path
 
+    def waste_heat_population_series(self, years: np.ndarray, ac_ssp: int, exp_ssp_idx: int) -> np.ndarray:
+        """Population of the modelled area behind the waste-heat penetration path, by year."""
+        years = np.asarray(years, dtype=float)
+        if int(ac_ssp) == self.ac_ssp_base:
+            anchor_years, _users, population = self.waste_heat_area_users("base", exp_ssp_idx)
+            return np.interp(years, anchor_years, population)
+        population = [
+            self.pop_total_for_exposure(self.exposure_path_for_year(int(y), int(exp_ssp_idx)), 1.0)
+            for y in self.years
+        ]
+        return np.interp(years, np.asarray(self.years, dtype=float), np.asarray(population, dtype=float))
+
+    def waste_heat_delta_for_years(self, years: np.ndarray, sample: dict[str, Any], mode: str = "base") -> np.ndarray:
+        """Waste-heat warming for the base or policy AC path in ``years``: daily-mean warming
+        at full cooling activity from the AC users (flux method, as NB05), or the lookup."""
+        years = np.asarray(years, dtype=int)
+        pen = self.coverage_series_for_waste_heat(
+            years, sample["ac_ssp"], mode=mode, exp_ssp_idx=int(sample["EXP_SSP_IDX"])
+        )
+        if self.wh_method != "flux":
+            return self.waste_heat_dailymean_delta(pen, sample)
+        users = pen * self.waste_heat_population_series(years, sample["ac_ssp"], int(sample["EXP_SSP_IDX"]))
+        d_t = ahe.warming_full_activity(
+            users, self.wh_built_area_m2, self.ahe,
+            sensitivity=float(sample["WH_SENS"]), e_full=float(sample["AC_KWH_FULL"]),
+        )
+        if sample["cop_enabled"]:
+            cop_sens = float(self.cop_sens.get(sample["cop_case"], self.cop_sens.get("central", 0.065)))
+            d_t = d_t * np.array([self.cop_amplification_factor(float(v), cop_sens) for v in d_t], dtype=float)
+        return np.maximum(d_t, 0.0)
+
     def waste_heat_dailymean_delta(self, penetration: np.ndarray, sample: dict[str, Any]) -> np.ndarray:
         """Return NB05-equivalent daily-mean waste-heat warming for a coverage path."""
         pen = np.asarray(penetration, dtype=float)
@@ -5269,8 +5338,8 @@ class NB09ImprovedFast:
                 )
             )
             tree_t = base_t + monthly_delta[months - 1] * maturity
-            s_base = self.waste_heat_activity_share(base_t)
-            s_tree = self.waste_heat_activity_share(tree_t)
+            s_base = self.waste_heat_activity_share(base_t, e_full=sample.get("AC_KWH_FULL"))
+            s_tree = self.waste_heat_activity_share(tree_t, e_full=sample.get("AC_KWH_FULL"))
             ratio = 1.0 if s_base <= 1e-12 else s_tree / s_base
             anchor_ratios.append(float(np.clip(ratio, 0.0, 1.0)))
         return np.clip(
@@ -5285,6 +5354,7 @@ class NB09ImprovedFast:
 
     def evaluate_sample(self, raw_row: pd.Series) -> dict[str, Any]:
         sample = self.sample_dict(raw_row)
+        self._member_kwh_city = None
         extreme_threshold_c = None
         extreme_min_duration = None
         if self.ews_uses_event_mask_warning():
@@ -5305,6 +5375,13 @@ class NB09ImprovedFast:
             extreme_threshold_c=extreme_threshold_c,
             extreme_min_duration_days=extreme_min_duration,
         )
+        # AC electricity per AC user from this member's own daily temperatures (consumption rule
+        # of cityheat/ac_heat_energy.py with the member's full-activity electricity).
+        _e_full = float(sample.get("AC_KWH_FULL", self.ahe["electricity"]["kwh_per_household_day_full"]))
+        self._member_kwh_city = {
+            int(y): ahe.annual_kwh_per_user(ref_anchor_results[y]["hazard_citymean_daily"], self.ahe, _e_full)
+            for y in self.years
+        }
         ac_gross_anchor_results, ac_gross_pop_totals, _ = self.evaluate_branch_anchors(
             sample,
             ac_mode="policy",
@@ -5564,6 +5641,7 @@ class NB09ImprovedFast:
                         ref_anchor_results[y]["hazard_citymean_daily"],
                         plus_results[y]["daily_residual_total"],
                         base_results[y]["daily_residual_total"],
+                        e_full=sample.get("AC_KWH_FULL"),
                     )
                     for y in self.years
                 ],
@@ -5587,8 +5665,8 @@ class NB09ImprovedFast:
             mode="policy",
             exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
         )
-        d_t_current_25y = self.waste_heat_dailymean_delta(pen_current_25y, sample)
-        d_t_policy_25y = self.waste_heat_dailymean_delta(pen_policy_25y, sample)
+        d_t_current_25y = self.waste_heat_delta_for_years(years_all, sample, mode="base")
+        d_t_policy_25y = self.waste_heat_delta_for_years(years_all, sample, mode="policy")
         if sample["wh_enabled"]:
             wh_penalty_current_25y = activity_current_25y * marginal_current_25y * d_t_current_25y
             wh_penalty_policy_25y = activity_policy_25y * marginal_policy_25y * d_t_policy_25y
@@ -5644,41 +5722,19 @@ class NB09ImprovedFast:
             ref_anchor_results[sample_year]["hazard_citymean_daily"],
             ref_plus1_anchor_results[sample_year]["daily_residual_total"],
             ref_anchor_results[sample_year]["daily_residual_total"],
+            e_full=sample.get("AC_KWH_FULL"),
         )
         sample_activity_policy = self.waste_heat_deathweighted_share(
             ref_anchor_results[sample_year]["hazard_citymean_daily"],
             ac_plus1_anchor_results[sample_year]["daily_residual_total"],
             ac_gross_anchor_results[sample_year]["daily_residual_total"],
+            e_full=sample.get("AC_KWH_FULL"),
         )
         sample_d_t_current = float(
-            self.waste_heat_dailymean_delta(
-                np.array(
-                    [
-                        self.coverage_mean_for_waste_heat(
-                            sample_year,
-                            sample["ac_ssp"],
-                            mode="base",
-                            exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
-                        )
-                    ]
-                ),
-                sample,
-            )[0]
+            self.waste_heat_delta_for_years(np.asarray([sample_year]), sample, mode="base")[0]
         )
         sample_d_t_policy = float(
-            self.waste_heat_dailymean_delta(
-                np.array(
-                    [
-                        self.coverage_mean_for_waste_heat(
-                            sample_year,
-                            sample["ac_ssp"],
-                            mode="policy",
-                            exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
-                        )
-                    ]
-                ),
-                sample,
-            )[0]
+            self.waste_heat_delta_for_years(np.asarray([sample_year]), sample, mode="policy")[0]
         )
         sample_wh_penalty = 0.0
         if sample["wh_enabled"]:
@@ -5716,41 +5772,19 @@ class NB09ImprovedFast:
                     ref_anchor_results[year]["hazard_citymean_daily"],
                     ref_plus1_anchor_results[year]["daily_residual_total"],
                     ref_anchor_results[year]["daily_residual_total"],
+                    e_full=sample.get("AC_KWH_FULL"),
                 )
                 activity_policy_a = self.waste_heat_deathweighted_share(
                     ref_anchor_results[year]["hazard_citymean_daily"],
                     ac_plus1_anchor_results[year]["daily_residual_total"],
                     ac_gross_anchor_results[year]["daily_residual_total"],
+                    e_full=sample.get("AC_KWH_FULL"),
                 )
                 d_t_current_a = float(
-                    self.waste_heat_dailymean_delta(
-                        np.asarray(
-                            [
-                                self.coverage_mean_for_waste_heat(
-                                    year,
-                                    sample["ac_ssp"],
-                                    mode="base",
-                                    exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
-                                )
-                            ]
-                        ),
-                        sample,
-                    )[0]
+                    self.waste_heat_delta_for_years(np.asarray([year]), sample, mode="base")[0]
                 )
                 d_t_policy_a = float(
-                    self.waste_heat_dailymean_delta(
-                        np.asarray(
-                            [
-                                self.coverage_mean_for_waste_heat(
-                                    year,
-                                    sample["ac_ssp"],
-                                    mode="policy",
-                                    exp_ssp_idx=int(sample["EXP_SSP_IDX"]),
-                                )
-                            ]
-                        ),
-                        sample,
-                    )[0]
+                    self.waste_heat_delta_for_years(np.asarray([year]), sample, mode="policy")[0]
                 )
                 wh_penalty_a = (
                     activity_policy_a * (ac_plus1_a - ac_a) * d_t_policy_a

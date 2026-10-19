@@ -20,7 +20,7 @@ ac:
   years: [2020, 2030, 2040, 2050]
   year: 2050
 
-  kwh_file: ACgridded/ac_kwh_NUTSregions.csv
+  kwh_file: ACgridded/ac_kwh_NUTSregions.csv   # unused since 2026-10: AC electricity per user comes from cityheat/ac_heat_energy.py
   kwh_format: nuts_csv
   kwh_nuts_ids: ["DK011"]
   kwh_columns:
@@ -44,6 +44,9 @@ ac:
   lifetime_years: 12   # Lot-10 Task4 / 2018 review; UQ range 9-16 [CALIB_AC S3]
 
   waste_heat:
+    # Default method: AC heat flux (cityheat/ac_heat_energy.py, docs/ac_heat_energy.md);
+    # override its parameters under ac.heat_energy. The lookup below (Salamanca et al.
+    # 2014) is used only with method: lut, kept for sensitivity runs.
     enabled: true
     lut_case_default: central
     lut_case_options: [low, central, high]

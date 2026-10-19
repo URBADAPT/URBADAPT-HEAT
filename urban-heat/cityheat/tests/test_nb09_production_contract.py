@@ -332,7 +332,8 @@ def test_alternative_ssp_cost_and_waste_heat_match_spatial_coverage_totals():
     runner.years = [2020, 2030]
     runner._coverage_series_cache = {}
     runner.coverage_mean_for_mode = lambda year, ac_ssp, mode="base": 0.40
-    runner.get_kwh_per_user = lambda ac_ssp, year: 150.0
+    runner.kwh_city_nb05 = {2020: 150.0, 2030: 150.0}
+    runner._member_kwh_city = None
     runner.exposure_path_for_year = lambda year, exp_ssp_idx: Path(f"exposure_{year}_{exp_ssp_idx}")
     runner.coverage_mean_for_exposure = (
         lambda path, year, ac_ssp, mode: 0.65 if mode == "policy" else 0.40
