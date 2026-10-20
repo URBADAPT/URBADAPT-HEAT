@@ -20,12 +20,15 @@ Usage (from the ``visual_items/pilot_cities/`` directory)::
     python -m workflow_tables.make_uncertainty_matrix --out /path/to/overleaf/tables
 
 Sampling ranges that are declared in Notebook 09 rather than in the city configs
-(MDD scales, mortality displacement, PAA, cooling-coefficient scale, waste-heat
-ratios) are held as literals here and annotated with their source.
+(MDD scales, mortality displacement, PAA, cooling-coefficient scale) are held as
+literals here and annotated with their source. The waste-heat sensitivity and the
+AC electricity at full cooling activity come from ``urban-heat/cityheat/ac_heat_energy.py``
+(its defaults, overridden per city under ``ac.heat_energy``), as NB05, NB08 and NB09 read them.
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -96,6 +99,31 @@ class Cfg:
             if not path.exists():
                 raise SystemExit(f"missing config: {path}")
             self.data[slug] = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        # AC electricity and waste heat: module defaults merged with each city's overrides.
+        # Loaded from its file so the cityheat package (and its CLIMADA imports) is not needed.
+        spec = importlib.util.spec_from_file_location(
+            "ac_heat_energy", root / "cityheat" / "ac_heat_energy.py")
+        ahe = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(ahe)
+        self.heat_energy = {slug: ahe.params(self.data[slug]) for slug in PILOTS}
+
+    def he_all(self, dotted: str) -> dict:
+        out = {}
+        for slug in PILOTS:
+            cur = self.heat_energy[slug]
+            for k in dotted.split("."):
+                cur = cur[k]
+            out[slug] = cur
+        return out
+
+    def he_uniform(self, dotted: str):
+        """Shared heat-energy value if every pilot agrees, else None."""
+        vals = list(self.he_all(dotted).values())
+        return vals[0] if len(set(map(str, vals))) == 1 else None
+
+    def he_note(self, dotted: str) -> str:
+        vals = self.he_all(dotted)
+        return "; ".join(f"{CITY_LABEL[s]}: {num(vals[s])}" for s in PILOTS)
 
     def get(self, slug: str, dotted: str):
         cur = self.data[slug]
@@ -117,7 +145,13 @@ class Cfg:
 
     def per_city_note(self, dotted: str, fmt=num) -> str:
         vals = self.all(dotted)
-        return "; ".join(f"{CITY_LABEL[s]}: {fmt(vals[s])}" for s in PILOTS)
+
+        def show(v):
+            # A per-component block (e.g. vulnerability.dynamic.k) as "default 0.85, foreign-born 0.85".
+            if isinstance(v, dict):
+                return ", ".join(f"{str(k).replace('_', '-')} {fmt(x)}" for k, x in v.items())
+            return fmt(v)
+        return "; ".join(f"{CITY_LABEL[s]}: {show(vals[s])}" for s in PILOTS)
 
     def triple_note(self, dotted: str) -> str:
         """Per-city low/central/high triples for an efficacy-style block."""
@@ -167,16 +201,32 @@ def build_rows(c: Cfg) -> list:
         r"warmest\allowbreak\_\allowbreak summer", "Discrete (4 modes)",
         "NB02; " + tex_escape_path("climate.t2m_baseline_mode_options")
         + r"; also pixelwise\allowbreak\_\allowbreak doy\allowbreak\_\allowbreak max (extreme sensitivity)")
-    row("Waste-heat LUT case",
-        r"Salamanca 2014 LUT: AC penetration $\to$ nighttime dT",
-        "central", "low", "high", r"Discrete \{low, central, high\}",
-        "All configs " + tex_escape_path("ac.waste_heat.lut_case_options")
-        + r"; \citet{Salamanca2014} Table~2")
-    row("Waste-heat night-to-daily ratio",
-        "Fraction of nighttime dT attributed to the daily mean",
-        "0.5", "0.33", "0.67", "Uniform(0.33, 0.67)",
-        "All configs " + tex_escape_path("ac.waste_heat.dailymean_from_night_range")
-        + "; NB08 CBA")
+    # (heat-energy key, its sampling-range key, label, description, unit, evidence)
+    for path, rng, label, desc, unit, src in (
+            ("waste_heat.sensitivity_k_per_wm2", "waste_heat.sensitivity_range_k_per_wm2",
+             r"Waste-heat sensitivity ($S$)",
+             r"City-wide daily-mean warming per W\,m$^{-2}$ of AC heat rejected over "
+             r"the built-up area (LCZ 1--10)",
+             r"K\,(W\,m$^{-2}$)$^{-1}$",
+             r"modelling median 0.017 (IQR 0.008--0.029) \citep{Li2026AHF}; upper bound "
+             r"Phoenix under extreme heat \citep{Salamanca2014}"),
+            ("electricity.kwh_per_household_day_full", "electricity.kwh_per_household_day_full_range",
+             r"AC electricity at full activity ($e_{\mathrm{full}}$)",
+             "Electricity per AC household on a day at full cooling activity; also sets "
+             "each draw's AC electricity cost",
+             r"kWh per household per day; 2.5 on the first cooling day, activity ramp "
+             r"18--25\,$^\circ$C",
+             None)):
+        base = c.he_uniform(path)
+        lo, hi = c.he_uniform(rng) or (None, None)
+        row(label, desc,
+            num(base) if base is not None else CITY_SPECIFIC,
+            num(lo) if lo is not None else "--", num(hi) if hi is not None else "--",
+            "Uniform(%s, %s)" % (num(lo), num(hi)) if lo is not None else CITY_SPECIFIC,
+            unit + "; " + tex_escape_path("ac.heat_energy." + path)
+            + r", default in \texttt{cityheat/ac\_heat\_energy.py}"
+            + ("" if base is not None else ". " + c.he_note(path))
+            + ("; " + src if src else ""))
     row("COP degradation sensitivity",
         "Fractional COP drop per $^\\circ$C of outdoor T rise",
         "0.065", "0.04", "0.09", r"Discrete \{low, central, high\}",
