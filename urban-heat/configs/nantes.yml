@@ -168,7 +168,6 @@ osm:
   query: "Nantes, France"
   admin_levels: [11, 10, 8, 7]   # added AC level (finer than veg L10 quartiers 11) [OSM_REF]
   boundary_tag: "administrative"
-  keep_outside_bucket: true
   min_samples: 10
 
 urbclim:

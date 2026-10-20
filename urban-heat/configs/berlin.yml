@@ -168,7 +168,6 @@ osm:
   query: "Berlin, Deutschland"
   admin_levels: [10, 9, 8, 7]   # added AC level (finer than veg L9 Bezirke 12) [OSM_REF]
   boundary_tag: "administrative"
-  keep_outside_bucket: true
   min_samples: 10
 
 urbclim:

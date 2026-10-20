@@ -167,7 +167,6 @@ osm:
   query: "Bologna, Italia"          # local name; comune=8, sub-comunal units=10
   admin_levels: [10, 8, 7]          # verified vs OSM (sub-comunal units at level 10)
   boundary_tag: "administrative"
-  keep_outside_bucket: true
   min_samples: 10
 
 urbclim:

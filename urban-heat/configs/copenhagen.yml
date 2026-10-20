@@ -175,7 +175,6 @@ osm:
   query: "Copenhagen, Denmark"
   admin_levels: [10, 8, 7]
   boundary_tag: "administrative"
-  keep_outside_bucket: true
   min_samples: 10
 
 urbclim:

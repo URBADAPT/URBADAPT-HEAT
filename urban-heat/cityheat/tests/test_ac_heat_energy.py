@@ -74,3 +74,26 @@ def test_nb09_member_electricity_scales_nb05_pattern():
     assert runner.kwh_scale_for_member(2025) == pytest.approx(1.0)
     runner._member_kwh_city = {2020: 600.0, 2030: 800.0}
     assert runner.kwh_scale_for_member(2027) == pytest.approx(2.0)
+
+
+def test_zone_without_electricity_row_gets_the_city_mean():
+    import pandas as pd
+
+    # zone 0 has AC users but no NB05 electricity row; in 2030 nobody has AC yet
+    cov = pd.DataFrame({"year": [2020] * 3 + [2030] * 3, "muni_id": [0, 1, 2] * 2,
+                        "users": [50.0, 100.0, 300.0, 0.0, 0.0, 0.0]})
+    kwh = pd.DataFrame({"year": [2020, 2020, 2030, 2030], "muni_id": [1, 2, 1, 2],
+                        "kwh": [200.0, 400.0, 100.0, 300.0]})
+    out = ahe.fill_unlisted_zone_kwh(cov, kwh, users="users", kwh_col="kwh")
+    zone0 = out[out["muni_id"] == 0].set_index("year")["kwh"]
+    assert zone0[2020] == pytest.approx((100 * 200 + 300 * 400) / 400)  # weighted by current AC users
+    assert zone0[2030] == pytest.approx(200.0)  # no users anywhere: plain mean
+    assert len(out) == len(kwh) + 2
+
+
+def test_every_zone_listed_leaves_electricity_untouched():
+    import pandas as pd
+
+    cov = pd.DataFrame({"year": [2020, 2020], "muni_id": [1, 2], "users": [1.0, 2.0]})
+    kwh = pd.DataFrame({"year": [2020, 2020], "muni_id": [1, 2], "kwh": [200.0, 400.0]})
+    assert ahe.fill_unlisted_zone_kwh(cov, kwh, users="users", kwh_col="kwh") is kwh

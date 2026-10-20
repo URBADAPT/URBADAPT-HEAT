@@ -168,7 +168,6 @@ osm:
   query: "Bratislava, Slovensko"
   admin_levels: [9, 8, 7]           # downloaded OSM levels (regions level included)
   boundary_tag: "administrative"
-  keep_outside_bucket: true
   min_samples: 10
 
 urbclim:

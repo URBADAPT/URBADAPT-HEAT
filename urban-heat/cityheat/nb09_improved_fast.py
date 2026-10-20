@@ -2654,8 +2654,10 @@ class NB09ImprovedFast:
         if "muni_id" not in cov_src.columns or "muni_id" not in kwh_src.columns:
             return None
 
-        cov_src = cov_src.loc[cov_src["muni_id"].astype(int) > 0].copy()
-        kwh_src = kwh_src.loc[kwh_src["muni_id"].astype(int) > 0].copy()
+        # Zone 0 (cells outside every named district) is costed like a district: its AC users are in
+        # the gridded coverage behind the benefits. Its electricity is the city mean (see below).
+        cov_src = cov_src.loc[cov_src["muni_id"].astype(int) >= 0].copy()
+        kwh_src = kwh_src.loc[kwh_src["muni_id"].astype(int) >= 0].copy()
         if cov_src.empty or kwh_src.empty:
             return None
 
@@ -2710,7 +2712,9 @@ class NB09ImprovedFast:
                 )
 
         cov_yearly = pd.DataFrame(cov_rows)
-        muni_kwh_full = pd.DataFrame(kwh_rows)
+        muni_kwh_full = ahe.fill_unlisted_zone_kwh(
+            cov_yearly.assign(users_base=cov_yearly["pop_muni"] * cov_yearly["base_share_raw"]),
+            pd.DataFrame(kwh_rows), users="users_base", kwh_col="kwh_per_user_raw")
         cov_yearly = cov_yearly.merge(muni_kwh_full, on=["year", "muni_id"], how="left")
         cov_yearly["kwh_per_user_raw"] = cov_yearly["kwh_per_user_raw"].fillna(0.0)
 

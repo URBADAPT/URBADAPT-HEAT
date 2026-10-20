@@ -28,6 +28,11 @@ to be set: the rules use the city's own hazard, AC users and LCZ raster.
 *e(a)* = 2.5 + 12.5 *a* kWh: 2.5 kWh on the first cooling day, 15 kWh on a day at full
 activity. Annual electricity per AC user (person) is the sum of *e(a)* over the year's days,
 divided by 2.3 persons per household. It drives the AC operating cost and the waste heat.
+Notebook 05 spreads it over the named districts by their relative temperature. The cells of
+the modelled area outside every named district (zone 0) have AC users too, so Notebooks 08 and
+09 cost them with the city mean kWh per AC user of each year, weighted by current AC users
+(`fill_unlisted_zone_kwh`). Until 2026-10 the costing left zone 0 out; it holds up to 2 % of
+the added AC users (Nantes), and none in 29 of the 40 cities.
 
 **Waste heat.** The units reject electricity × (1 + COP) as sensible heat outdoors, with
 COP 3.5. On a day, the AC heat flux averaged over the built-up area (LCZ classes 1–10 of the

@@ -14,6 +14,8 @@ Household AC electricity (replaced the NUTS-level kWh-per-user table in 2026-10)
     e(a) = e_onset + (e_full - e_onset) a  kWh per AC household on a day with a > 0, else 0;
     e_onset 2.5, e_full 15. Annual kWh per AC user (person) is the sum of e(a) over the
     year's days divided by the persons per household (2.3).
+    Zone 0, the cells of the modelled area outside every named district, has AC users but no
+    zonal electricity row from Notebook 05; the costing gives it the city mean (2026-10).
 
 Waste-heat warming (replaced the Salamanca et al. 2014 lookup in 2026-10)
     Heat rejected outdoors = electricity x (1 + COP), COP 3.5, all of it sensible. On a day,
@@ -113,6 +115,31 @@ def annual_kwh_per_user(temp_c: np.ndarray, p: Mapping, e_full: float | None = N
     """AC electricity per AC user (person) over the days given, normally one year (kWh)."""
     hh = float(p["electricity"]["persons_per_household"])
     return float(np.sum(household_kwh(activity(temp_c, p), p, e_full)) / hh)
+
+
+def fill_unlisted_zone_kwh(cov, kwh, *, users: str, kwh_col: str, zone: str = "muni_id", year: str = "year"):
+    """Add kWh-per-user rows for zones that have AC users but no electricity row of their own.
+
+    Notebook 05 disperses electricity over the named districts only, so zone 0 (the cells of the
+    modelled area outside every named district) has current and policy AC users but no kWh row.
+    Each such zone gets, per year, the mean kWh per AC user of the zones that have a row,
+    weighted by their current AC users (``users`` in ``cov``): the electricity rule's city value.
+    ``cov`` and ``kwh`` hold one row per (year, zone); returns ``kwh`` with the added rows.
+    """
+    import pandas as pd
+
+    listed = set(kwh[zone].astype(int))
+    missing = cov.loc[~cov[zone].astype(int).isin(listed), [year, zone]].drop_duplicates()
+    if missing.empty:
+        return kwh
+    have = cov.loc[cov[zone].astype(int).isin(listed), [year, zone, users]].merge(
+        kwh[[year, zone, kwh_col]], on=[year, zone], how="left")
+    w = have[users].clip(lower=0.0).fillna(0.0)
+    sums = have.assign(_w=w, _wv=w * have[kwh_col].fillna(0.0)).groupby(year)[["_w", "_wv"]].sum()
+    unweighted = have.groupby(year)[kwh_col].mean()  # a year with no current AC users anywhere
+    city_mean = (sums["_wv"] / sums["_w"]).where(sums["_w"] > 0, unweighted).fillna(0.0)
+    added = missing.assign(**{kwh_col: missing[year].map(city_mean).fillna(0.0).to_numpy(float)})
+    return pd.concat([kwh, added], ignore_index=True)
 
 
 def built_area_m2(lcz_path: str | Path, p: Mapping) -> float:

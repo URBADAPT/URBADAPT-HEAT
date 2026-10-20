@@ -168,7 +168,6 @@ osm:
   query: "Praha, Česko"
   admin_levels: [9, 8, 7, 6]   # added AC level (finer than veg L6 spravni obvody 22) [OSM_REF]
   boundary_tag: "administrative"
-  keep_outside_bucket: true
   min_samples: 10
 
 urbclim:
