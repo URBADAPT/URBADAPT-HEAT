@@ -148,9 +148,14 @@ def probability_caption(t: pd.DataFrame) -> str:
     on = f"the {n_on[0]}" if len(n_on) == 1 else f"the {n_on[0]} to {n_on[-1]}"
     off = f"the {int(t.n.iloc[0]) - n_on[0]}" if len(n_on) == 1 and t.n.nunique() == 1 else "those"
     lo = t.loc[t.p_ac_net_positive_wh_on.idxmin()]
+    lo_pct, hi_pct = 100 * lo.p_ac_net_positive_wh_on, 100 * t.p_ac_net_positive_wh_on.max()
+    if round(lo_pct) == round(hi_pct):
+        on_part = f"{on} members with it switched on, it is {lo_pct:.0f}\\,\\% in every city"
+    else:
+        on_part = (f"{on} members with it switched on, the share ranges from {lo_pct:.0f}\\,\\%\n"
+                   f"({lo.city_name}) to {hi_pct:.0f}\\,\\% across cities")
     wh = (f"including {off} in which the waste-heat feedback is switched off and net equals gross; among\n"
-          f"{on} members with it switched on, the share ranges from {100 * lo.p_ac_net_positive_wh_on:.0f}\\,\\%\n"
-          f"({lo.city_name}) to {100 * t.p_ac_net_positive_wh_on.max():.0f}\\,\\% across cities")
+          + on_part)
     return ("$P$(AC $>0$) is the share of all 128 members with positive cumulative net AC avoided\n"
             f"deaths, {wh}. $P$(trees $<$ AC) is the share of members in which trees cost less per avoided death\n"
             "than AC, among members in which both pathways avoid deaths; \\textit{n.a.} where none do.\n"
