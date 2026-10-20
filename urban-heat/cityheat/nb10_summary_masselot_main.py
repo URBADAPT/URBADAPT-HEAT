@@ -2,11 +2,12 @@
 
 This wrapper extends ``cityheat.nb10_summary`` for the Masselot-main variant:
 
-1. Reroutes paths to ``outputs_variants/masselot_main/{city}``.
+1. Reroutes paths to ``outputs_variants/<URBAN_HEAT_OUTPUT_VARIANT>/{city}`` and reads NB09 from its campaign folder.
 2. Adds run-config metric rows surfacing NB04 audit + NB09 LHS scope metadata.
 3. Overrides Section 8 (IF-family sensitivity) so it mixes the Masselot headline
    LHS samples (which only contain ``masselot`` and ``masselot_tail``) with the
-   Burke-conditional LHS bands (``tables/uncertainty_burke_sensitivity/{family}/``)
+   Burke-conditional LHS bands (``<campaign>/burke_sensitivity/{family}/``, or the
+   legacy ``tables/uncertainty_burke_sensitivity/{family}/``)
    to produce a coherent 4-family AAI comparison.
 4. Adds a new Section 9 explicitly comparing the Masselot headline against both
    Burke-conditional bands (AAI CDFs, frequency-curve envelopes, P5/P50/P95
@@ -71,6 +72,27 @@ def _safe_load_json(path: Path) -> dict[str, Any] | None:
         return None
 
 
+def _resolve_uq_dir(tab_dir: Path) -> Path:
+    """NB09 output directory to summarise.
+
+    NB09 writes each campaign to ``tables/uncertainty_runs/<campaign id>/`` (the id comes from
+    ``NB09_CAMPAIGN_ID`` or, in a direct notebook run, is generated from N, seed, schema and commit).
+    Use ``NB09_CAMPAIGN_ID`` when set; otherwise the complete campaign (``CAMPAIGN_COMPLETE.json``)
+    with the most samples, the most recent among equals; otherwise the legacy single directory.
+    """
+    runs = tab_dir / "uncertainty_runs"
+    wanted = os.environ.get("NB09_CAMPAIGN_ID", "").strip()
+    if wanted and (runs / wanted).is_dir():
+        return runs / wanted
+    complete = []
+    for marker in runs.glob("*/CAMPAIGN_COMPLETE.json"):
+        meta = _safe_load_json(marker) or {}
+        complete.append((int(meta.get("n_samples") or 0), str(meta.get("completed_at_utc") or ""), marker.parent))
+    if complete:
+        return max(complete, key=lambda t: (t[0], t[1]))[2]
+    return tab_dir / "uncertainty_improved_fast"
+
+
 def _build_paths(slug: str, city: str, root: Path) -> _base.SummaryPaths:
     out = resolve_city_output(root, slug, get_output_variant())
     return _base.SummaryPaths(
@@ -82,14 +104,21 @@ def _build_paths(slug: str, city: str, root: Path) -> _base.SummaryPaths:
         tab_dir=out / "tables",
         fig_dir=out / "figures",
         summary_dir=out / "figures" / "summary",
-        uq_dir=out / "tables" / "uncertainty_improved_fast",
+        uq_dir=_resolve_uq_dir(out / "tables"),
     )
 
 
 # Burke-conditional band loaders
 
 def _burke_band_uq_dir(sp: _base.SummaryPaths, family: str) -> Path:
-    """Return the per-family Burke-conditional LHS output directory."""
+    """Return the per-family Burke-conditional LHS output directory.
+
+    Campaign runs keep the Burke bands inside the campaign (``<campaign>/burke_sensitivity/<family>``);
+    runs without a campaign id used ``tables/uncertainty_burke_sensitivity/<family>``.
+    """
+    inside = sp.uq_dir / "burke_sensitivity" / family
+    if inside.is_dir():
+        return inside
     return sp.tab_dir / _BURKE_SENSITIVITY_SUBDIR / family
 
 
@@ -812,8 +841,10 @@ _EXTENDED_PARAM_LABELS: dict[str, str] = {
     "AC_LIFETIME_YEARS_IDX": "AC equipment lifetime",
     # Waste-heat and COP parameters
     "WH_ENABLED_IDX": "Waste-heat enabled",
-    "WH_LUT_CASE_IDX": "Waste-heat LUT case",
-    "WH_RATIO": "Waste-heat day/night ratio",
+    "WH_SENS": "Waste-heat temperature sensitivity",
+    "AC_KWH_FULL": "AC electricity at full activity",
+    "WH_LUT_CASE_IDX": "Waste-heat LUT case",  # legacy: pre-2026-10 outputs (Salamanca lookup)
+    "WH_RATIO": "Waste-heat day/night ratio",  # legacy
     "COP_ENABLED_IDX": "COP degradation enabled",
     "COP_CASE_IDX": "COP degradation case",
     # Tree / vegetation parameters
@@ -1252,7 +1283,7 @@ def run_nb10_summary(
     Compared to a direct call into the base :func:`cityheat.nb10_summary.run_nb10_summary`,
     this wrapper:
 
-    * Routes all output paths to ``outputs_variants/masselot_main/{city}``.
+    * Routes all output paths to ``outputs_variants/<URBAN_HEAT_OUTPUT_VARIANT>/{city}``.
     * Substitutes a Section 8 implementation that handles the masselot-headline
       LHS scope (where the headline samples only contain the two Masselot tail
       modes) by mixing in Burke-conditional band stats.
