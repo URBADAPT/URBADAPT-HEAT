@@ -434,7 +434,8 @@ def fig_ac_penetration(co: CityOutputs, out_dir: Path, *, year: int = 2050) -> P
 
 def _load_pilots(co: CityOutputs) -> list[CityOutputs]:
     """Load the pilot cities that exist under the same output variant as ``co``."""
-    variant = co.out.parent.name
+    # The full parent path, so an absolute --variant (a tree outside outputs_variants/) also works.
+    variant = str(co.out.parent)
     cos = []
     for slug in S.PILOT_CITIES:
         try:
@@ -504,7 +505,7 @@ def fig_cba_dashboard(co: CityOutputs, out_dir: Path) -> Path:
     city_h = [Line2D([], [], marker=S.CITY_MARKERS[c.slug], ls='', color=S.INK, label=S.CITY_NAMES[c.slug]) for c in cos]
     leg = axA.legend(handles=pol_h, title='Policy', loc='upper left', fontsize=9)
     axA.add_artist(leg)
-    axA.legend(handles=city_h, title='City', loc='lower right', fontsize=9)
+    axA.legend(handles=city_h, title='City', loc='lower left', fontsize=9)
     cities = [c.slug for c in cos]
     x = np.arange(len(cities))
     width = 0.26
