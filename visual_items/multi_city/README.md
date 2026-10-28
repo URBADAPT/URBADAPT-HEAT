@@ -435,7 +435,37 @@ Main text is Fig 1, Fig 2, Fig 3. SI figures si1-si3, SI table
 | `tab_ews_by_city.R` | `tab_ews_by_city` | table | Warning days, avoided deaths, cost per death, attribution wording |
 | `tab_synergies_by_city.R` | `tab_synergies_by_city` | table | Waste-heat penalty, penalty removed by trees, lever overlap |
 | `tab_city_characteristics.R` | `tab_city_characteristics` | SI table | Per-city climate, greening-coefficient coverage and LCZ composition (longtable) |
+| `drivers_decomposition.py` | `tables/tab_drivers.{tex,csv}` | SI table | Drivers of cross-city differences: Shapley split of baseline mortality, exact variance split of log cost per avoided death (see below) |
 | `make_report.R` | `report.html` | — | One browsable page with every figure and table |
+
+### Drivers table (`drivers_decomposition.py`)
+
+Python, run after `build_all.R` (and `pop_anomaly_table.py`), whose tables it reads
+from `TAB_DIR` (default `tables/`). It writes `tab_drivers.tex` (label
+`tab:drivers`), the panel values in `tab_drivers.csv`, and the per-city
+descriptors in `tab_drivers_city_data.csv`. Unlike the R tables, it is a short
+`table` float, not a longtable.
+
+- **Panel a.** Log baseline (2020) heat mortality per 100k is regressed on seven
+  city descriptors in four groups. The groups are hazard (warm-season mean
+  temperature, the residents' heat-island anomaly), demography (over-65 share and
+  all-cause death rate), exposure-response (over-65 heat RR and MMT) and existing
+  AC coverage. The over-65 values come from the source study's city-age data in
+  `urban-heat/10288665`, population-weighted over the 65-74, 75-84 and 85+ bands.
+  Each descriptor's share is its Shapley (LMG) contribution to R², and groups are
+  scored the same way as single players. A group's unique ΔR² is the loss in R²
+  when it is dropped.
+- **Panel b.** The script uses the identity log(cost/death) = log(cost per capita)
+  − log(baseline burden per capita) − log(share avoided). Each term's share of the
+  cross-city variance is its covariance with the total over the total variance.
+  The shares sum to one exactly; a negative share offsets the others.
+- **Hot-versus-cool medians.** These are printed only. For street trees they
+  include the physical chain from each run's `<city>_veg_diagnostics.json`
+  (`OUT_TREE`): spend, population-weighted cooling, and deaths averted per degree.
+
+```powershell
+$env:TAB_DIR = "compare\v3c\tables"; python drivers_decomposition.py
+```
 
 ## Figure styling: no panel titles, everything in the caption
 
