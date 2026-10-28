@@ -96,7 +96,9 @@ def main() -> None:
         "full system; intermediate: the age-wise midpoint of the two. Pooled plan effects from "
         "\\citesupp{urban2025_SI}, whose regional differences are not statistically significant.}\n"
         "\\label{tab:ews_efficacy}\n"
-        "\\begin{tabularx}{\\linewidth}{l>{\\raggedright\\arraybackslash}Xllll}\n\\toprule\n"
+        # Cities and Basis both wrap; a fixed-width Basis column runs off the page.
+        "\\begin{tabularx}{\\linewidth}{l>{\\raggedright\\arraybackslash}Xlll"
+        ">{\\raggedright\\arraybackslash}X}\n\\toprule\n"
         "Interpretation & Cities & 65+ & 15--64 & $<$15 & Basis \\\\\n\\midrule\n"
         f"{body}\n\\bottomrule\n\\end{{tabularx}}\n\\end{{table}}\n", encoding="utf-8")
     print(f"[saved] {tab_dir / 'tab_ews_efficacy.tex'} ({len(out)} rows, {len(df)} cities)")
