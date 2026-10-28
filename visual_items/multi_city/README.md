@@ -436,6 +436,7 @@ Main text is Fig 1, Fig 2, Fig 3. SI figures si1-si3, SI table
 | `tab_synergies_by_city.R` | `tab_synergies_by_city` | table | Waste-heat penalty, penalty removed by trees, lever overlap |
 | `tab_city_characteristics.R` | `tab_city_characteristics` | SI table | Per-city climate, greening-coefficient coverage and LCZ composition (longtable) |
 | `drivers_decomposition.py` | `tables/tab_drivers.{tex,csv}` | SI table | Drivers of cross-city differences: Shapley split of baseline mortality, exact variance split of log cost per avoided death (see below) |
+| `si6_svi_budget.R` | `si6_svi_budget`, `tables/tab_svi_budget.{tex,csv}` | SI | The same budget spent on AC or on trees, most socially vulnerable units first: cost per death, deaths avoided in the two most vulnerable quintiles, and the gain over each pathway's own priority rule (see below) |
 | `make_report.R` | `report.html` | — | One browsable page with every figure and table |
 
 ### Drivers table (`drivers_decomposition.py`)
@@ -465,6 +466,21 @@ descriptors in `tab_drivers_city_data.csv`. Unlike the R tables, it is a short
 
 ```powershell
 $env:TAB_DIR = "compare\v3c\tables"; python drivers_decomposition.py
+```
+
+### Equal-budget sweep by social vulnerability (`si6_svi_budget.R`, `svi_budget_sweep_summary.py`)
+
+Both read the per-city `tables/svi_budget_sweep_<city>.csv` written by the urban-heat
+equal-budget sweep notebook (notebook 11), from `SVI_SWEEP_TREE` / `OUT_TREE` (default the
+OneDrive `juno/svi_40` pull). Each city spends the same present-value budget per resident
+(EUR 25 to 3,200) once on AC and once on trees, raising the most vulnerable units first, with
+each pathway's own rule (income for AC, greenness deficit for trees) as comparator and two tree
+ceilings (the city's greenest region, GVI 35). `svi_budget_sweep_summary.py` prints and saves
+the pooled comparison; `si6_svi_budget.R` draws the figure and writes the table.
+
+```powershell
+$env:MULTICITY_TAB_DIR = "compare\v3c\tables"; $env:MULTICITY_FIG_DIR = "compare\v3c\figures"
+Rscript R\si6_svi_budget.R
 ```
 
 ## Figure styling: no panel titles, everything in the caption
