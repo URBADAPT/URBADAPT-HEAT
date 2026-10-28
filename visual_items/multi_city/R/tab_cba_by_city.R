@@ -60,7 +60,12 @@ build_tab_cba <- function(cities = discover_cities()) {
 
   save_table(out, "tab_cba_by_city",
              caption = paste("Cost-benefit of adaptation pathways by city and",
-               "climate cluster. AC is reported net of its waste-heat feedback.",
+               "climate cluster. Costs are total resource costs in present value,",
+               "whoever pays them; for AC this is the whole bill for capital,",
+               "maintenance and electricity. The public share is the part paid from",
+               "public budgets: all of the cost of trees and EWS, and for AC the",
+               "20\\,\\% capital subsidy.",
+               "AC is reported net of its waste-heat feedback.",
                "A blank cost per death marks a pathway avoiding fewer than",
                "0.5 deaths over the 25-year horizon. Per-capita costs divide by the",
                "population of the modelled area."),
