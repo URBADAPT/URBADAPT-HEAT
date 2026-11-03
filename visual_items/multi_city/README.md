@@ -436,6 +436,7 @@ Main text is Fig 1, Fig 2, Fig 3. SI figures si1-si3, SI table
 | `tab_synergies_by_city.R` | `tab_synergies_by_city` | table | Waste-heat penalty, penalty removed by trees, lever overlap |
 | `tab_city_characteristics.R` | `tab_city_characteristics` | SI table | Per-city climate, greening-coefficient coverage and LCZ composition (longtable) |
 | `drivers_decomposition.py` | `tables/tab_drivers.{tex,csv}` | SI table | Drivers of cross-city differences: Shapley split of baseline mortality, exact variance split of log cost per avoided death (see below) |
+| `ce_regression.py` | `tables/tab_ce_regression{,_robust}.{tex,csv}` | SI tables (`tab:ce_regression`, `tab:ce_regression_robust`) | Regression of each pathway's log cost per avoided death, and of the tree/AC ratio, on city characteristics: Shapley shares, robust effects, leave-one-out R² (see below) |
 | `si6_svi_budget.R` | `si6_svi_budget`, `tables/tab_svi_budget.{tex,csv}` | SI | The same budget spent on AC or on trees, most socially vulnerable units first: cost per death, deaths avoided in the two most vulnerable quintiles, and the gain over each pathway's own priority rule (see below) |
 | `make_report.R` | `report.html` | — | One browsable page with every figure and table |
 
@@ -466,6 +467,41 @@ descriptors in `tab_drivers_city_data.csv`. Unlike the R tables, it is a short
 
 ```powershell
 $env:TAB_DIR = "compare\v3c\tables"; python drivers_decomposition.py
+```
+
+### Cost-effectiveness regression (`ce_regression.py`)
+
+Python, same inputs as the drivers table plus the baseline GVI from the run outputs (`RUN_TREE`,
+default the OneDrive `juno/v3c_40` pull) and the national price-level index from
+`urban-heat/calibration/calibration_params.csv`. `TAB_DIR` defaults to `compare/v3c/tables`, the
+build behind the manuscript; the in-repo `tables/` is stale and lacks `tab_existing_ac_by_city.csv`.
+
+One OLS regression per outcome: the log cost per avoided death of AC, trees and EWS, and the
+log tree/AC ratio (the question "why do trees win in city X and not Y"). All four use one common
+descriptor set: warm-season temperature and log baseline heat mortality; baseline AC coverage,
+baseline GVI and the HHEWS starting point (two dummies); log population and compact built share;
+and the national price level.
+
+The two tree regressions also include the log **effective greening cooling coefficient**. It is
+summer LST cooling per GVI point added, `-dLST_summer_popw / citywide_dGVI_popw` from
+`<city>_veg_diagnostics.json`. This equals the month-LCZ `coef_lst` values averaged with weights of
+population × greening added. Coefficient *coverage* is deliberately not used. An unweighted mean
+of `coef_lst` is not used either, because a few rarely greened classes carry implausible
+estimates that would dominate it: LCZ 3 is −45.8 °C per GVI point in Cologne and −3.0 in Hamburg.
+
+The effective coefficient still counts LCZ-months without a retained estimate as zero cooling, so
+it partly carries coverage (Spearman +0.53). The coverage-independent median retained coefficient
+is printed as a robustness check, and on its own it explains little (R² ≈ 0.05).
+
+The script reports Shapley shares of R², effects per SD with HC3 p-values, VIFs, and the
+leave-one-out R². It also gives per-city contributions to the fitted tree/AC ratio, and for the
+tree outcomes it runs smaller-descriptor-set checks. It writes `tab_ce_regression.{tex,csv}`
+(label `tab:ce_regression`), `tab_ce_regression_robust.{tex,csv}` (label
+`tab:ce_regression_robust`), `_city_data.csv` and `_city_contrib.csv` into `TAB_DIR`. Both tables
+are in the Overleaf project's `tables/natcities/`; re-copy them there after a rebuild.
+
+```powershell
+python ce_regression.py
 ```
 
 ### Equal-budget sweep by social vulnerability (`si6_svi_budget.R`, `svi_budget_sweep_summary.py`)
