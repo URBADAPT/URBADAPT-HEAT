@@ -280,7 +280,7 @@ build_fig1 <- function(cities = discover_cities()) {
       coord_cartesian(ylim = c(0, 100)) +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
       labs(tag = "e",
-           x = "Budget available per capita (log)", y = "% deployment") +
+           x = "Budget available per capita (log)", y = "Adaptation measure deployment") +
       theme_multicity() +
       theme(legend.position = "bottom")
   } else patchwork::plot_spacer()
