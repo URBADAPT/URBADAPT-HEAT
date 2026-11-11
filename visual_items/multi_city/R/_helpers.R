@@ -519,10 +519,13 @@ save_item <- function(plot, name, width = 8, height = 5, dpi = 300) {
 # caption and label, exactly like tables/ews_taxonomy_table.
 save_table <- function(df, name, caption = NULL, label = NULL,
                        digits = 2, align = NULL, longtable = FALSE,
-                       size = NULL) {
+                       size = NULL, colnames_tex = NULL) {
   csv_p <- file.path(TAB_DIR, paste0(name, ".csv"))
   tex_p <- file.path(TAB_DIR, paste0(name, ".tex"))
   readr::write_csv(df, csv_p)
+  # Optional LaTeX-only headers (e.g. \shortstack{...} to wrap long names); the CSV keeps
+  # the plain names.
+  if (!is.null(colnames_tex)) names(df) <- colnames_tex
   if (requireNamespace("xtable", quietly = TRUE)) {
     # Escape LaTeX specials in headers (%, &, _, #) but keep utf8 chars like euro.
     latex_colname <- function(x) {

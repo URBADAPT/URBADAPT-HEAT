@@ -141,7 +141,7 @@ build_fig1 <- function(cities = discover_cities()) {
                    position = position_dodge(width = 0.78),
                    linewidth = 0.45) +
       geom_point(position = position_jitterdodge(dodge.width = 0.78,
-                                                 jitter.width = 0.16),
+                                                 jitter.width = 0.16, seed = 1),
                  size = 1.5, alpha = 0.7) +
       # geom_text(data = med, inherit.aes = FALSE,
       #           aes(x = -Inf, y = Inf, label = lab, color = pathway, vjust = vj),
@@ -256,7 +256,7 @@ build_fig1 <- function(cities = discover_cities()) {
       cluster_scale() +
       scale_x_log10(labels = scales::label_number(prefix = "€", big.mark = ",")) +
       scale_y_log10(labels = scales::label_number(suffix = "%")) +
-      labs(tag = "d", x = "PV cost spent per capita (log)",
+      labs(tag = "d", x = "Present-value cost spent per capita (log)",
            y = "% of 25y baseline heat deaths avoided (log)") +
       theme_multicity()
   } else patchwork::plot_spacer()

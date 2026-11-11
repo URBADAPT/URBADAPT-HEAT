@@ -38,11 +38,26 @@ equity_efficiency <- function(city) {
   tot_u <- sum(d$avoided_uniform_vs_base, na.rm = TRUE)
   tot_i <- sum(d$avoided_income_vs_base,  na.rm = TRUE)
   if (!is.finite(tot_u) || !is.finite(tot_i) || tot_u <= 0 || tot_i <= 0) return(NULL)
+  # The efficiency axis counts every resident: NB05's city totals of avoided deaths
+  # (all cells), summed over the same anchor years. The quintile file resolves only
+  # the cells with an SVI value (a median 99.8 % of the AC response, 95-96 % in a few
+  # cities), so it is used for the equity shares alone.
+  all_u <- read_city_csv(city, sprintf("annual_heat_deaths_climada_avoided_AC_uniform_%s.csv", city),
+                         where = "interim", quiet = TRUE)
+  all_i <- read_city_csv(city, sprintf("annual_heat_deaths_climada_avoided_AC_%s.csv", city),
+                         where = "interim", quiet = TRUE)
+  yrs <- unique(d$year)
+  if (is.null(all_u) || is.null(all_i) || !all(c("year", "overall") %in% names(all_u)) ||
+      !all(c("year", "overall") %in% names(all_i))) return(NULL)
+  all_tot_u <- sum(all_u$overall[all_u$year %in% yrs], na.rm = TRUE)
+  all_tot_i <- sum(all_i$overall[all_i$year %in% yrs], na.rm = TRUE)
+  if (!is.finite(all_tot_u) || all_tot_u <= 0) return(NULL)
   data.frame(
-    avoided_uniform = tot_u,
-    avoided_income  = tot_i,
+    avoided_uniform = all_tot_u,
+    avoided_income  = all_tot_i,
     # >0 = targeting saves fewer lives overall; <0 = targeting is a free win.
-    eff_loss_pct    = 100 * (1 - tot_i / tot_u),
+    eff_loss_pct    = 100 * (1 - all_tot_i / all_tot_u),
+    eff_loss_pct_svi_cells = 100 * (1 - tot_i / tot_u),
     share_top2_uniform = 100 * sum(d$avoided_uniform_vs_base[top], na.rm = TRUE) / tot_u,
     share_top2_income  = 100 * sum(d$avoided_income_vs_base[top],  na.rm = TRUE) / tot_i)
 }
@@ -123,7 +138,7 @@ build_fig2 <- function(cities = discover_cities()) {
                                              "AC: maintenance", "AC: electricity"),
                                            present)) +
       scale_y_continuous(expand = expansion(mult = c(0, 0.14))) +
-      labs(tag = "a", x = NULL, y = "PV cost per capita (€)") +
+      labs(tag = "a", x = NULL, y = "Present-value cost per capita (€)") +
       theme_multicity()
   } else patchwork::plot_spacer()
 
@@ -134,15 +149,28 @@ build_fig2 <- function(cities = discover_cities()) {
     eq$equity_gain <- eq$share_top2_income - eq$share_top2_uniform
     med <- c(eff = median(eq$eff_loss_pct, na.rm = TRUE),
              gain = median(eq$equity_gain, na.rm = TRUE))
-    ggplot(eq, aes(eff_loss_pct, equity_gain)) +
+    # Plotted so that right = more effective and up = more equitable: the win-win
+    # quadrant is the upper right. Each quadrant is labelled.
+    eq$eff_change <- -eq$eff_loss_pct
+    q_lab <- function(u, r) sprintf("%s equitable,\n%s effective", if (u) "more" else "less",
+                                    if (r) "more" else "less")
+    ggplot(eq, aes(eff_change, equity_gain)) +
       geom_vline(xintercept = 0, linetype = 2, color = "grey60") +
       geom_hline(yintercept = 0, linetype = 2, color = "grey60") +
       geom_point(aes(color = climate_cluster), size = 2.8, alpha = 0.85) +
       cluster_scale() +
-      annotate("text", x = -Inf, y = Inf, hjust = -0.05, vjust = 1.4, size = 2.9,
-               color = "grey35", label = "more equitable\nand more effective") +
+      # Room below zero for the two lower quadrants (one city sits just below the line).
+      expand_limits(y = -6) +
+      annotate("text", x = Inf, y = Inf, hjust = 1.02, vjust = 1.3, size = 2.7, lineheight = 0.9,
+               color = "grey35", label = q_lab(TRUE, TRUE)) +
+      annotate("text", x = -Inf, y = Inf, hjust = -0.02, vjust = 1.3, size = 2.7, lineheight = 0.9,
+               color = "grey35", label = q_lab(TRUE, FALSE)) +
+      annotate("text", x = Inf, y = -Inf, hjust = 1.02, vjust = -0.35, size = 2.7, lineheight = 0.9,
+               color = "grey35", label = q_lab(FALSE, TRUE)) +
+      annotate("text", x = -Inf, y = -Inf, hjust = -0.02, vjust = -0.35, size = 2.7, lineheight = 0.9,
+               color = "grey35", label = q_lab(FALSE, FALSE)) +
       labs(tag = "b",
-           x = "Lives saved given up by targeting (% of uniform)",
+           x = "Change in deaths avoided under targeting (% of uniform)",
            y = "Benefit shifted to most\nvulnerable quintiles (pp)") +
       theme_multicity()
   } else blank_panel("b", paste("no city has deaths_by_vulnerability_quintile_",
@@ -172,8 +200,8 @@ build_fig2 <- function(cities = discover_cities()) {
       # dashed line is still exactly y = x.
       coord_cartesian(xlim = lim, ylim = lim) +
       labs(tag = "c",
-           x = "Uniform allocation (ΔGVI per unit SVI)",
-           y = "Equity-targeted allocation") +
+           x = "Added street greenery per unit SVI (uniform catch-up)",
+           y = "Added street greenery per unit SVI\n(vulnerability weighting)") +
       theme_multicity()
   } else patchwork::plot_spacer()
 

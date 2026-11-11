@@ -5,8 +5,8 @@
 #
 #   1  Current air-conditioning penetration.
 #   2  Coverage gained under the income-targeted (equity) roll-out.
-#   3  How the same adaptation budget is redistributed between districts when
-#      the equity-targeted mix replaces the uniform one.
+#   3  How the same AC budget is redistributed between districts when the
+#      income-targeted roll-out replaces the uniform one (AC only).
 #
 # ---------------------------------------------------------------------------
 # WHAT THIS FIGURE IS NOT. The panels originally wanted were avoided deaths per
@@ -44,8 +44,8 @@ if (!exists("REPO_ROOT")) source(file.path(.d, "_helpers.R"))
 # these are titles on the top row only -- the one place in this figure set where
 # a panel carries a title.
 MAP_COLS <- c(pen    = "Current AC penetration",
-              equity = "Equity-targeted roll-out",
-              shift  = "Budget redistribution")
+              equity = "Income-targeted roll-out",
+              shift  = "AC budget redistribution")
 
 MAP_BORDER <- "black"
 
@@ -72,33 +72,62 @@ district_trees <- function(city) {
   d[, c("region_id", "n_pixels")]
 }
 
+# Cities mapped by their AC zones, the units with sub-city income data on which AC is
+# downscaled and targeted, in place of administrative districts. Thessaloniki's five AC
+# zones are the four communities of the Municipality of Thessaloniki and Triandria; the
+# other seven communities of the district layer overlap them only along their edges
+# (Asvestochori not at all), and NB05's district table aggregates zone cells only, so a
+# district map would colour those communities from slivers holding 6-17 % of their
+# residents. The 2020 zone values come from the NB12 zone table
+# (tables/ac_zone_drivers_<city>.csv), looked up under MULTICITY_ZONE_BASE if set.
+ZONE_MAP_CITIES <- c("thessaloniki")
+ZONE_BASE <- Sys.getenv("MULTICITY_ZONE_BASE", "")
+
+zone_district_data <- function(city) {
+  g  <- city_files(city, sprintf("^zones_%s\\.gpkg$", city), where = "interim")
+  ids <- read_city_csv(city, sprintf("ac_zone_coverage_allpolicies_%s_2050.csv", city),
+                       where = "interim", quiet = TRUE)
+  zf <- if (nzchar(ZONE_BASE))
+    file.path(ZONE_BASE, city, "tables", sprintf("ac_zone_drivers_%s.csv", city)) else
+    file.path(city_path(city, where = "tables"), sprintf("ac_zone_drivers_%s.csv", city))
+  if (!length(g) || is.null(ids) || !file.exists(zf)) return(NULL)
+  geom <- sf::st_read(g[1], quiet = TRUE)
+  geom <- merge(geom, unique(ids[, c("zone_id", "zone_code")]), by = "zone_code")
+  geom$muni_id <- geom$zone_id
+  geom$muni_name <- geom$zone_name
+  z <- readr::read_csv(zf, show_col_types = FALSE)
+  z <- z[z$year == min(z$year), ]
+  cov <- data.frame(muni_id = z$zone_id, ac_base_muni = z$ac_base, ac_policy_muni = z$ac_income,
+                    ac_policy_uniform = z$ac_uniform, pop_muni = z$pop_2020)
+  list(geom = geom[, c("muni_id", "muni_name")], cov = cov)
+}
+
 city_district_data <- function(city) {
-  geom <- district_geom(city)
-  cov  <- read_city_csv(city, sprintf("%s_muni_cov_yearly.csv", city),
-                        where = "root", quiet = TRUE)
-  pcm  <- read_city_csv(city, sprintf("%s_policy_comparison.csv", city), quiet = TRUE)
-  tre  <- district_trees(city)
-  cba  <- read_cba(city)
-  if (is.null(geom) || is.null(cov) || is.null(pcm) || is.null(cba)) return(NULL)
-
-  need <- c("muni_id", "ac_base_muni", "ac_policy_muni", "ac_policy_uniform",
-            "pop_muni", "year")
-  if (!all(need %in% names(cov))) return(NULL)
-  cov <- cov[cov$year == min(cov$year), need, drop = FALSE]
-  # muni_id 0 is the residual bucket for cells outside any named district
-  # (Palermo: 141 people). It has no geometry, so it would drop on the join
-  # anyway; removing it here keeps it out of the totals used for allocation.
-  cov <- cov[cov$muni_id > 0, , drop = FALSE]
-
-  gvi <- c("region_id", "ΔGVI_uniform", "ΔGVI_equity")
-  if (!all(gvi %in% names(pcm))) return(NULL)
-  pcm <- pcm[, gvi, drop = FALSE]
-  names(pcm) <- c("muni_id", "dgvi_uniform", "dgvi_equity")
-
-  d <- merge(sf::st_drop_geometry(geom), cov, by = "muni_id", all.x = TRUE)
-  d <- merge(d, pcm, by = "muni_id", all.x = TRUE)
-  if (!is.null(tre)) d <- merge(d, tre, by.x = "muni_id", by.y = "region_id", all.x = TRUE)
-  else d$n_pixels <- NA_real_
+  cba <- read_cba(city)
+  if (is.null(cba)) return(NULL)
+  zmap <- if (city %in% ZONE_MAP_CITIES) zone_district_data(city) else NULL
+  if (city %in% ZONE_MAP_CITIES && is.null(zmap)) {
+    message(sprintf("    [warn] %s: zone layer or NB12 zone table not found", city))
+    return(NULL)
+  }
+  if (!is.null(zmap)) {
+    geom <- zmap$geom
+    d <- merge(sf::st_drop_geometry(geom), zmap$cov, by = "muni_id", all.x = TRUE)
+  } else {
+    geom <- district_geom(city)
+    cov  <- read_city_csv(city, sprintf("%s_muni_cov_yearly.csv", city),
+                          where = "root", quiet = TRUE)
+    if (is.null(geom) || is.null(cov)) return(NULL)
+    need <- c("muni_id", "ac_base_muni", "ac_policy_muni", "ac_policy_uniform",
+              "pop_muni", "year")
+    if (!all(need %in% names(cov))) return(NULL)
+    cov <- cov[cov$year == min(cov$year), need, drop = FALSE]
+    # muni_id 0 is the residual bucket for cells outside any named district
+    # (Palermo: 141 people). It has no geometry, so it would drop on the join
+    # anyway; removing it here keeps it out of the totals used for allocation.
+    cov <- cov[cov$muni_id > 0, , drop = FALSE]
+    d <- merge(sf::st_drop_geometry(geom), cov, by = "muni_id", all.x = TRUE)
+  }
 
   # --- panel 1: the stock of cooling already in place ---
   d$pen <- 100 * d$ac_base_muni
@@ -106,47 +135,38 @@ city_district_data <- function(city) {
   # --- panel 2: coverage the income-targeted roll-out adds, percentage points --
   d$equity <- 100 * (d$ac_policy_muni - d$ac_base_muni)
 
-  # --- panel 3: the same city budget, allocated two ways -----------------------
-  # Each pathway's city present-value total is distributed over districts by that
-  # pathway's own physical driver, so district costs sum exactly to the published
-  # city total instead of being re-derived from unit costs and a discount rate.
-  # The city total is held fixed across the two rules, so the difference is
-  # purely redistributive and sums to zero across districts: it shows who the
-  # equity rule spends more on, not a change in the overall bill.
+  # --- panel 3: the same AC budget, allocated by the two AC policies ----------
+  # AC only: the income-targeted and uniform roll-outs add the same number of
+  # users at a per-user cost that does not vary within the city, so a district's
+  # share of the city's AC budget is its share of the added users. The shift is
+  # the change in that share, in percentage points of the city's AC budget; it
+  # sums to zero across districts. Greening and warnings are left out so the
+  # map isolates the AC targeting it illustrates (an earlier version summed all
+  # three pathways, which mixed in the greening reallocation and scaled the AC
+  # part by AC's share of each city's adaptation budget).
   shr <- function(w) {
     w <- ifelse(is.finite(w) & w > 0, w, 0)
     if (sum(w) > 0) w / sum(w) else rep(0, length(w))
   }
-  px <- ifelse(is.finite(d$n_pixels), d$n_pixels, 0)
-  cost_of <- function(dcov, dgvi)
-    cba$ac_pv    * shr(pmax(dcov, 0) * d$pop_muni) +
-    cba$trees_pv * shr(dgvi * px) +
-    cba$ews_pv   * shr(d$pop_muni)
-  cu <- cost_of(d$ac_policy_uniform - d$ac_base_muni, d$dgvi_uniform)
-  ce <- cost_of(d$ac_policy_muni    - d$ac_base_muni, d$dgvi_equity)
-  d$cost_uniform <- cu / d$pop_muni
-  d$cost_equity  <- ce / d$pop_muni
-  # Expressed as a share of the city's whole adaptation budget, not per
-  # capita. Per capita, a single district ruins the scale: Amsterdam's
-  # Westpoort has 720 residents and the uniform greening rule sends it a
-  # large share of the planting budget, so its per-capita shift is
-  # -124,337 EUR against a few hundred elsewhere. As a share of the city
-  # total the same district is -10%, which is legible and, because the two
-  # rules spend the same total, comparable across cities of different size.
-  city_total <- sum(cu, na.rm = TRUE)
-  d$shift <- if (is.finite(city_total) && city_total > 0)
-    100 * (ce - cu) / city_total else NA_real_
+  su <- shr(pmax(d$ac_policy_uniform - d$ac_base_muni, 0) * d$pop_muni)
+  se <- shr(pmax(d$ac_policy_muni    - d$ac_base_muni, 0) * d$pop_muni)
+  d$cost_uniform <- cba$ac_pv * su / d$pop_muni
+  d$cost_equity  <- cba$ac_pv * se / d$pop_muni
+  d$shift <- 100 * (se - su)
+  # Share of the AC budget spent in different districts under targeting.
+  d$moved <- 50 * sum(abs(se - su))
 
-  # Report each exemplar's own ranges, not just the pooled caption range. The
-  # manuscript describes these cities one at a time, and a per-city number
-  # recomputed outside this function will not match: the shift spans all three
-  # pathways, so an AC-only reconstruction of it is out by a wide margin.
-  message(sprintf(
-    "    [exemplar] %s: baseline AC %.0f-%.0f%%, targeting adds %.1f-%.1f pp, budget shift %+.1f to %+.1f%% of city total",
-    city,
+  # Report each exemplar's own ranges, not just the pooled caption range: the
+  # manuscript describes these cities one at a time.
+  message(sprintf(paste0(
+    "    [exemplar] %s: %d districts, baseline AC %.0f-%.0f%%, targeting adds %.1f-%.1f pp ",
+    "(uniform %.1f-%.1f pp), AC budget shift %+.1f to %+.1f pp, AC budget moved %.1f%%"),
+    city, nrow(d),
     100 * min(d$ac_base_muni, na.rm = TRUE), 100 * max(d$ac_base_muni, na.rm = TRUE),
     min(d$equity, na.rm = TRUE), max(d$equity, na.rm = TRUE),
-    min(d$shift, na.rm = TRUE), max(d$shift, na.rm = TRUE)))
+    100 * min(d$ac_policy_uniform - d$ac_base_muni, na.rm = TRUE),
+    100 * max(d$ac_policy_uniform - d$ac_base_muni, na.rm = TRUE),
+    min(d$shift, na.rm = TRUE), max(d$shift, na.rm = TRUE), d$moved[1]))
 
   # drop the duplicated name before rejoining geometry, or merge yields
   # muni_name.x / muni_name.y
@@ -230,16 +250,16 @@ build_fig4_maps <- function() {
              labels = scales::label_number(suffix = "%")), MAP_COLS[["pen"]]),
       list("equity", scale_fill_gradient(na.value = "grey88",
              low = "#FCFBFD", high = "#3F007D", limits = lim_eq,
-             name = "Coverage gained (pp)"), MAP_COLS[["equity"]]),
+             name = "AC coverage gained (pp)"), MAP_COLS[["equity"]]),
       # Diverging, centred on no change: teal where the equity rule spends more
       # per resident than the uniform rule, brown where it spends less.
       list("shift", scale_fill_gradient2(na.value = "grey88",
              low = "#8C510A", mid = "#F5F5F5", high = "#01665E", midpoint = 0,
              limits = c(-m_shift, m_shift),
-             name = "Equity minus uniform
-(% of city budget)",
+             name = "Income-targeted minus uniform
+(pp of city AC budget)",
              labels = scales::label_number(style_positive = "plus",
-                                           suffix = "%")), MAP_COLS[["shift"]]))
+                                           suffix = " pp")), MAP_COLS[["shift"]]))
     for (j in seq_along(specs)) {
       k <- k + 1L
       s <- specs[[j]]
@@ -255,7 +275,7 @@ build_fig4_maps <- function() {
   save_item(fig, "fig4_city_maps", width = 11, height = 11)
 
   message(sprintf(paste0("  [caption] AC penetration %.0f-%.0f%%; equity roll-out ",
-                         "adds %.1f-%.1f pp; budget shift %+.1f to %+.1f%% of city total"),
+                         "adds %.1f-%.1f pp; AC budget shift %+.1f to %+.1f pp of city AC budget"),
                   lim_pen[1], lim_pen[2], lim_eq[1], lim_eq[2],
                   min(all_d$shift, na.rm = TRUE), max(all_d$shift, na.rm = TRUE)))
   # Districts present in the geometry but absent from the model outputs are drawn

@@ -146,7 +146,7 @@ build_si6 <- function() {
                "trees use the GVI 35 ceiling. Vulnerable deaths are those avoided over 25 years in the two",
                "most vulnerable population-weighted SVI quintiles, before the AC waste-heat penalty; the",
                "ratio is the median of the city ratios. SVI gain is the median change, in percentage points,",
-               "in those quintiles' share of the benefit when units are ranked by SVI rather than by income",
+               "in those quintiles' share of the benefit from ranking units by SVI, relative to ranking by income",
                "(AC) or greenness deficit (trees). Saturated cities have no unit left to raise at that budget",
                "under the city's own GVI ceiling or under GVI 35."),
              label = "tab:svi_budget", longtable = TRUE, size = "\\footnotesize",

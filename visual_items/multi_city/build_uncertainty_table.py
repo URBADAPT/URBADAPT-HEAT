@@ -113,12 +113,12 @@ def fmt(p50: float, p5: float, p95: float, dec: int) -> str:
 
 
 def pct(p: float) -> str:
-    return f"{100 * p:.1f}\\%" if np.isfinite(p) else r"\textit{n.a.}"
+    return f"{100 * p:.1f}\\,\\%" if np.isfinite(p) else r"\textit{n.a.}"
 
 
 CAPTION_BODY = r"""\caption{\textbf{City-level uncertainty and decision robustness across the 40-city sample.}
 Entries are medians with 5th--95th percentile ranges from the $N=128$ Latin Hypercube ensemble.
-The ranges summarize jointly varied plausible model configurations and are not confidence intervals
+The ranges summarise jointly varied plausible model configurations and are not confidence intervals
 around the deterministic central configuration; the latter was evaluated separately and reproduced
 the corresponding NB01--08 outputs. Annual heat-attributable mortality refers to the sampled target
 year and scenario and is not an uncertainty interval around the deterministic 2020 baseline.
@@ -131,8 +131,8 @@ CAPTION_LEGACY = r"""Pairwise comparison probabilities use all 128 matched
 members, treating a policy with no positive net benefit as having infinite cost per death.
 """
 
-CAPTION_TAIL = r"""\textit{n.a.} denotes no positive modelled avoided deaths in any member; very large ratios can reflect
-a near-zero health-benefit denominator rather than unusually high unit costs.}"""
+CAPTION_TAIL = r"""\textit{n.a.} denotes no positive modelled avoided deaths in any member; very large ratios can arise
+from a near-zero health-benefit denominator alone.}"""
 
 
 def probability_caption(t: pd.DataFrame) -> str:

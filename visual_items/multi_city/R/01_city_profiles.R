@@ -73,11 +73,11 @@ PROFILE_FEATURES <- dplyr::tribble(
   "cpd_Trees",      "Trees",              "Cost/death",    TRUE,   TRUE,
   "cpd_AC",         "AC",                 "Cost/death",    TRUE,   TRUE,
   "cpd_EWS",        "EWS",                "Cost/death",    TRUE,   TRUE,
-  "private_share",  "Private cost share", "Burden",        FALSE,  TRUE,
-  "ac_penalty_pct", "AC waste heat",      "Burden",        FALSE,  TRUE)
+  "private_share",  "Private cost share", "Cost share & offset", FALSE,  TRUE,
+  "ac_penalty_pct", "AC waste heat",      "Cost share & offset", FALSE,  TRUE)
 
 PROFILE_GROUP_LEVELS <- c("Risk", "% reduction", "Avoided/100k", "Cost/capita",
-                       "Cost/death", "Burden")
+                       "Cost/death", "Cost share & offset")
 
 # The four tree-pathway variables, dropped in the sensitivity rerun.
 PROFILE_TREE_KEYS <- c("red_Trees", "av100k_Trees", "pvcap_Trees", "cpd_Trees")

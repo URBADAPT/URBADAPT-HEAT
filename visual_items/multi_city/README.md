@@ -438,6 +438,9 @@ Main text is Fig 1, Fig 2, Fig 3. SI figures si1-si3, SI table
 | `drivers_decomposition.py` | `tables/tab_drivers.{tex,csv}` | SI table | Drivers of cross-city differences: Shapley split of baseline mortality, exact variance split of log cost per avoided death (see below) |
 | `ce_regression.py` | `tables/tab_ce_regression{,_robust}.{tex,csv}` | SI tables (`tab:ce_regression`, `tab:ce_regression_robust`) | Regression of each pathway's log cost per avoided death, and of the tree/AC ratio, on city characteristics: Shapley shares, robust effects, leave-one-out R² (see below) |
 | `si6_svi_budget.R` | `si6_svi_budget`, `tables/tab_svi_budget.{tex,csv}` | SI | The same budget spent on AC or on trees, most socially vulnerable units first: cost per death, deaths avoided in the two most vulnerable quintiles, and the gain over each pathway's own priority rule (see below) |
+| `fig4_city_maps.R` | `fig4_city_maps` | main | Per-district maps for the three climate-cluster medoids: current AC, AC added by the income-targeted roll-out, and the AC budget shift against the uniform roll-out (see below) |
+| `targeting_drivers.py` | `tables/targeting_drivers_{ac,greening}.csv`, `_summary.json` | — | Exact decomposition of the AC targeting result and of greening progressivity, city by city (see below) |
+| `tab_targeting_drivers.R` | `tables/tab_ac_targeting_drivers.{tex,csv}`, `tables/tab_greening_drivers.{tex,csv}` | SI tables | The two driver tables built from `targeting_drivers.py` |
 | `make_report.R` | `report.html` | — | One browsable page with every figure and table |
 
 ### Drivers table (`drivers_decomposition.py`)
@@ -498,7 +501,7 @@ leave-one-out R². It also gives per-city contributions to the fitted tree/AC ra
 tree outcomes it runs smaller-descriptor-set checks. It writes `tab_ce_regression.{tex,csv}`
 (label `tab:ce_regression`), `tab_ce_regression_robust.{tex,csv}` (label
 `tab:ce_regression_robust`), `_city_data.csv` and `_city_contrib.csv` into `TAB_DIR`. Both tables
-are in the Overleaf project's `tables/natcities/`; re-copy them there after a rebuild.
+are in the manuscript's Overleaf tables folder; re-copy them there after a rebuild.
 
 ```powershell
 python ce_regression.py
@@ -517,6 +520,57 @@ the pooled comparison; `si6_svi_budget.R` draws the figure and writes the table.
 ```powershell
 $env:MULTICITY_TAB_DIR = "compare\v3c\tables"; $env:MULTICITY_FIG_DIR = "compare\v3c\figures"
 Rscript R\si6_svi_budget.R
+```
+
+### Targeting drivers (`targeting_drivers.py`, `tab_targeting_drivers.R`)
+
+**AC.** The script reads the zone tables `tables/ac_zone_drivers_<city>.csv` written by the
+urban-heat notebook 12 (`--zones`, the OneDrive `juno/zdrv_40` pull). Per AC zone and anchor year
+they hold population, the 65+ share, SVI, summer mean T2M, baseline / income-targeted / uniform AC
+coverage, and A, the deaths avoided per unit of coverage (split by SVI quintile). AC attenuation is
+linear in coverage, so a roll-out avoids exactly sum(A x added coverage), and with equal added users:
+
+- change in deaths avoided = (share of added users placed differently) x (gap in deaths avoided
+  per added user between the zones that gain and lose users, relative to the uniform mean);
+- equity gain = (share of the benefit placed differently) x (gap in the top-two-quintile share
+  of A between gaining and losing zones).
+
+The efficiency terms count all cells, as the city totals of avoided deaths do; the equity terms
+count the cells with an SVI quintile, as NB05's quintile file does. Both reproduce Fig 2b
+(efficiency exactly, equity to within 0.1 pp). The gaining and losing zones are compared by
+temperature, 65+ share and SVI; income rank is the rank of baseline AC coverage.
+
+**Greening.** From `<city>_policy_comparison.csv` in the run tree (`--tree`): the uniform catch-up
+increment is the canopy deficit, the vulnerability-weighted one spreads the same total in
+proportion to SVI, and the weighted policy is more progressive exactly when
+rho(deficit, SVI) x CV(deficit) < CV(SVI) (with every region below the target).
+
+```powershell
+python targeting_drivers.py --zones "$env:USERPROFILE\OneDrive - IIASA\Documents\juno\zdrv_40" `
+  --tree "$env:USERPROFILE\OneDrive - IIASA\Documents\juno\v3c_40" --out compare\v3c\tables
+$env:MULTICITY_TAB_DIR = "compare\v3c\tables"; Rscript R\tab_targeting_drivers.R
+```
+
+### Fig 4 and Fig 2b: what they measure
+
+- **Fig 4, third column, is AC only.** It is the change in each district's share of the city's AC
+  budget when the income-targeted roll-out replaces the uniform one, in percentage points; per-user
+  costs do not vary within a city, so this is the change in its share of the added users. Cities in
+  `ZONE_MAP_CITIES` are mapped by their AC zones, not by administrative districts (Thessaloniki: the
+  five AC zones cover the Municipality and Triandria, and the other communities overlap them only at
+  their edges); their 2020 zone values come from the notebook-12 tables, looked up under
+  `MULTICITY_ZONE_BASE`.
+- **Fig 2b counts all residents on the efficiency axis**, from NB05's city totals
+  (`annual_heat_deaths_climada_avoided_AC[_uniform]_<city>.csv`), and is plotted as the change in
+  deaths avoided under targeting, so the win-win quadrant is the upper right. The equity axis uses
+  the quintile file.
+
+```powershell
+$env:MULTICITY_OUTPUTS_BASE = "$env:USERPROFILE\OneDrive - IIASA\Documents\juno\v3c_40"
+$env:MULTICITY_AUX_BASE = $env:MULTICITY_OUTPUTS_BASE
+$env:MULTICITY_ZONE_BASE = "$env:USERPROFILE\OneDrive - IIASA\Documents\juno\zdrv_40"
+$env:MULTICITY_TAB_DIR = "compare\v3c\tables"; $env:MULTICITY_FIG_DIR = "compare\v3c\figures"
+Rscript R\fig4_city_maps.R; Rscript R\fig2_distribution.R
 ```
 
 ## Figure styling: no panel titles, everything in the caption
