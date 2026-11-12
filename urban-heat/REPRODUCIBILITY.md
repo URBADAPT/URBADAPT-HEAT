@@ -38,6 +38,11 @@ Run times on one core were 16-32 min per city, with peak memory 2.0-4.9 GB.
   calibration, city-results and vulnerability-parameter tables; `make_uncertainty_matrix.py`;
   `../visual_items/pilot_cities/uncertainty/build_n_convergence.py`).
 
+## Fitted inputs
+
+- LST-T2M emulator: `fits/lst_t2m_emulator/` (scripts as run, session history, bundle and validation tables).
+- Street-tree cooling coefficients: `fits/street_tree_cooling/` (URGED code snapshot and provenance).
+
 ## Inputs
 
 See `DATA_SOURCES.md` for every input dataset, its source, version and licence, and whether it is
