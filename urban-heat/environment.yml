@@ -1,34 +1,50 @@
+# URBADAPT-HEAT v1.0.1 environment (direct dependencies, pinned).
+# These are the versions of the `urbanheat` environment on the CMCC JUNO cluster (linux-64) that
+# produced the published results. The complete solved environment, with every transitive
+# dependency and build string, is in environment.lock.yml (linux-64):
+#   micromamba create -n urbanheat -f environment.lock.yml      # exact, linux-64
+#   conda env create -f environment.yml                         # same versions, any platform
 name: urbanheat
 channels:
   - conda-forge
 
 dependencies:
-  - python=3.10
+  - python=3.10.20
   - climada=6.1.0
   - numpy=1.26.4
   - pandas=2.1.4
-  - scipy
+  - scipy=1.15.2
   - xarray=2025.6.1
-  - dask
-  - bottleneck
-  - cftime
-  - numba
-  - scikit-learn
-  - netcdf4
-  - h5py
-  - tqdm
-  - pyyaml
-  - matplotlib
-  - ipykernel
-  - jupyterlab
+  - dask=2025.9.2
+  - bottleneck=1.6.0
+  - cftime=1.6.5
+  - numba=0.62.1
+  - scikit-learn=1.7.2
+  - salib=1.5.1
+  - netcdf4=1.7.2
+  - h5py=3.13.0
+  - pytables=3.10.1
+  - tqdm=4.67.3
+  - pyyaml=6.0.3
+  - requests=2.32.5
+  - urllib3=2.5.0
+  - openpyxl=3.1.5
+  - matplotlib=3.10.9
+  - ipython=8.37.0
+  - ipykernel=7.3.0
+  - nbclient=0.11.0
+  - nbformat=5.10.4
+  - jupyterlab=4.6.2
   - rasterio=1.4.3
-  - shapely
+  - affine=2.4.0
+  - shapely=2.1.2
   - fiona=1.10.1
   - pyproj=3.7.1
   - geopandas=1.1.1
-  - rioxarray
-  - rtree
-  - libspatialindex
-  - osmnx
-  - gdown>=5
-
+  - pyogrio=0.11.0
+  - pyarrow=21.0.0
+  - rioxarray=0.19.0
+  - rtree=1.4.1
+  - libspatialindex=2.1.0
+  - osmnx=2.0.7
+  - gdown=6.1.0
