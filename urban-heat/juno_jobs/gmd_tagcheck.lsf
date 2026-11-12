@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# GMD reproducibility check: rerun the deterministic chain NB01-NB08 for one pilot city from the
+# raw inputs, with the code exactly at commit 13a3fe7 (clean worktree), into a fresh output variant.
+# The outputs are then compared with the v3c tree behind the GMD paper (OneDrive juno/v3c_gmd).
+#   CITY=rome bsub -M 10G -R "rusage[mem=10G]" < gmd_tagcheck.lsf
+#BSUB -J gmdtag
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -W 8:00
+#BSUB -o /work/cmcc/gf31024/urbadapt_v101check/logs/gmdtag.%J.out
+#BSUB -e /work/cmcc/gf31024/urbadapt_v101check/logs/gmdtag.%J.err
+
+set -uo pipefail
+WT=/work/cmcc/gf31024/urbadapt_v101check
+REPO=$WT/urban-heat
+MAIN=/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat
+CITY="${CITY:?CITY}"
+VAR=masselot_main_gmd_v101check
+EXPECT=13a3fe7d380761ac0d20275aaa02c4aef972951d
+cd "$REPO" || { echo "FATAL: no worktree"; exit 1; }
+[[ "$(git rev-parse HEAD)" == "$EXPECT" ]] || { echo "FATAL: worktree not at $EXPECT"; exit 1; }
+git diff --quiet && git diff --cached --quiet || { echo "FATAL: tracked changes in worktree"; exit 1; }
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+export IF_MAIN_FAMILY=masselot_tail_varcorr
+export T2M_ERA5_BIAS_CORRECT=1
+export URBAN_HEAT_OUTPUT_VARIANT="$VAR"
+PY="$(command -v python)"
+
+echo "==================================================================="
+echo "job $LSB_JOBID  host $(hostname)  $(date -Iseconds)"
+echo "git $(git rev-parse --short HEAD)   city $CITY   variant $VAR   python $PY"
+echo "==================================================================="
+
+# The city manifests place two kinds of input inside the outputs tree (base_kind "outputs"):
+# the LST-T2M emulator bundle and, for Rome and Lisbon, the zone file. Seed them from the
+# existing pilot tree; everything else is recomputed from data/.
+"$PY" - "$REPO" "$MAIN" "$CITY" "$VAR" <<'PY' || { echo "FATAL: seeding failed"; exit 1; }
+import hashlib, json, shutil, sys
+from pathlib import Path
+repo, main, city, var = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3], sys.argv[4]
+m = json.loads((repo / "data_manifests" / f"{city}_gdrive.json").read_text())
+for e in m["entries"]:
+    if e.get("base_kind") != "outputs":
+        continue
+    src = main / "outputs_variants" / "masselot_main_gmd_v3" / city / e["dest"]
+    dst = repo / "outputs_variants" / var / city / e["dest"]
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    print("seeded", e["dest"], hashlib.sha256(dst.read_bytes()).hexdigest()[:16])
+PY
+
+t0=$(date +%s)
+URBAN_HEAT_RUNS_DIR="$WT/runs/nb_$CITY" \
+  "$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks 01 02 03 04 05 06 07 08 --timeout 21600
+status=$?
+echo "NB01-08 exit=$status after $(( ($(date +%s) - t0) / 60 )) min"
+exit "$status"

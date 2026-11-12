@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# v3 rerun of NB04-NB08 (or NOTEBOOKS) for a list of cities. Each city is copied from SRC to DST (NB01-03
+# outputs reused, old uncertainty campaigns left behind) unless already there, then rerun with
+# the current code. Markers in runs/<STATE>/<city>.{done,failed}: resubmitting skips finished cities.
+#   SRC=masselot_main_v2 DST=masselot_main_v3 STATE=v3_40 CITIES="rome milan" bsub -J v3_g1 < v3_group.lsf
+#BSUB -J v3_group
+#BSUB -P 0628
+#BSUB -q s_long
+#BSUB -n 1
+#BSUB -M 12G
+#BSUB -R "rusage[mem=12G]"
+#BSUB -W 12:00
+#BSUB -o /work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/juno_logs/v3_group.%J.out
+#BSUB -e /work/cmcc/gf31024/URBADAPT-HEAT/urban-heat/juno_logs/v3_group.%J.err
+#
+# Memory: the NB01-08 chain peaked at 8.8 GB for the largest city; 12G leaves room for Paris/Berlin.
+
+set -uo pipefail
+REPO=/work/cmcc/gf31024/URBADAPT-HEAT/urban-heat
+SRC="${SRC:?SRC variant}"
+DST="${DST:?DST variant}"
+STATE="$REPO/runs/${STATE:?STATE name}"
+CITIES="${CITIES:?CITIES list}"
+NOTEBOOKS="${NOTEBOOKS:-04 05 06 07 08}"
+cd "$REPO" || { echo "FATAL: no repo"; exit 1; }
+mkdir -p "outputs_variants/$DST" "$STATE"
+
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+module load micromamba 2>/dev/null || true
+eval "$(micromamba shell hook --shell bash)" || { echo "FATAL: micromamba hook failed"; exit 1; }
+micromamba activate urbanheat || { echo "FATAL: cannot activate urbanheat"; exit 1; }
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+export IF_MAIN_FAMILY=masselot_tail_varcorr
+export T2M_ERA5_BIAS_CORRECT=1
+export URBAN_HEAT_OUTPUT_VARIANT="$DST"
+PY="$(command -v python)"
+# Register the kernel only if missing: parallel jobs rewriting the kernelspec at once made one
+# job find no kernel (Thessaloniki, 2026-10-16).
+jupyter kernelspec list 2>/dev/null | grep -qw urbanheat \
+  || "$PY" -m ipykernel install --user --name urbanheat --display-name urbanheat >/dev/null 2>&1 || true
+
+echo "==================================================================="
+echo "job $LSB_JOBID  host $(hostname)  $(date -Iseconds)"
+echo "git $(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD)"
+echo "$SRC -> $DST   state $STATE"
+echo "cities: $CITIES   notebooks: $NOTEBOOKS"
+echo "==================================================================="
+
+failed=0
+for CITY in $CITIES; do
+  if [[ -f "$STATE/$CITY.done" ]]; then echo "### $CITY already done"; continue; fi
+  rm -f "$STATE/$CITY.failed"
+  t0=$(date +%s)
+  if [[ ! -d "outputs_variants/$DST/$CITY" ]]; then
+    rsync -a --exclude 'tables/uncertainty_runs' "outputs_variants/$SRC/$CITY/" "outputs_variants/$DST/$CITY/" \
+      || { echo "### $CITY copy FAILED"; touch "$STATE/$CITY.failed"; failed=$((failed+1)); continue; }
+  fi
+  if URBAN_HEAT_RUNS_DIR="$STATE/nb_$CITY" \
+       "$PY" scripts/run_agnostic_batch.py --cities "$CITY" --notebooks $NOTEBOOKS --timeout 21600; then
+    touch "$STATE/$CITY.done"
+    echo "### $CITY DONE in $(( ($(date +%s) - t0) / 60 )) min"
+  else
+    touch "$STATE/$CITY.failed"
+    failed=$((failed+1))
+    echo "### $CITY FAILED after $(( ($(date +%s) - t0) / 60 )) min"
+  fi
+done
+echo "failed cities: $failed"
+exit $(( failed > 0 ))
