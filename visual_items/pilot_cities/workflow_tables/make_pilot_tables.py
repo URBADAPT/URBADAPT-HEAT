@@ -133,7 +133,7 @@ def calibration_arms(csv: Path) -> list[str]:
              r"\midrule"]
     for arm, label in ARM_ROWS:
         r = s.loc[arm]
-        lines.append(f"{label:<25}& {r.median_ratio:.2f} & {r.spread:3.0f} & "
+        lines.append(f"{label:<25}& {r.median_ratio:.2f} & {r.spread:4.1f} & "
                      f"{int(r.within_2x)}/{int(r.n)} \\\\")
     lines += [r"\bottomrule", r"\end{tabular}"]
     return lines
