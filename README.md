@@ -152,7 +152,7 @@ python scripts/download_drmkc_vulnerability.py \
     --output-dir urban-heat/data/Rome/vulnerability/
 ```
 
-**3. `scripts/prepare_gvi_projections.py`** — produces `vulnerability/gvi_projections.csv` from the [Huisman et al. (2025) SSP-GVI](https://doi.org/10.1038/s41597-024-04150-x) source CSV (download separately from the Huisman et al. Scientific Data paper):
+**3. `scripts/prepare_gvi_projections.py`** — produces `vulnerability/gvi_projections.csv` from the [Huisman et al. (2025) SSP-GVI](https://doi.org/10.1038/s41597-025-05732-z) source CSV (download separately from the Huisman et al. Scientific Data paper):
 
 ```bash
 python scripts/prepare_gvi_projections.py \
