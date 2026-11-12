@@ -15,12 +15,6 @@ not apply to these cities. This release is `13a3fe7` plus plotting-only changes 
 NB08 budget-figure axis and colours), pinned environments, the cluster job scripts and the table
 generator; none of these changes alters a saved output.
 
-This archive replaces a first archive of v1.0.1 (doi:10.5281/zenodo.24163573), which was withdrawn
-because a third-party code snapshot in `fits/street_tree_cooling/` contained literal API
-credentials. That folder now holds only the coefficient-estimation scripts; the model code,
-configurations, environment and scripts are otherwise identical, so the verification below
-applies unchanged.
-
 ## Verification (2026-11-12)
 
 The deterministic chain NB01-NB08 was rerun for all four cities from the raw inputs at `13a3fe7`, in a
