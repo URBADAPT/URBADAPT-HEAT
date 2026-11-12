@@ -35,8 +35,9 @@ that precede the subsample are omitted. One discarded call to `sample()` is
 kept because it advanced the random-number state before the subsample that was used.
 
 The cached panels are rebuilt by `estimate_climate_emulator_LST_T2M_multicities.R` from the PROVIDE
-UrbClim LST and T2M fields and the covariates listed in the paper. The R packages used are `dplyr`,
-`data.table`, `fixest` and `jsonlite` (plus the spatial packages of the panel builder).
+UrbClim LST and T2M fields and the covariates listed in the paper. The fit ran in R 4.5.1 (Windows) with
+`fixest` 0.13.2, together with `dplyr`, `data.table` and `jsonlite` (plus the spatial packages of the
+panel builder).
 
 Development history of these scripts, including later full-sample variants not used by v1.0.1:
 https://github.com/ArmandeCMCC/emulator-142cities
