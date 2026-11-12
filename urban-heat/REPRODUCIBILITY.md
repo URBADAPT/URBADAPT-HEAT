@@ -41,7 +41,7 @@ Run times on one core were 16-32 min per city, with peak memory 2.0-4.9 GB.
 ## Fitted inputs
 
 - LST-T2M emulator: `fits/lst_t2m_emulator/` (scripts as run, session history, bundle and validation tables).
-- Street-tree cooling coefficients: `fits/street_tree_cooling/` (URGED code snapshot and provenance).
+- Street-tree cooling coefficients: `fits/street_tree_cooling/` (the LST estimation scripts and their comparison with the coefficient table the model uses).
 
 ## Inputs
 
