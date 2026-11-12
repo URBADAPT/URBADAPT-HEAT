@@ -1,0 +1,43 @@
+{
+  "title": "URBADAPT-HEAT v1.0.1: a scalable geospatial framework for city-level public-private adaptation infrastructure cost-benefit analysis and its urban heat risk implementation",
+  "description": "<p>URBADAPT-HEAT v1.0.1: the code, city configurations, cluster job scripts, pinned environments, figure and table scripts, and the fits behind two model inputs (the LST-T2M emulator and the street-tree cooling coefficients) that produced the results for the four pilot cities (Rome, Athens, Lisbon, Copenhagen) reported in the model description paper by Aboudrar-M&eacute;da and Falchetta (Geoscientific Model Development, in review, egusphere-2026-5357). urban-heat/REPRODUCIBILITY.md gives the run commits and settings and documents a rerun that reproduced the archived outputs exactly; urban-heat/DATA_SOURCES.md lists every input dataset with its source, version and licence.</p>",
+  "upload_type": "software",
+  "version": "1.0.1",
+  "license": "cc0-1.0",
+  "creators": [
+    {
+      "name": "Aboudrar-Méda, Armande",
+      "orcid": "0009-0008-0978-2412",
+      "affiliation": "Centro Euro-Mediterraneo sui Cambiamenti Climatici (CMCC); RFF-CMCC European Institute on Economics and the Environment"
+    },
+    {
+      "name": "Falchetta, Giacomo",
+      "orcid": "0000-0003-2607-2195",
+      "affiliation": "Centro Euro-Mediterraneo sui Cambiamenti Climatici (CMCC); RFF-CMCC European Institute on Economics and the Environment; International Institute for Applied Systems Analysis (IIASA)"
+    }
+  ],
+  "keywords": [
+    "urban heat",
+    "heat-related mortality",
+    "climate adaptation",
+    "cost-benefit analysis",
+    "air conditioning",
+    "street trees",
+    "heat-health early warning",
+    "CLIMADA"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.24163360",
+      "relation": "isSupplementedBy",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.24163362",
+      "relation": "isSupplementedBy",
+      "resource_type": "dataset",
+      "scheme": "doi"
+    }
+  ]
+}

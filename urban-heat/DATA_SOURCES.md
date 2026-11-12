@@ -2,7 +2,7 @@
 
 One row per input dataset used by the Rome, Athens, Lisbon and Copenhagen runs. Paths are relative to `urban-heat/data/<City>/` unless marked *repo* (committed in this repository) or *runtime* (fetched by a notebook from the provider, not from Drive). Drive file ids are in `data_manifests/<city>_gdrive.json`. Licences were checked on the provider pages on 2026-11-12.
 
-**Archive?** = may the original (or the clipped subset used here) go into a public Zenodo input archive. **Authors?** = produced by the URBADAPT-HEAT authors; these can be archived by the authors.
+**Archive?** = may the original (or the clipped subset used here) go into a public input archive; the files marked yes that are not available elsewhere with a persistent identifier are in the v1.0.1 input record, doi:10.5281/zenodo.24163362. **Authors?** = produced by the URBADAPT-HEAT authors; these can be archived by the authors.
 
 | Dataset | Files (cities) | Provider | Version / release | DOI or persistent URL | Licence | Archive? | Authors? |
 |---|---|---|---|---|---|---|---|

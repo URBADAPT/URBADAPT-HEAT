@@ -1,7 +1,7 @@
 # Reproducing the v1.0.1 pilot-city results
 
-The results of the four pilot cities (Rome, Athens, Lisbon, Copenhagen) archived with this release
-were produced on the CMCC JUNO cluster with the scripts in `juno_jobs/` and the environment in
+The results of the four pilot cities (Rome, Athens, Lisbon, Copenhagen), archived at
+doi:10.5281/zenodo.24163360 (outputs) with their inputs at doi:10.5281/zenodo.24163362, were produced on the CMCC JUNO cluster with the scripts in `juno_jobs/` and the environment in
 `environment.lock.yml`:
 
 | Stage | Code | Settings |
