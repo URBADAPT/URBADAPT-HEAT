@@ -55,6 +55,21 @@ build_tab_city_characteristics <- function() {
   # can be read side by side.
   d <- meta[order(-meta$warmseason_mean_t2m), need, drop = FALSE]
 
+  # National price level and effective greening cooling coefficient: two of the
+  # regression descriptors of tab_ce_regression that no other SI table lists.
+  # Written by ce_regression.py into the same table folder, so run that first.
+  cd_path <- file.path(TAB_DIR, "tab_ce_regression_city_data.csv")
+  if (!file.exists(cd_path)) {
+    message(sprintf("  [skip] %s missing -- run ce_regression.py with TAB_DIR=%s first", cd_path, TAB_DIR))
+    return(invisible(NULL))
+  }
+  cdat <- read.csv(cd_path, check.names = FALSE, stringsAsFactors = FALSE)
+  m <- match(d$city, cdat$city)
+  if (anyNA(m)) {
+    message(sprintf("  [skip] regression data lacks: %s", paste(d$city[is.na(m)], collapse = ", ")))
+    return(invisible(NULL))
+  }
+
   out <- data.frame(
     City        = d$city_label,
     Country     = d$country,
@@ -65,7 +80,9 @@ build_tab_city_characteristics <- function() {
     `T2M (°C)`  = round(d$warmseason_mean_t2m, 1),
     `Hot days`  = d$hot_days,
     `65+ deaths (%)` = vapply(d$city, share_65plus, numeric(1)),
+    `Price level`    = cdat$pli[m],
     `Coef. cov. (%)` = d$coef_lst_coverage_pct,
+    `Cooling coef.`  = cdat$coef_eff[m],
     `Compact (%)`    = d$lcz_compact_pct,
     `Open (%)`       = d$lcz_open_pct,
     `Other (%)`      = d$lcz_other_built_pct,
@@ -84,9 +101,16 @@ build_tab_city_characteristics <- function() {
     "\\emph{65+ deaths} is the share of the modelled 2020 baseline heat-attributable",
     "deaths falling on the 65+ age bin, the joint outcome of each city's age structure",
     "and its age-specific exposure-response functions.",
+    "\\emph{Price level} is the national price-level index (EU27 $=100$) that scales",
+    "every unit cost.",
     "\\emph{Coef. cov.} is the share of summer (May--September) Local Climate Zone",
     "months with a non-zero greening-cooling coefficient; it conditions every",
     "tree-pathway result and should be read alongside any per-city greening number.",
+    "\\emph{Cooling coef.} is the greening cooling coefficient of Supplementary",
+    "Table~\\ref{tab:ce_regression}: summer land-surface cooling (\\textdegree C) per",
+    "Green View Index point added, averaged over the city's month- and",
+    "Local-Climate-Zone-specific coefficients with weights given by population and",
+    "greening added.",
     "\\emph{Compact}, \\emph{Open} and \\emph{Other} are the LCZ 1--3, 4--6 and 7--10",
     "shares of built land and sum to 100; \\emph{Built} is the LCZ 1--10 share of the",
     "whole Functional Urban Area, i.e. the built--natural balance and the part of the",
@@ -95,13 +119,24 @@ build_tab_city_characteristics <- function() {
     "entropy over all valid cells.")
 
   # digits is per column, offset by one for the (suppressed) row-name column:
-  # counts render as integers, shares to one decimal, LCZ diversity to two.
+  # counts render as integers, shares and the price level to one decimal, the
+  # cooling coefficient to three, LCZ diversity to two.
   save_table(out, "tab_city_characteristics", caption = cap,
              label = "tab:city_characteristics",
-             digits = c(0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 2),
+             digits = c(0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 3, 1, 1, 1, 1, 2),
              align = c("l", "l", "l", "r", "l", "r", "r", "r", "r", "r", "r", "r",
-                       "r", "r"),
-             longtable = TRUE, size = "\\scriptsize")
+                       "r", "r", "r", "r"),
+             longtable = TRUE, size = "\\scriptsize",
+             # Two-line headers: with the price level and cooling coefficient the
+             # one-line header row no longer fits the landscape page. save_table
+             # escapes the % signs; the CSV keeps the one-line names.
+             colnames_tex = c("City", "Country", "Pop (k)", "Class",
+                              "\\shortstack{T2M\\\\(°C)}", "\\shortstack{Hot\\\\days}",
+                              "\\shortstack{65+ deaths\\\\(%)}", "\\shortstack{Price\\\\level}",
+                              "\\shortstack{Coef. cov.\\\\(%)}", "\\shortstack{Cooling\\\\coef.}",
+                              "\\shortstack{Compact\\\\(%)}", "\\shortstack{Open\\\\(%)}",
+                              "\\shortstack{Other\\\\(%)}", "\\shortstack{Built\\\\(%)}",
+                              "\\shortstack{LCZ\\\\div.}"))
 
   low <- out$City[!is.na(out$`Coef. cov. (%)`) & out$`Coef. cov. (%)` < 25]
   message(sprintf("  %d cities; %d below 25%% coefficient coverage%s",

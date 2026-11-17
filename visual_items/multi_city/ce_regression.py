@@ -60,8 +60,13 @@ Inputs
   CALIB      urban-heat/calibration/calibration_params.csv (price-level index)
 
 Outputs (in TAB_DIR)
-  tab_ce_regression.tex               SI table (label tab:ce_regression)
+  tab_ce_regression.tex               SI table (label tab:ce_regression): panel a the regressions (plus
+                                      the R^2 on warm-season temperature alone), panel b the group
+                                      medians behind the main-text comparisons
   tab_ce_regression.csv               one row per outcome x descriptor
+  tab_ce_regression_groups.csv        panel b: HHEWS cost per death in the cool cities by existing
+                                      system; tree cost per death by third of the effective cooling
+                                      coefficient and of population, with the trees-cheaper count
   tab_ce_regression_robust.{tex,csv}  SI table (label tab:ce_regression_robust): tree outcomes on
                                       smaller descriptor sets
   tab_ce_regression_city_data.csv     the regression data, one row per city
@@ -247,7 +252,9 @@ def fit(d: pd.DataFrame, key: str) -> dict:
     R[1, 1 + cols.index("ews_marginal")] = 1
     p_ews = float(res.wald_test(R, scalar=True).pvalue)
     return dict(s=s, y=y, X=X, cols=cols, res=res, coef=coef, se=se, p=pv, p_ews=p_ews, vif=vif,
-                r2=res.rsquared, adj=res.rsquared_adj, q2=q2, n=len(s), shap=shapley(y, s, players))
+                r2=res.rsquared, adj=res.rsquared_adj, q2=q2, n=len(s), shap=shapley(y, s, players),
+                # Fit on warm-season temperature alone: how far climate gets on its own.
+                r2_t2m=r2(y, s, ["t2m"]))
 
 
 def pct_effect(b: float) -> float:
@@ -270,7 +277,8 @@ def cell(f: dict, player: str) -> str:
 
 
 CAPTION = (
-    r"Regression of each pathway's cost per avoided death on city characteristics. Each column is one "
+    r"Drivers of each pathway's cost per avoided death across cities. \textbf{a}, Regression of the cost "
+    r"per avoided death on city characteristics. Each column is one "
     r"ordinary least-squares regression across cities of the log present-value cost per avoided death "
     r"(last column: log of the ratio of the tree to the AC cost per avoided death, negative where trees are "
     r"cheaper) on the descriptors listed. Each cell gives the descriptor's Shapley share of the explained "
@@ -280,22 +288,83 @@ CAPTION = (
     r"significance: $^{*}p<0.1$, $^{**}p<0.05$, $^{***}p<0.01$. The HHEWS starting point (marginal, "
     r"intermediate or counterfactual attribution) enters as two indicators scored as one Shapley player, "
     r"and its bracket gives the $p$-value of their joint robust Wald test. The leave-one-out $R^2$ refits "
-    r"each regression without one city at a time and scores the prediction for that city. Baseline heat "
+    r"each regression without one city at a time and scores the prediction for that city; the last row "
+    r"gives the $R^2$ of a regression on warm-season mean temperature alone. Baseline heat "
     r"mortality is the 2020 rate per 100\,000; the Green View Index is population-weighted over the "
     r"greening regions; the national price level (EU27 $=100$) scales every unit cost. The greening "
     r"cooling coefficient, which enters the tree regressions only, is the summer land-surface cooling per "
     r"Green View Index point added, population-weighted, i.e. the city's month- and Local-Climate-Zone-specific "
     r"coefficients averaged with weights given by population and greening added. Trees and the ratio exclude "
     r"<EXCL>, where greening avoids no deaths. Supplementary Table~\ref{tab:ce_regression_robust} repeats the "
-    r"tree regressions with fewer descriptors."
+    r"tree regressions with fewer descriptors. \textbf{b}, Median and range of the present-value cost per "
+    r"avoided death by group: HHEWS in the <NCOOL> cool cities by the existing system, from which the "
+    r"attribution in panel a follows (see Methods), and street trees in the <NTREE> cities of panel a by "
+    r"third of the greening cooling coefficient and of population, with the number of cities in each group "
+    r"where trees avoid deaths more cheaply than AC. Per-city values are in Supplementary "
+    r"Tables~\ref{tab:city_characteristics} and~\ref{tab:cba_by_city}."
 )
 
+# Panel b: HHEWS starting points in the Methods wording, keyed by the attribution label.
+EWS_GROUPS = {
+    "marginal": "Epidemiologically based system (marginal)",
+    "intermediate": "Meteorologically based system (intermediate)",
+    "counterfactual": "Traffic-light or threshold alert (counterfactual)",
+}
+THIRDS = ["Lowest third", "Middle third", "Highest third"]
 
-def write_table(fits: dict, excl: list[str]) -> str:
+
+def group_comparisons(d: pd.DataFrame) -> list[dict]:
+    """Group medians behind the main-text comparisons (panel b)."""
+    rows = []
+    cool = d[d.climate_cluster == "Cool"]
+    for k, lab in EWS_GROUPS.items():
+        v = cool.loc[cool.ews_class == k, "cpd_EWS"]
+        rows.append(dict(block="ews", group=lab, n=len(v), median=v.median(), lo=v.min(), hi=v.max(),
+                         trees_cheaper=np.nan))
+    s = d[np.isfinite(d["y_Trees"])].copy()
+    s["cheaper"] = s["y_Trees/AC"] < 0
+    for col, block in (("coef_eff", "coef"), ("pop_k_model", "pop")):
+        s["third"] = pd.qcut(s[col], 3, labels=THIRDS)
+        for lab, v in s.groupby("third", observed=True):
+            rows.append(dict(block=block, group=lab, n=len(v), median=v.cpd_Trees.median(),
+                             lo=v.cpd_Trees.min(), hi=v.cpd_Trees.max(), trees_cheaper=int(v.cheaper.sum())))
+    return rows
+
+
+GROUP_BLOCKS = {
+    "ews": ("HHEWS, cool cities, by existing system (thousand \\texteuro)", 1e3, "{:,.0f}"),
+    "coef": ("Street trees, by third of the greening cooling coefficient (million \\texteuro)", 1e6, "{:.1f}"),
+    "pop": ("Street trees, by third of population (million \\texteuro)", 1e6, "{:.1f}"),
+}
+
+
+def write_groups(rows: list[dict]) -> list[str]:
+    L = ["\\begin{tabular}{lrrrr}",
+         "\\multicolumn{5}{l}{\\textbf{b}\\quad Cost per avoided death by group} \\\\",
+         "\\toprule",
+         "Group & Cities & Median & Range & Cities where trees are cheaper than AC \\\\",
+         "\\midrule"]
+    for i, (block, (title, scale, fmt)) in enumerate(GROUP_BLOCKS.items()):
+        if i:
+            L.append("\\addlinespace")
+        L.append(f"\\multicolumn{{5}}{{l}}{{\\emph{{{title}}}}} \\\\")
+        for r in (r for r in rows if r["block"] == block):
+            m, lo, hi = (fmt.format(r[x] / scale).replace(",", "\\,") for x in ("median", "lo", "hi"))
+            tc = "--" if np.isnan(r["trees_cheaper"]) else str(int(r["trees_cheaper"]))
+            L.append(f"\\quad {r['group']} & {r['n']} & {m} & {lo}--{hi} & {tc} \\\\")
+    L += ["\\bottomrule", "\\end{tabular}"]
+    return L
+
+
+def write_table(fits: dict, excl: list[str], groups: list[dict], n_cool: int) -> str:
     excl_txt = excl[0] if len(excl) == 1 else ", ".join(excl[:-1]) + " and " + excl[-1]
+    cap = (CAPTION.replace("<EXCL>", excl_txt).replace("<NCOOL>", str(n_cool))
+           .replace("<NTREE>", str(fits["Trees"]["n"])))
     L = ["\\begin{table}[H]", "\\centering", "\\scriptsize",
-         f"\\caption{{{CAPTION.replace('<EXCL>', excl_txt)}}}", "\\label{tab:ce_regression}",
-         "\\begin{tabular}{ll" + "r" * len(OUTCOMES) + "}", "\\toprule",
+         f"\\caption{{{cap}}}", "\\label{tab:ce_regression}",
+         "\\begin{tabular}{ll" + "r" * len(OUTCOMES) + "}",
+         f"\\multicolumn{{{2 + len(OUTCOMES)}}}{{l}}{{\\textbf{{a}}\\quad Regression of the log cost per avoided death}} \\\\",
+         "\\toprule",
          "Group & Descriptor & " + " & ".join(OUTCOMES.values()) + " \\\\", "\\midrule"]
     prev = None
     for p in ROW_ORDER:
@@ -309,7 +378,11 @@ def write_table(fits: dict, excl: list[str]) -> str:
           "\\multicolumn{2}{l}{$R^2$ (adjusted)} & " + " & ".join(
               f"{fits[k]['r2']:.2f} ({fits[k]['adj']:.2f})" for k in OUTCOMES) + " \\\\",
           "\\multicolumn{2}{l}{Leave-one-out $R^2$} & " + " & ".join(f"{fits[k]['q2']:.2f}" for k in OUTCOMES) + " \\\\",
-          "\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
+          "\\multicolumn{2}{l}{$R^2$, warm-season temperature alone} & " + " & ".join(
+              f"{fits[k]['r2_t2m']:.2f}" for k in OUTCOMES) + " \\\\",
+          "\\bottomrule", "\\end{tabular}", "", "\\vspace{1em}", ""]
+    L += write_groups(groups)
+    L += ["\\end{table}", ""]
     return "\n".join(L)
 
 
@@ -435,7 +508,16 @@ def main() -> int:
     explain_ratio(contrib)
     robust = parsimonious_checks(d)
 
-    tex = write_table(fits, excl)
+    groups = group_comparisons(d)
+    n_cool = int((d.climate_cluster == "Cool").sum())
+    print(f"\nPanel b ({n_cool} cool cities for HHEWS; cost per avoided death)")
+    for r in groups:
+        print(f"   {r['block']:5s} {r['group']:50s} n={r['n']:2d} median={r['median']:12,.0f} "
+              f"range={r['lo']:12,.0f}-{r['hi']:12,.0f} trees cheaper={r['trees_cheaper']}")
+    pd.DataFrame(groups).to_csv(os.path.join(TAB_DIR, "tab_ce_regression_groups.csv"), index=False)
+    for k, f in fits.items():
+        print(f"   R2 on warm-season temperature alone, {k}: {f['r2_t2m']:.3f}")
+    tex = write_table(fits, excl, groups, n_cool)
     with open(os.path.join(TAB_DIR, "tab_ce_regression.tex"), "w", encoding="utf-8", newline="\n") as fh:
         fh.write(tex)
     with open(os.path.join(TAB_DIR, "tab_ce_regression_robust.tex"), "w", encoding="utf-8", newline="\n") as fh:
