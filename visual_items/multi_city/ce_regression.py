@@ -25,7 +25,7 @@ it fits one OLS regression across cities on a common set of city descriptors and
     which associations survive.
 
 Descriptors (one row per city)
-  Climate and heat burden   warm-season (May-Sep) mean 2 m temperature; log baseline (2020)
+  Climate and heat mortality warm-season (May-Sep) mean 2 m temperature; log baseline (2020)
                             heat-attributable mortality per 100 000
   Existing adaptation       baseline AC coverage (%); population-weighted baseline Green View
                             Index of the greening regions; HHEWS starting point (marginal /
@@ -97,8 +97,8 @@ CALIB = os.environ.get("CALIB", os.path.join(REPO, "urban-heat", "calibration", 
 
 # Continuous descriptors: column -> (label, group). Order is table order.
 CONT = {
-    "t2m":      ("Warm-season mean temperature", "Climate and heat burden"),
-    "log_mort": ("Baseline heat mortality per 100\\,000 (log)", "Climate and heat burden"),
+    "t2m":      ("Warm-season mean temperature", "Climate and heat mortality"),
+    "log_mort": ("Baseline heat mortality per 100\\,000 (log)", "Climate and heat mortality"),
     "ac0":      ("Baseline AC coverage", "Existing adaptation"),
     "gvi0":     ("Baseline Green View Index", "Existing adaptation"),
     "log_pop":  ("Population of modelled area (log)", "City size and form"),

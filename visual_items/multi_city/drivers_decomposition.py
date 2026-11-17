@@ -11,7 +11,7 @@ Writes the SI drivers table (`tab:drivers`) and prints the numbers the text quot
      way with each group as one player; a group's unique contribution is the loss in R^2 when
      it is dropped.
   b  Exact decomposition of the cross-city variance of log cost per avoided death through
-     log(cost/death) = log(cost per capita) - log(baseline burden per capita) - log(share avoided):
+     log(cost/death) = log(cost per capita) - log(baseline heat mortality per capita) - log(share avoided):
      each term's share is its covariance with the total over the total variance, so the shares
      sum to one and a negative share offsets the others.
   c  Hot-versus-cool medians by pathway and, for street trees, the physical chain behind the
@@ -156,7 +156,7 @@ CAPTION = (
     r"population-weighted over the 65-74, 75-84 and 85+ bands. \textbf{b}, Exact decomposition of the "
     r"cross-city variance of the log cost per avoided death into its three factors, "
     r"$\log(\mathrm{cost}/\mathrm{death}) = \log(\mathrm{cost\ per\ capita}) - "
-    r"\log(\mathrm{baseline\ burden\ per\ capita}) - \log(\mathrm{share\ of\ burden\ avoided})$, each "
+    r"\log(\mathrm{baseline\ heat\ mortality\ per\ capita}) - \log(\mathrm{share\ of\ heat\ deaths\ avoided})$, each "
     r"term's share being its covariance with the total divided by the total variance; shares sum to "
     r"100\,\% and a negative share offsets the others.<EXCL>"
 )
@@ -189,7 +189,7 @@ def write_table(n: int, r2_all: float, r2_t: float, r_ac: float, ind: dict, grp:
           "\\bottomrule", "\\end{tabular}", "", "\\vspace{1em}", "",
           "\\begin{tabular}{lrrrr}",
           "\\multicolumn{5}{l}{\\textbf{b}\\quad Log present-value cost per avoided death} \\\\",
-          "\\toprule", "Pathway & SD of log & Cost per capita & Baseline burden & Share of burden avoided \\\\",
+          "\\toprule", "Pathway & SD of log & Cost per capita & Baseline heat mortality & Share of heat deaths avoided \\\\",
           "\\midrule"]
     for p, label in PATHWAYS.items():
         c = cost[p]
