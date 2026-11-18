@@ -158,7 +158,7 @@ def probability_caption(t: pd.DataFrame) -> str:
           + on_part)
     return ("$P$(AC $>0$) is the share of all 128 members with positive cumulative net AC avoided\n"
             f"deaths, {wh}. $P$(trees $<$ AC) is the share of members in which trees cost less per avoided death\n"
-            "than AC, among members in which both pathways avoid deaths; \\textit{n.a.} where none do.\n"
+            "than AC, among members in which both options avoid deaths; \\textit{n.a.} where none do.\n"
             f"{ews}\n")
 
 

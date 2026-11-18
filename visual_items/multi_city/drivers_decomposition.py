@@ -143,7 +143,7 @@ def names(xs: list[str]) -> str:
 
 CAPTION = (
     r"Drivers of cross-city differences in baseline heat mortality and in the cost per avoided death of each "
-    r"pathway. \textbf{a}, Shapley decomposition of the explained variance of log baseline (2020) "
+    r"option. \textbf{a}, Shapley decomposition of the explained variance of log baseline (2020) "
     r"heat-attributable mortality per 100\,000 across the <N> cities, regressed on the listed descriptors "
     r"($R^2=<R2>$; warm-season temperature alone, $R^2=<R2T>$). Each share is the descriptor's average "
     r"marginal contribution to $R^2$ over all orderings, so shares sum to 100\,\%; variance that descriptors "
@@ -189,7 +189,7 @@ def write_table(n: int, r2_all: float, r2_t: float, r_ac: float, ind: dict, grp:
           "\\bottomrule", "\\end{tabular}", "", "\\vspace{1em}", "",
           "\\begin{tabular}{lrrrr}",
           "\\multicolumn{5}{l}{\\textbf{b}\\quad Log present-value cost per avoided death} \\\\",
-          "\\toprule", "Pathway & SD of log & Cost per capita & Baseline heat mortality & Share of heat deaths avoided \\\\",
+          "\\toprule", "Option & SD of log & Cost per capita & Baseline heat mortality & Share of heat deaths avoided \\\\",
           "\\midrule"]
     for p, label in PATHWAYS.items():
         c = cost[p]

@@ -277,7 +277,7 @@ def cell(f: dict, player: str) -> str:
 
 
 CAPTION = (
-    r"Drivers of each pathway's cost per avoided death across cities. \textbf{a}, Regression of the cost "
+    r"Drivers of each option's cost per avoided death across cities. \textbf{a}, Regression of the cost "
     r"per avoided death on city characteristics. Each column is one "
     r"ordinary least-squares regression across cities of the log present-value cost per avoided death "
     r"(last column: log of the ratio of the tree to the AC cost per avoided death, negative where trees are "

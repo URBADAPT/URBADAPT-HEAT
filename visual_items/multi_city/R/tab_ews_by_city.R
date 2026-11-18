@@ -65,7 +65,7 @@ build_tab_ews <- function(cities = discover_cities()) {
     check.names = FALSE)
 
   save_table(out, "tab_ews_by_city",
-             caption = paste("Early-warning pathway by city. `Attribution' records",
+             caption = paste("Early-warning option by city. `Attribution' records",
                "which wording the city's run produced for the EWS row of",
                "\\texttt{policy\\_effectiveness}; all three carry the same central",
                "estimate as the city's \\texttt{EWS (central)} cost-effectiveness row.",

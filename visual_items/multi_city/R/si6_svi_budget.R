@@ -142,7 +142,7 @@ build_si6 <- function() {
              caption = paste(
                "Equal budgets for household AC and street trees, allocated to the most socially vulnerable",
                "units first (40 cities). Each row spends the same present-value budget per resident on each",
-               "pathway. Costs per death avoided are medians over the cities where the pathway avoids deaths;",
+               "option. Costs per death avoided are medians over the cities where the option avoids deaths;",
                "trees use the GVI 35 ceiling. Vulnerable deaths are those avoided over 25 years in the two",
                "most vulnerable population-weighted SVI quintiles, before the AC waste-heat penalty; the",
                "ratio is the median of the city ratios. SVI gain is the median change, in percentage points,",

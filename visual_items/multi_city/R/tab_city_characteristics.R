@@ -105,7 +105,7 @@ build_tab_city_characteristics <- function() {
     "every unit cost.",
     "\\emph{Coef. cov.} is the share of summer (May--September) Local Climate Zone",
     "months with a non-zero greening-cooling coefficient; it conditions every",
-    "tree-pathway result and should be read alongside any per-city greening number.",
+    "street-tree result and should be read alongside any per-city greening number.",
     "\\emph{Cooling coef.} is the greening cooling coefficient of Supplementary",
     "Table~\\ref{tab:ce_regression}: summer land-surface cooling (\\textdegree C) per",
     "Green View Index point added, averaged over the city's month- and",

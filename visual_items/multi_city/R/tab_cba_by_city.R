@@ -59,20 +59,22 @@ build_tab_cba <- function(cities = discover_cities()) {
     check.names = FALSE)
 
   save_table(out, "tab_cba_by_city",
-             caption = paste("Cost-benefit of adaptation pathways by city and",
+             caption = paste("Cost-benefit of adaptation options by city and",
                "climate cluster. Costs are total resource costs in present value,",
                "whoever pays them; for AC this is the full capital, maintenance",
                "and electricity expenditure. The public share is the part paid from",
                "public budgets: all of the cost of trees and EWS, and for AC the",
                "20\\,\\% capital subsidy.",
                "AC is reported net of its waste-heat feedback.",
-               "A blank cost per death marks a pathway avoiding fewer than",
+               "A blank cost per death marks an option avoiding fewer than",
                "0.5 deaths over the 25-year horizon. Per-capita costs divide by the",
                "population of the modelled area."),
              label = "tab:cba_by_city",
              longtable = TRUE, size = "\\footnotesize",
              align = c("l", "l", "l", "l", "r", "r", "r", "r", "r"),
-             digits = c(0, 0, 0, 0, 1, 0, 0, 0, 0))
+             digits = c(0, 0, 0, 0, 1, 0, 0, 0, 0),
+             # LaTeX header says "Option"; the CSV keeps "Pathway", which results_numbers.py reads.
+             colnames_tex = sub("^Pathway$", "Option", names(out)))
   message(sprintf("  %d rows, %d cities, pathways: %s", nrow(out),
                   length(unique(out$City)),
                   paste(names(table(out$Pathway)), table(out$Pathway),
