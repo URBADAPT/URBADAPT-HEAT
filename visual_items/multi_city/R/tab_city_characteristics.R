@@ -126,7 +126,9 @@ build_tab_city_characteristics <- function() {
              digits = c(0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 3, 1, 1, 1, 1, 2),
              align = c("l", "l", "l", "r", "l", "r", "r", "r", "r", "r", "r", "r",
                        "r", "r", "r", "r"),
-             longtable = TRUE, size = "\\scriptsize",
+             # Rows slightly tighter than default: with the two-line header the
+             # 40 rows otherwise push the closing rule onto a page of its own.
+             longtable = TRUE, size = "\\scriptsize\\renewcommand{\\arraystretch}{0.95}",
              # Two-line headers: with the price level and cooling coefficient the
              # one-line header row no longer fits the landscape page. save_table
              # escapes the % signs; the CSV keeps the one-line names.
