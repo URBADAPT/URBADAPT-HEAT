@@ -29,6 +29,8 @@ ZOOM_CITIES <- c("paris", "athens", "berlin", "budapest")   # left column: Paris
 MAP_CRS <- 3035
 GRID_YEAR <- 2020
 RATE_NAME <- "Heat deaths per 100,000 per year"
+# The band is drawn at 11.5 in wide and printed at about half that, so text is sized up.
+BAND_BASE <- 14
 
 # The zoom-ins show the city proper. The district layers of Paris and Berlin also hold
 # neighbouring units the OSM query picked up (Saint-Denis; 28 Brandenburg Ortsteile).
@@ -88,11 +90,11 @@ rate_grid <- function(city, dist, year = GRID_YEAR) {
 
 # One fill scale for cities and cells, so patchwork collects a single legend.
 rate_scale <- function(lim) {
-  scale_fill_viridis_c(option = "magma", direction = -1, trans = "log10", limits = lim,
+  scale_fill_viridis_c(option = "magma", direction = -1, begin = 0.15, trans = "log10", limits = lim,
                        oob = scales::squish, name = RATE_NAME,
                        labels = scales::label_number(accuracy = 1),
                        guide = guide_colourbar(direction = "horizontal", title.position = "top",
-                                               barwidth = unit(5.5, "cm"), barheight = unit(0.3, "cm")))
+                                               barwidth = unit(7.5, "cm"), barheight = unit(0.45, "cm")))
 }
 
 europe_panel <- function(pts, lim) {
@@ -102,12 +104,12 @@ europe_panel <- function(pts, lim) {
   ggplot() +
     geom_sf(data = land, fill = "grey92", color = "grey70", linewidth = 0.2) +
     geom_point(data = pts, aes(x, y, size = pop_k, fill = rate), shape = 21,
-               color = "white", stroke = 0.5) +
-    ggrepel::geom_text_repel(data = pts[pts$zoom, ], aes(x, y, label = city_label), size = 3,
+               color = "white", stroke = 0.6) +
+    ggrepel::geom_text_repel(data = pts[pts$zoom, ], aes(x, y, label = city_label), size = 4.4,
                              fontface = "bold", seed = 1, min.segment.length = 0,
                              box.padding = 0.5, segment.size = 0.3) +
     rate_scale(lim) +
-    scale_size_area(max_size = 6, name = "Population (thousands)",
+    scale_size_area(max_size = 8, name = "Population (thousands)",
                     breaks = c(500, 2000, 6000), labels = scales::comma,
                     # The keys sit on white: outline them, as the white rings would vanish.
                     guide = guide_legend(direction = "horizontal", title.position = "top",
@@ -117,7 +119,7 @@ europe_panel <- function(pts, lim) {
     labs(x = NULL, y = NULL) +
     # Same base size as the zoom-ins: patchwork merges the two colour bars only if
     # they are identical, text size included.
-    theme_void(base_size = 10) +
+    theme_void(base_size = BAND_BASE) +
     theme(
           plot.background = element_rect(fill = "white", color = NA),
           panel.background = element_rect(fill = "white", color = NA))
@@ -126,7 +128,7 @@ europe_panel <- function(pts, lim) {
 zoom_panel <- function(city, g, dist, lim, tag = NULL) {
   if (is.null(g)) {
     message(sprintf("  [warn] zoom %s left blank: no gridded heat-mortality file", city))
-    return(ggplot() + labs(tag = tag, title = city_label(city)) + theme_void(base_size = 10) +
+    return(ggplot() + labs(tag = tag, title = city_label(city)) + theme_void(base_size = BAND_BASE) +
              theme(plot.tag = element_text(face = "bold", size = rel(1.3)),
                    plot.title = element_text(size = rel(0.95), face = "bold", hjust = 0.5)))
   }
@@ -136,9 +138,19 @@ zoom_panel <- function(city, g, dist, lim, tag = NULL) {
     p <- p + geom_sf(data = dist, inherit.aes = FALSE, fill = NA, color = "white", linewidth = 0.2)
     bb <- sf::st_bbox(dist)[c("xmin", "xmax", "ymin", "ymax")]
   }
+  # 5 km scale bar in a strip added below the map (EPSG:3035 is in metres).
+  bb <- unname(bb)
+  h <- bb[4] - bb[3]
+  bb[3] <- bb[3] - 0.14 * h
+  x0 <- bb[1] + 0.04 * (bb[2] - bb[1]); y0 <- bb[3] + 0.06 * h
+  p <- p +
+    annotate("segment", x = x0, xend = x0 + 5000, y = y0, yend = y0,
+             linewidth = 1.1, colour = "grey15", lineend = "butt") +
+    annotate("text", x = x0 + 5000 + 0.015 * (bb[2] - bb[1]), y = y0, label = "5 km",
+             hjust = 0, vjust = 0.5, size = 4, colour = "grey15")
   p + coord_sf(crs = MAP_CRS, xlim = bb[1:2], ylim = bb[3:4], expand = FALSE, datum = NA) +
     labs(tag = tag, title = city_label(city), x = NULL, y = NULL) +
-    theme_void(base_size = 10) +
+    theme_void(base_size = BAND_BASE) +
     theme(plot.tag = element_text(face = "bold", size = rel(1.3)),
           plot.title = element_text(size = rel(0.95), face = "bold", hjust = 0.5),
           plot.background = element_rect(fill = "white", color = NA))

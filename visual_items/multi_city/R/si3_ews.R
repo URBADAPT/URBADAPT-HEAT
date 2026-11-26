@@ -42,7 +42,7 @@ build_si3 <- function(cities = discover_cities()) {
     ggplot(b, aes(year, med, color = climate_cluster, fill = climate_cluster)) +
       geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.16, color = NA) +
       geom_line(linewidth = 0.9) + geom_point(size = 1.8) +
-      scale_color_manual(values = CLUSTER_COLORS, name = "Climate cluster", drop = FALSE) +
+      scale_color_manual(values = CLUSTER_COLORS, name = "Climate class", drop = FALSE) +
       scale_fill_manual(values = CLUSTER_COLORS, guide = "none", drop = FALSE) +
       labs(tag = "a",
            x = NULL, y = "Warning days per season") +
@@ -88,7 +88,7 @@ build_si3 <- function(cities = discover_cities()) {
     b$scenario <- factor(b$scenario, levels = c("low", "central", "high"))
     ggplot(b, aes(year, med, color = climate_cluster, linetype = scenario)) +
       geom_line(linewidth = 0.85) +
-      scale_color_manual(values = CLUSTER_COLORS, name = "Climate cluster", drop = FALSE) +
+      scale_color_manual(values = CLUSTER_COLORS, name = "Climate class", drop = FALSE) +
       scale_linetype_manual(values = c(low = 3, central = 1, high = 2),
                             name = "Take-up") +
       labs(tag = "c",

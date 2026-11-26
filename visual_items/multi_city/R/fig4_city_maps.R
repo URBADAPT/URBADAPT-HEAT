@@ -244,17 +244,15 @@ build_fig4_maps <- function() {
     lbl <- sprintf("%s\n(%s)", city_label(city),
                    as.character(ex$climate_cluster[ex$city == city]))
     specs <- list(
-      list("pen", scale_fill_gradient(na.value = "grey88",
-             low = "#F7FBFF", high = "#08306B", limits = lim_pen,
+      list("pen", option_fill_gradient("AC", na.value = "grey88", limits = lim_pen,
              name = "Population with AC (%)",
              labels = scales::label_number(suffix = "%")), MAP_COLS[["pen"]]),
-      list("equity", scale_fill_gradient(na.value = "grey88",
-             low = "#FCFBFD", high = "#3F007D", limits = lim_eq,
+      list("equity", option_fill_gradient("AC", na.value = "grey88", limits = lim_eq,
              name = "AC coverage gained (pp)"), MAP_COLS[["equity"]]),
-      # Diverging, centred on no change: teal where the equity rule spends more
-      # per resident than the uniform rule, brown where it spends less.
+      # Diverging, centred on no change: blue where the equity rule spends more
+      # per resident than the uniform rule, red where it spends less.
       list("shift", scale_fill_gradient2(na.value = "grey88",
-             low = "#8C510A", mid = "#F5F5F5", high = "#01665E", midpoint = 0,
+             low = DIVERGING_RED, mid = DIVERGING_MID, high = DIVERGING_BLUE, midpoint = 0,
              limits = c(-m_shift, m_shift),
              name = "Income-targeted minus uniform
 (pp of city AC budget)",

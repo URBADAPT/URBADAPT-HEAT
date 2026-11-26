@@ -24,10 +24,16 @@ IF_LABELS <- c(masselot         = "Masselot (main)",
                masselot_tail    = "Masselot, tail-extended",
                burke_polynomial = "Burke, polynomial",
                burke_powerlaw   = "Burke, power law")
-IF_COLORS <- c("Masselot (main)"          = "#1565C0",
-               "Masselot, tail-extended"  = "#00838F",
-               "Burke, polynomial"        = "#E65100",
-               "Burke, power law"         = "#B71C1C")
+# Black and greys with line types: no hue, so nothing collides with the
+# option or climate-class colours.
+IF_COLORS <- c("Masselot (main)"          = "black",
+               "Masselot, tail-extended"  = "grey35",
+               "Burke, polynomial"        = "grey55",
+               "Burke, power law"         = "grey55")
+IF_LINETYPES <- c("Masselot (main)"         = "solid",
+                  "Masselot, tail-extended" = "dashed",
+                  "Burke, polynomial"       = "solid",
+                  "Burke, power law"        = "dotted")
 
 # Per-family baseline mortality, summed over the three age-group columns
 # (`<15`, `15-64`, `65+`) that these files carry instead of a total column.
@@ -65,12 +71,13 @@ build_si2 <- function(cities = discover_cities()) {
       dplyr::group_by(family, age_group, temperature_C) |>
       dplyr::summarise(med = median(mdd), lo = quantile(mdd, 0.25),
                        hi = quantile(mdd, 0.75), .groups = "drop")
-    ggplot(b, aes(temperature_C, med, color = family, fill = family)) +
-      geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.15, color = NA) +
+    ggplot(b, aes(temperature_C, med, color = family, fill = family, linetype = family)) +
+      geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.12, color = NA) +
       geom_line(linewidth = 0.85) +
       facet_wrap(~age_group, nrow = 1, scales = "free_y") +
       scale_y_continuous(labels = scales::label_scientific(digits = 1)) +
       scale_color_manual(values = IF_COLORS, name = "Exposure-response function") +
+      scale_linetype_manual(values = IF_LINETYPES, name = "Exposure-response function") +
       scale_fill_manual(values = IF_COLORS, guide = "none") +
       labs(tag = "a",
            x = "Daily mean temperature (°C)",

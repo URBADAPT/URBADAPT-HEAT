@@ -268,14 +268,35 @@ gather_cities <- function(cities, fun) {
 # ---- Theme & palette --------------------------------------------------------
 
 # Fixed pathway colours reused across every figure for a coherent look.
+# Okabe-Ito hues: the earlier #2E7D32 / #E65100 green-orange pair was nearly
+# indistinguishable under protanopia (OKLab dE 2.3); these pass every
+# colour-vision-deficiency and contrast check (worst pair dE 11.0, deutan).
 PATHWAY_COLORS <- c(
-  "Trees" = "#2E7D32",   # green  (public, hazard)
-  "AC"    = "#1565C0",   # blue   (private, exposure)
-  "EWS"   = "#E65100",   # orange (public, behaviour)
+  "Trees" = "#009E73",   # bluish green (public, hazard)
+  "AC"    = "#0072B2",   # blue         (private, exposure)
+  "EWS"   = "#D55E00",   # vermilion    (public, behaviour)
   "Baseline" = "#616161",
   "Portfolio" = "#6A1B9A"
 )
 BEARER_COLORS <- c("Public" = "#00695C", "Private" = "#C62828")
+# Diverging scales, paper-wide: red = less favourable or lower, blue = more
+# favourable or higher, light grey midpoint.
+DIVERGING_RED  <- "#C62828"
+DIVERGING_MID  <- "#F5F5F5"
+DIVERGING_BLUE <- "#1565C0"
+
+# Sequential scales, paper-wide: magma (light to dark, stopping before black)
+# for heat mortality and hazard (fig1_map_band.R); a quantity that belongs to
+# one option uses a light-to-dark ramp of that option's colour.
+option_ramp <- function(key) {
+  col <- PATHWAY_COLORS[[key]]
+  c(grDevices::colorRampPalette(c("white", col))(13)[2], col,
+    grDevices::colorRampPalette(c(col, "black"))(3)[2])
+}
+option_fill_gradient <- function(key, ...) scale_fill_gradientn(colours = option_ramp(key), ...)
+
+# Display names for legends, matching the manuscript's wording.
+PATHWAY_LABELS <- c("Trees" = "Street trees", "AC" = "AC", "EWS" = "HHEWS")
 
 # Canonicalise the many policy label variants to a short pathway key.
 pathway_key <- function(x) {
@@ -402,14 +423,19 @@ eur_log_scale <- function(name, ...) {
 
 # Shared cluster colour scale, so every panel legend is identical and the
 # collected patchwork guide stays a single entry.
-cluster_scale <- function(name = "Climate cluster") {
+cluster_scale <- function(name = "Climate class") {
   scale_color_manual(values = CLUSTER_COLORS, name = name, drop = FALSE,
                      guide = guide_legend(override.aes =
                        list(size = 3, alpha = 1, shape = 16, linetype = 0)))
 }
 
-# Climate-cluster palette (hot -> cool) and canonical ordering.
-CLUSTER_COLORS <- c("Hot" = "#C62828", "Temperate" = "#F9A825", "Cool" = "#1565C0")
+# Climate-class palette (hot -> cool) and canonical ordering. Crimson / mustard /
+# snow blue-grey: no hue shared with the option colours (closest pair mustard vs
+# HHEWS vermilion, dE 17.0, 12.3 under deuteranopia) and the three classes
+# separate under colour-vision deficiency (dE 16.8). Mustard and snow blue are
+# light (2.2:1 and 2.0:1 on white), so point and line marks need a dark outline.
+CLUSTER_COLORS <- c("Hot" = "#9E1B32", "Temperate" = "#D1A834", "Cool" = "#A7BACB")
+CLUSTER_OUTLINE <- "grey25"
 CLUSTER_LEVELS <- c("Hot", "Temperate", "Cool")
 
 # Load the cached city metadata (climate metrics + clusters). Run 00_city_meta.R

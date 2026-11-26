@@ -53,6 +53,11 @@ if (!exists("PROFILE_FEATURES")) {
   if (!.had_norun) rm(.MULTICITY_NORUN)
 }
 
+# The figure is drawn at 11.5 x 15 in and printed at about half that width, so
+# text and marks are sized up accordingly: base 15 pt prints at about 7.5 pt for
+# axis titles and 6 pt for tick labels.
+FIG1_BASE <- 15
+
 build_fig1 <- function(cities = discover_cities()) {
   banner("Main Fig 1: risk, cost-effectiveness and portfolios")
   arch <- load_city_profiles()
@@ -72,22 +77,27 @@ build_fig1 <- function(cities = discover_cities()) {
   pa <- ggplot(arch, aes(warmseason_mean_t2m, mort_100k)) +
     { if (nrow(fit) >= 3)
         geom_smooth(data = fit, method = "lm", se = TRUE, color = "grey45",
-                    fill = "grey85", linewidth = 0.7, formula = y ~ x) } +
-    geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
-    scale_size_continuous(range = c(1.6, 6), guide = "none") +
+                    fill = "grey88", linewidth = 1.0, formula = y ~ x) } +
+    # Filled circles with a dark rim: the cool-class snow blue is too light to
+    # read on white without one.
+    geom_point(aes(fill = climate_cluster, size = pop_k), shape = 21,
+               colour = CLUSTER_OUTLINE, stroke = 0.35, alpha = 0.9) +
+    # Same size scale as the map in panel a (area-proportional, largest city at
+    # size 8, same 40 populations), so its "Population" legend serves both.
+    scale_size_area(max_size = 8, guide = "none") +
     scale_y_log10(labels = scales::label_number(accuracy = 0.1, drop0trailing = TRUE)) +
-    annotation_logticks(sides = "l", linewidth = 0.3, colour = "grey70",
-                        short = unit(0.05, "cm"), mid = unit(0.1, "cm"),
-                        long = unit(0.15, "cm")) +
-    cluster_scale() +
+    annotation_logticks(sides = "l", linewidth = 0.4, colour = "grey70",
+                        short = unit(0.07, "cm"), mid = unit(0.14, "cm"),
+                        long = unit(0.2, "cm")) +
+    scale_fill_manual(values = CLUSTER_COLORS, name = "Climate class", drop = FALSE) +
     # The fitted slope stays inside the panel rather than in a subtitle: it is a
     # statistic OF this panel, and in the caption it would silently go stale the
     # next time the figure is rebuilt on new data.
     # annotate("text", x = -Inf, y = Inf, hjust = -0.08, vjust = 1.6, size = 3,
     #          color = "grey25", label = lab) +
-    labs(tag = "b", x = "Warm-season mean T2M (°C)",
-         y = "Heat deaths / 100k / yr (log)") +
-    theme_multicity() +
+    labs(tag = "b", x = "Warm-season mean air temperature (°C)",
+         y = "Heat deaths per 100,000 per year") +
+    theme_multicity(base_size = FIG1_BASE) +
     # b and d share the climate legend, c and e the pathway legend. They cannot
     # be merged by guides="collect" -- b draws box glyphs where d draws lines, so
     # patchwork keeps them as four distinct guides and they overflow the width.
@@ -139,10 +149,10 @@ build_fig1 <- function(cities = discover_cities()) {
     ggplot(d, aes(climate_cluster, cost_per_death, color = pathway, fill = pathway)) +
       geom_boxplot(outlier.shape = NA, width = 0.7, alpha = 0.18,
                    position = position_dodge(width = 0.78),
-                   linewidth = 0.45) +
+                   linewidth = 0.65) +
       geom_point(position = position_jitterdodge(dodge.width = 0.78,
                                                  jitter.width = 0.16, seed = 1),
-                 size = 1.5, alpha = 0.7) +
+                 size = 2.2, alpha = 0.7) +
       # geom_text(data = med, inherit.aes = FALSE,
       #           aes(x = -Inf, y = Inf, label = lab, color = pathway, vjust = vj),
       #           hjust = -0.12, size = 2.5, show.legend = FALSE) +
@@ -151,13 +161,13 @@ build_fig1 <- function(cities = discover_cities()) {
       #            fill = "white", linewidth = 0,
       #            label.padding = unit(0.6, "pt"), label.r = unit(0, "pt"),
       #            size = 2, show.legend = FALSE) +
-      scale_color_manual(values = PATHWAY_COLORS, name = "Adapt. policy") +
+      scale_color_manual(values = PATHWAY_COLORS, labels = PATHWAY_LABELS, name = "Option") +
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
-      eur_log_scale("Cost per death avoided (€, log)") +
+      eur_log_scale("Cost per avoided death (€)") +
       coord_cartesian(clip = "off") +
       labs(tag = "c",
            x = "Climate class") +
-      theme_multicity() +
+      theme_multicity(base_size = FIG1_BASE) +
       theme(legend.position = "none")
   } else patchwork::plot_spacer()
 
@@ -246,19 +256,46 @@ build_fig1 <- function(cities = discover_cities()) {
       if (nrow(d) < 3) return(NA_real_)
       unname(coef(lm(log(share) ~ log(spent_cap), data = d))[2])
     }, numeric(1))
+    # Class trend: a LOESS through all of a class's city points on the log-log
+    # axes, drawn between the 5th and 95th percentiles of the class's spend.
+    # A pointwise median across cities does not work here: each city is observed
+    # only over its own per-capita window, so the set of cities behind a median
+    # changes along the axis and the line jumps.
+    medl <- do.call(rbind, lapply(split(fr, fr$climate_cluster, drop = TRUE), function(d) {
+      if (dplyr::n_distinct(d$city) < 3) return(NULL)
+      d$lx <- log10(d$spent_cap); d$ly <- log10(d$share)
+      fit <- stats::loess(ly ~ lx, data = d, span = 1)
+      q <- stats::quantile(d$lx, c(0.05, 0.95), names = FALSE)
+      lx <- seq(q[1], q[2], length.out = 60)
+      data.frame(climate_cluster = d$climate_cluster[1], x = 10^lx,
+                 y = 10^stats::predict(fit, newdata = data.frame(lx = lx)))
+    }))
     ggplot(fr, aes(spent_cap, share, group = city)) +
-      geom_line(aes(color = climate_cluster), linewidth = 0.55, alpha = 0.6) +
-      geom_point(aes(color = climate_cluster), size = 0.9, alpha = 0.55) +
+      geom_line(aes(color = climate_cluster), linewidth = 0.45, alpha = 0.45) +
+      # Invisible layer that gives the colour legend its point keys.
+      geom_point(aes(color = climate_cluster), alpha = 0) +
       # Filled endpoint where the portfolio maxes out inside the grid, so a
       # curve that has stopped can be told from one merely truncated by it.
-      geom_point(data = ends[ends$saturates, ], aes(color = climate_cluster),
-                 size = 1.9, shape = 16) +
-      cluster_scale() +
+      geom_point(data = ends[ends$saturates, ], aes(fill = climate_cluster),
+                 shape = 21, size = 2.2, stroke = 0.3, colour = CLUSTER_OUTLINE,
+                 alpha = 0.7, show.legend = FALSE) +
+      # Class trends: a dark casing under the class colour keeps the light
+      # cool-class line visible on white.
+      geom_line(data = medl, aes(x, y, group = climate_cluster),
+                inherit.aes = FALSE, colour = CLUSTER_OUTLINE, linewidth = 2.3,
+                lineend = "round") +
+      geom_line(data = medl, aes(x, y, color = climate_cluster, group = climate_cluster),
+                inherit.aes = FALSE, linewidth = 1.5, lineend = "round") +
+      scale_color_manual(values = CLUSTER_COLORS, name = "Climate class", drop = FALSE,
+                         guide = guide_legend(override.aes = list(
+                           shape = 21, size = 4, fill = unname(CLUSTER_COLORS),
+                           colour = CLUSTER_OUTLINE, linetype = 0, alpha = 1, stroke = 0.35))) +
+      scale_fill_manual(values = CLUSTER_COLORS, guide = "none") +
       scale_x_log10(labels = scales::label_number(prefix = "€", big.mark = ",")) +
       scale_y_log10(labels = scales::label_number(suffix = "%")) +
-      labs(tag = "d", x = "Present-value cost spent per capita (log)",
-           y = "% of 25y baseline heat deaths avoided (log)") +
-      theme_multicity()
+      labs(tag = "d", x = "Present-value cost spent per capita",
+           y = "Share of 25-year baseline\nheat-attributable deaths avoided") +
+      theme_multicity(base_size = FIG1_BASE)
   } else patchwork::plot_spacer()
 
   # --- (e) deployment as the per-capita budget rises (was fig3c) ------------
@@ -268,20 +305,34 @@ build_fig1 <- function(cities = discover_cities()) {
     lc$pathway <- factor(dplyr::recode(lc$lever, max_ben_trees = "Trees",
                                        max_ben_ac = "AC", max_ben_ews = "EWS"),
                          levels = PATHWAY_LEVELS)
+    # LOESS on log10(budget), as geom_smooth fits it on the log scale, with the
+    # same span and 95% t-interval, but computed here so the curve and band can
+    # be clamped to the possible 0-100% range: a share deployed cannot leave it.
+    xs <- 10^seq(log10(min(lc$budget_cap)), log10(max(lc$budget_cap)), length.out = 200)
+    sm <- do.call(rbind, lapply(split(lc, lc$pathway, drop = TRUE), function(d) {
+      d$lx <- log10(d$budget_cap); d$y <- 100 * d$frac
+      fit <- stats::loess(y ~ lx, data = d, span = 0.9)
+      pr <- stats::predict(fit, newdata = data.frame(lx = log10(xs)), se = TRUE)
+      tq <- stats::qt(0.975, pr$df)
+      clamp <- function(v) pmin(pmax(v, 0), 100)
+      data.frame(pathway = d$pathway[1], budget_cap = xs, y = clamp(pr$fit),
+                 lo = clamp(pr$fit - tq * pr$se.fit), hi = clamp(pr$fit + tq * pr$se.fit))
+    }))
+    sm$pathway <- factor(sm$pathway, levels = PATHWAY_LEVELS)
     ggplot(lc, aes(budget_cap, 100 * frac, color = pathway, fill = pathway)) +
-      geom_smooth(method = "loess", formula = y ~ x, span = 0.9,
-                  linewidth = 0.9, alpha = 0.15) +
-      geom_point(size = 0.6, alpha = 0.22) +
-      scale_color_manual(values = PATHWAY_COLORS, name = "Adapt. policy") +
+      geom_point(size = 0.9, alpha = 0.22) +
+      geom_ribbon(data = sm, aes(budget_cap, ymin = lo, ymax = hi, fill = pathway),
+                  inherit.aes = FALSE, alpha = 0.15) +
+      geom_line(data = sm, aes(budget_cap, y, color = pathway), inherit.aes = FALSE,
+                linewidth = 1.3) +
+      scale_color_manual(values = PATHWAY_COLORS, labels = PATHWAY_LABELS, name = "Option") +
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
       scale_x_log10(labels = scales::label_number(prefix = "€", big.mark = ",")) +
-      # Clip at draw time: a scale limit would drop the loess ribbon's
-      # out-of-range rows rather than just not showing them.
       coord_cartesian(ylim = c(0, 100)) +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
       labs(tag = "e",
-           x = "Budget available per capita (log)", y = "Adaptation measure deployment") +
-      theme_multicity() +
+           x = "Budget available per capita", y = "Adaptation measure deployment") +
+      theme_multicity(base_size = FIG1_BASE) +
       theme(legend.position = "bottom")
   } else patchwork::plot_spacer()
 

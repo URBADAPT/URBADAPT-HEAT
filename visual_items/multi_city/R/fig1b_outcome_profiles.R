@@ -100,7 +100,7 @@ build_fig1b <- function(cities = discover_cities()) {
     geom_point(data = ~ dplyr::filter(.x, is.na(z)), shape = 4, size = 1.2,
                stroke = 0.4, colour = "grey45", show.legend = FALSE) +
     facet_grid(cols = vars(group), scales = "free_x", space = "free_x") +
-    scale_fill_gradient2(low = "#1565C0", mid = "grey96", high = "#C62828",
+    scale_fill_gradient2(low = DIVERGING_BLUE, mid = DIVERGING_MID, high = DIVERGING_RED,
                          midpoint = 0, limits = Z_LIMITS,
                          oob = scales::squish, na.value = "white",
                          name = "Oriented z-score",

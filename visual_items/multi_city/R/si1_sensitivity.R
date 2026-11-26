@@ -54,7 +54,7 @@ build_si1 <- function(cities = discover_cities()) {
     ggplot(b, aes(discount_rate, med, color = pathway, fill = pathway)) +
       geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.16, color = NA) +
       geom_line(linewidth = 0.9) + geom_point(size = 1.5) +
-      scale_color_manual(values = PATHWAY_COLORS, name = "Lever") +
+      scale_color_manual(values = PATHWAY_COLORS, labels = PATHWAY_LABELS, name = "Option") +
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
       scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
       eur_log_scale("Cost per death avoided (€, log)") +
