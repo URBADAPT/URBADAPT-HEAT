@@ -147,17 +147,26 @@ build_fig1b <- function(cities = discover_cities()) {
 
   # Climate class: an external descriptor, drawn in the shared class palette
   # between the city names and the heatmap, with its own legend.
+  # The header is drawn as an annotation just above the first row, on the same
+  # baseline as the rotated column headers of the heatmap: as an axis label it
+  # was pushed up to the group-title level by the patchwork alignment.
+  n_rows <- nlevels(arch$city_f)
   b2 <- ggplot(arch, aes(x = "Climate class", y = city_f, fill = climate_cluster)) +
     geom_tile(color = "white", linewidth = 0.25) +
+    annotate("text", x = 1, y = n_rows + 1.1, label = "Climate class", angle = 45,
+             hjust = 0, vjust = 0, size = 11 * 0.8 * 0.85 / ggplot2::.pt,
+             colour = "grey30") +
     scale_fill_manual(values = CLUSTER_COLORS, na.value = "grey90", drop = FALSE,
                       name = "Climate class",
                       guide = guide_legend(title.position = "top", nrow = 1)) +
     scale_x_discrete(position = "top") +
+    # Fixed to the heatmap's own range (discrete default: 0.6 of a row beyond
+    # the first and last), so the label outside it cannot shift the rows.
+    coord_cartesian(ylim = c(0.4, n_rows + 0.6), expand = FALSE, clip = "off") +
     labs(x = NULL, y = NULL) +
     theme_multicity() +
     theme(axis.text.y = element_text(size = rel(0.85)),
-          axis.text.x.top = element_text(size = rel(0.85), angle = 45,
-                                         hjust = 0, vjust = 0),
+          axis.text.x.top = element_blank(),
           panel.grid = element_blank(),
           legend.position = "bottom")
 
