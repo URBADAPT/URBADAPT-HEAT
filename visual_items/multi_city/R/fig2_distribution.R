@@ -62,6 +62,19 @@ equity_efficiency <- function(city) {
     share_top2_income  = 100 * sum(d$avoided_income_vs_base[top],  na.rm = TRUE) / tot_i)
 }
 
+# Drawn at 13 x 8.8 in and printed at about half that width, so text and marks
+# are sized up as in Fig. 1: base 15 pt prints at about 7.5 pt (axis titles)
+# and 6 pt (tick labels).
+FIG3_BASE <- 15
+
+# Climate-class points: class fill with a dark rim, since mustard and snow
+# blue are too light to read on white without one.
+class_points <- function() list(
+  geom_point(aes(fill = climate_cluster), shape = 21, colour = CLUSTER_OUTLINE,
+             stroke = 0.35, size = 3.8, alpha = 0.9),
+  scale_fill_manual(values = CLUSTER_COLORS, name = "Climate class", drop = FALSE,
+                    guide = guide_legend(override.aes = list(size = 4.5))))
+
 build_fig2 <- function(cities = discover_cities()) {
   banner("Main Fig 2: public vs private costs and distributional justice")
   meta <- load_city_meta()
@@ -76,29 +89,47 @@ build_fig2 <- function(cities = discover_cities()) {
   # (verified: the implied rate is exactly 0.20 in all 40). What does vary, and
   # what a household actually faces, is where the money goes: purchase,
   # maintenance, electricity. So AC is broken out by component instead.
-  COST_COMPONENTS <- c("Private", "AC: electricity", "AC: maintenance",
-                       "AC: capital", "Public")
-  COST_COLORS <- c("Public"          = "#00695C",
-                   "Private"         = "#C62828",
-                   "AC: capital"     = "#0D47A1",
-                   "AC: maintenance" = "#1976D2",
-                   "AC: electricity" = "#90CAF9")
+  # Each bar in its option colour: public costs solid, private costs in tints of
+  # the same colour. Street trees and HHEWS are wholly public; AC shows its public
+  # subsidy (exactly 20% of the capital cost in all 40 cities) as a solid segment
+  # and the private capital, maintenance and electricity as three tints. The
+  # tints cannot all sit dE >= 15 apart (closest pair 13.3), so segments are
+  # separated by white gaps, outlined in the option colour and labelled directly
+  # on the largest AC bar.
+  tint <- function(hex, s) {
+    v <- grDevices::col2rgb(hex)[, 1]
+    grDevices::rgb(t(round(v * s + 255 * (1 - s))), maxColorValue = 255)
+  }
+  ac_col <- PATHWAY_COLORS[["AC"]]
+  COST_COMPONENTS <- c("AC electricity (private)", "AC maintenance (private)",
+                       "AC capital (private)", "AC subsidy (public)",
+                       "Street trees (public)", "HHEWS (public)")
+  COST_COLORS <- c("Street trees (public)"    = PATHWAY_COLORS[["Trees"]],
+                   "HHEWS (public)"           = PATHWAY_COLORS[["EWS"]],
+                   "AC subsidy (public)"      = ac_col,
+                   "AC capital (private)"     = tint(ac_col, 0.68),
+                   "AC maintenance (private)" = tint(ac_col, 0.38),
+                   "AC electricity (private)" = tint(ac_col, 0.12))
+  COST_LEGEND <- c("Street trees (public)", "HHEWS (public)", "AC subsidy (public)",
+                   "AC capital (private)", "AC maintenance (private)",
+                   "AC electricity (private)")
 
   costs <- gather_cities(cities, function(c) {
     pp <- read_city_csv(c, sprintf("%s_public_private_costs.csv", c))
     j  <- read_city_json(c, sprintf("%s_cba_summary.json", c), quiet = TRUE)
     if (is.null(pp) || is.null(j)) return(NULL)
     pp$pathway <- pathway_key(pp$policy)
-    pub <- pp[pp$pathway %in% c("Trees", "EWS"),
-              c("pathway", "public_pv", "private_pv"), drop = FALSE]
-    pub <- tidyr::pivot_longer(pub, c("public_pv", "private_pv"),
-                               names_to = "component", values_to = "pv")
-    pub$component <- ifelse(pub$component == "public_pv", "Public", "Private")
+    pub <- pp[pp$pathway %in% c("Trees", "EWS"), c("pathway", "public_pv"), drop = FALSE]
+    pub <- data.frame(pathway = pub$pathway, pv = pub$public_pv,
+                      component = ifelse(pub$pathway == "Trees", "Street trees (public)",
+                                         "HHEWS (public)"), stringsAsFactors = FALSE)
+    sub <- n1(pp$public_pv[pp$pathway == "AC"])
+    capex <- n1(j$costs$ac$pv_capex)
     ac <- data.frame(
       pathway   = "AC",
-      component = c("AC: capital", "AC: maintenance", "AC: electricity"),
-      pv = c(n1(j$costs$ac$pv_capex), n1(j$costs$ac$pv_maint),
-             n1(j$costs$ac$pv_elec)),
+      component = c("AC subsidy (public)", "AC capital (private)",
+                    "AC maintenance (private)", "AC electricity (private)"),
+      pv = c(sub, capex - sub, n1(j$costs$ac$pv_maint), n1(j$costs$ac$pv_elec)),
       stringsAsFactors = FALSE)
     dplyr::bind_rows(pub, ac)
   })
@@ -122,24 +153,30 @@ build_fig2 <- function(cities = discover_cities()) {
     # Level order sets the stack: the first level is drawn on top, so capital
     # sits at the base of the AC bar and Public at the base of the others.
     agg$component <- factor(agg$component, levels = COST_COMPONENTS)
-    present <- levels(droplevels(agg$component))
     tot <- agg |> dplyr::group_by(climate_cluster, pathway) |>
       dplyr::summarise(t = sum(eur_cap), .groups = "drop")
     ggplot(agg, aes(pathway, eur_cap, fill = component)) +
-      geom_col(width = 0.7) +
-      # EWS costs ~1 EUR/capita against AC's several hundred, so its bar is
-      # invisible next to them; the value label is what makes it readable.
+      # White borders give the stacked segments a gap; the outline layer below
+      # rings each whole bar in its option colour so the palest tint stays visible.
+      geom_col(width = 0.7, colour = "white", linewidth = 0.6) +
+      geom_col(data = tot, inherit.aes = FALSE, aes(pathway, t, colour = pathway),
+               width = 0.7, fill = NA, linewidth = 0.5, show.legend = FALSE) +
+      # EWS costs ~10 EUR/capita against AC's several hundred, so its bar is
+      # barely visible next to them; the value label is what makes it readable.
       geom_text(data = tot, inherit.aes = FALSE,
                 aes(pathway, t, label = paste0("€", round(t))),
-                vjust = -0.45, size = 2.9, color = "grey25") +
+                vjust = -0.45, size = 4, color = "grey25") +
       facet_wrap(~climate_cluster, nrow = 1, drop = FALSE) +
-      scale_fill_manual(values = COST_COLORS, name = "Cost component",
-                        breaks = intersect(c("Public", "Private", "AC: capital",
-                                             "AC: maintenance", "AC: electricity"),
-                                           present)) +
+      # Payer is carried by solid vs tint (explained in the caption), so the
+      # legend names only the option and the AC cost component.
+      scale_fill_manual(values = COST_COLORS, breaks = COST_LEGEND, name = NULL,
+                        labels = function(x) sub(" \\((public|private)\\)$", "", x),
+                        guide = guide_legend(nrow = 2, byrow = TRUE)) +
+      scale_colour_manual(values = PATHWAY_COLORS, guide = "none") +
+      scale_x_discrete(labels = PATHWAY_LABELS) +
       scale_y_continuous(expand = expansion(mult = c(0, 0.14))) +
       labs(tag = "a", x = NULL, y = "Present-value cost per capita (€)") +
-      theme_multicity()
+      theme_multicity(base_size = FIG3_BASE)
   } else patchwork::plot_spacer()
 
   # --- (b) equity vs efficiency of targeting AC support ----------------------
@@ -157,22 +194,22 @@ build_fig2 <- function(cities = discover_cities()) {
     ggplot(eq, aes(eff_change, equity_gain)) +
       geom_vline(xintercept = 0, linetype = 2, color = "grey60") +
       geom_hline(yintercept = 0, linetype = 2, color = "grey60") +
-      geom_point(aes(color = climate_cluster), size = 2.8, alpha = 0.85) +
-      cluster_scale() +
+      class_points() +
       # Room below zero for the two lower quadrants (one city sits just below the line).
-      expand_limits(y = -6) +
-      annotate("text", x = Inf, y = Inf, hjust = 1.02, vjust = 1.3, size = 2.7, lineheight = 0.9,
-               color = "grey35", label = q_lab(TRUE, TRUE)) +
-      annotate("text", x = -Inf, y = Inf, hjust = -0.02, vjust = 1.3, size = 2.7, lineheight = 0.9,
-               color = "grey35", label = q_lab(TRUE, FALSE)) +
-      annotate("text", x = Inf, y = -Inf, hjust = 1.02, vjust = -0.35, size = 2.7, lineheight = 0.9,
-               color = "grey35", label = q_lab(FALSE, TRUE)) +
-      annotate("text", x = -Inf, y = -Inf, hjust = -0.02, vjust = -0.35, size = 2.7, lineheight = 0.9,
-               color = "grey35", label = q_lab(FALSE, FALSE)) +
+      # Headroom above the data so the upper quadrant labels sit clear of points.
+      expand_limits(y = c(-6, 44)) +
+      annotate("text", x = Inf, y = Inf, hjust = 1.02, vjust = 1.3, size = 3.8, lineheight = 0.9,
+               color = "grey40", fontface = "italic", label = q_lab(TRUE, TRUE)) +
+      annotate("text", x = -Inf, y = Inf, hjust = -0.02, vjust = 1.3, size = 3.8, lineheight = 0.9,
+               color = "grey40", fontface = "italic", label = q_lab(TRUE, FALSE)) +
+      annotate("text", x = Inf, y = -Inf, hjust = 1.02, vjust = -0.35, size = 3.8, lineheight = 0.9,
+               color = "grey40", fontface = "italic", label = q_lab(FALSE, TRUE)) +
+      annotate("text", x = -Inf, y = -Inf, hjust = -0.02, vjust = -0.35, size = 3.8, lineheight = 0.9,
+               color = "grey40", fontface = "italic", label = q_lab(FALSE, FALSE)) +
       labs(tag = "b",
            x = "Change in deaths avoided under targeting (% of uniform)",
            y = "Benefit shifted to most\nvulnerable quintiles (pp)") +
-      theme_multicity()
+      theme_multicity(base_size = FIG3_BASE)
   } else blank_panel("b", paste("no city has deaths_by_vulnerability_quintile_",
                                 "popweighted_<city>.csv (interim/)", sep = ""))
 
@@ -193,16 +230,15 @@ build_fig2 <- function(cities = discover_cities()) {
       geom_abline(slope = 1, intercept = 0, linetype = 2, color = "grey60") +
       geom_hline(yintercept = 0, linewidth = 0.3, color = "grey75") +
       geom_vline(xintercept = 0, linewidth = 0.3, color = "grey75") +
-      geom_point(aes(color = climate_cluster), size = 2.8, alpha = 0.85) +
-      cluster_scale() +
+      class_points() +
       # Equal limits rather than coord_equal(): a fixed aspect ratio makes
       # patchwork shrink this panel's width until its title is clipped. The
       # dashed line is still exactly y = x.
       coord_cartesian(xlim = lim, ylim = lim) +
       labs(tag = "c",
-           x = "Added street greenery per unit SVI (uniform catch-up)",
-           y = "Added street greenery per unit SVI\n(vulnerability weighting)") +
-      theme_multicity()
+           x = "Uniform catch-up (GVI points per unit SVI)",
+           y = "Vulnerability weighting\n(GVI points per unit SVI)") +
+      theme_multicity(base_size = FIG3_BASE)
   } else patchwork::plot_spacer()
 
   # Caption numbers (panel titles/subtitles removed -- caption-only style), printed
