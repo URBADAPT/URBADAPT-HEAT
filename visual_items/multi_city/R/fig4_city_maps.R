@@ -47,7 +47,8 @@ MAP_COLS <- c(pen    = "Current AC penetration",
               equity = "Income-targeted roll-out",
               shift  = "AC budget redistribution")
 
-MAP_BORDER <- "black"
+# Dark-grey hairlines: legible on the light fills without dominating the dark ones.
+MAP_BORDER <- "grey30"
 
 # ---- per-city district table -------------------------------------------------
 
@@ -208,12 +209,16 @@ build_fig4_maps <- function() {
   # symmetric about zero, so the diverging midpoint is the no-change case
   m_shift <- max(abs(all_d$shift), na.rm = TRUE)
 
-  map_theme <- function() theme_void(base_size = 11) +
+  # Included at 55% scale in the manuscript, so text is sized up: base 15 pt
+  # prints legend labels at about 6 pt and column titles at about 7.5 pt.
+  map_theme <- function() theme_void(base_size = 15) +
     theme(legend.position = "bottom",
-          legend.key.height = unit(0.28, "cm"),
-          legend.key.width  = unit(0.9, "cm"),
-          legend.title = element_text(size = rel(0.72)),
-          legend.text  = element_text(size = rel(0.62)),
+          legend.key.height = unit(0.4, "cm"),
+          legend.key.width  = unit(1.1, "cm"),
+          # Titles above the bars keep the three collected legends within the width.
+          legend.title.position = "top",
+          legend.title = element_text(size = rel(0.8)),
+          legend.text  = element_text(size = rel(0.72)),
           # the header carries its own bottom margin and the panel a top margin,
           # so a tall city's polygons cannot run into the column label
           plot.title   = element_text(face = "bold", size = rel(0.92), hjust = 0.5,
@@ -223,7 +228,7 @@ build_fig4_maps <- function() {
 
   one_map <- function(x, var, fill_scale, tag, title = NULL, row_label = NULL) {
     g <- ggplot(x) +
-      geom_sf(aes(fill = .data[[var]]), colour = MAP_BORDER, linewidth = 0.15) +
+      geom_sf(aes(fill = .data[[var]]), colour = MAP_BORDER, linewidth = 0.1) +
       fill_scale +
       coord_sf(datum = NA, expand = TRUE) +
       labs(tag = tag, title = title) +
@@ -269,7 +274,8 @@ build_fig4_maps <- function() {
 
   fig <- patchwork::wrap_plots(panels, ncol = length(MAP_COLS), byrow = TRUE) +
     patchwork::plot_layout(guides = "collect") &
-    theme(legend.position = "bottom")
+    # Extra horizontal space between the three collected legends.
+    theme(legend.position = "bottom", legend.spacing.x = unit(1.6, "cm"))
   save_item(fig, "fig4_city_maps", width = 11, height = 11)
 
   message(sprintf(paste0("  [caption] AC penetration %.0f-%.0f%%; equity roll-out ",
