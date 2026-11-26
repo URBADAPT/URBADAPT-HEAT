@@ -26,6 +26,27 @@ if (!exists("REPO_ROOT")) {
   source(file.path(.d, "_helpers.R"))
 }
 
+# Drawn at 11 x 9.5 in (a on top, b and c below) and printed at about 63% of
+# that: base 14 pt prints axis titles at about 8.5 pt and ticks at about 7 pt.
+FIG5_BASE <- 14
+LABEL_SIZE <- 3.9   # city labels, about 7 pt in print
+
+# Climate-class points at one uniform size: class fill with a dark rim, since
+# mustard and snow blue are too light to read on white without one.
+class_points <- function() list(
+  geom_point(aes(fill = climate_cluster), shape = 21, colour = CLUSTER_OUTLINE,
+             stroke = 0.3, size = 3.7, alpha = 0.9),
+  scale_fill_manual(values = CLUSTER_COLORS, name = "Climate class", drop = FALSE,
+                    guide = guide_legend(override.aes = list(size = 5))))
+
+# All of a panel's cities, labelled only where chosen: ggrepel steers labels
+# away from every point it is given, so the unlabelled cities go in with a
+# blank label rather than being left out.
+label_all <- function(d, top) {
+  d$city_label <- ifelse(d$city %in% top$city, d$city_label, "")
+  d
+}
+
 build_fig3 <- function(cities = discover_cities()) {
   banner("Main Fig 3: synergies and trade-offs between the levers")
   meta <- load_city_meta()
@@ -62,16 +83,14 @@ build_fig3 <- function(cities = discover_cities()) {
     top <- top[!duplicated(top$city), , drop = FALSE]
     ggplot(a_dat, aes(warmseason_mean_t2m, penalty_pct)) +
       geom_smooth(method = "lm", formula = y ~ x, se = TRUE,
-                  color = "grey45", fill = "grey85", linewidth = 0.7) +
-      geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
-      repel_city(top) +
-      scale_size_continuous(range = c(1.6, 6), guide = "none") +
-      cluster_scale() +
+                  color = "grey45", fill = "grey88", linewidth = 0.8) +
+      class_points() +
+      repel_city(label_all(a_dat, top), size = LABEL_SIZE, point.size = 3.7) +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
       labs(tag = "a",
-           x = "Warm-season mean T2M (°C)",
+           x = "Warm-season mean air temperature (°C)",
            y = "Gross AC benefit taken back\nby its own waste heat") +
-      theme_multicity()
+      theme_multicity(base_size = FIG5_BASE)
   } else patchwork::plot_spacer()
 
   # --- (b) how much of that greening repairs ---------------------------------
@@ -94,15 +113,13 @@ build_fig3 <- function(cities = discover_cities()) {
     top <- standouts(b_pool, "penalty_removed_pct", 3, 2)
     ggplot(b_dat, aes(warmseason_mean_t2m, penalty_removed_pct)) +
       geom_hline(yintercept = med, linetype = 2, color = "grey55") +
-      geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
-      repel_city(top) +
-      scale_size_continuous(range = c(1.6, 6), guide = "none") +
-      cluster_scale() +
+      class_points() +
+      repel_city(label_all(b_dat, top), size = LABEL_SIZE, point.size = 3.7) +
       scale_y_continuous(labels = scales::label_number(suffix = "%")) +
       labs(tag = "b",
-           x = "Warm-season mean T2M (°C)",
+           x = "Warm-season mean air temperature (°C)",
            y = "AC waste-heat penalty\ncancelled by greening") +
-      theme_multicity()
+      theme_multicity(base_size = FIG5_BASE)
   } else patchwork::plot_spacer()
 
   # --- (c) does AC's waste heat outweigh the whole greening programme? -------
@@ -151,8 +168,9 @@ build_fig3 <- function(cities = discover_cities()) {
     yr <- 10^(log10(yr) + c(-0.05, 0.05) * diff(log10(yr)))
     ref_lab <- do.call(rbind, lapply(names(ratios), function(nm) {
       r <- ratios[[nm]]
-      # Step back along the line from where it leaves the panel, so the label stays inside.
-      x <- min(xr[2], yr[2] / r) / 10^(0.06 * diff(log10(xr)))
+      # Near the lower end of the line, where it enters the panel, on its empty upper-left side:
+      # at the upper end the label sat on the largest cities' points.
+      x <- max(xr[1], yr[1] / r) * 10^(0.12 * diff(log10(xr)))
       data.frame(label = nm, x = x, y = r * x)
     }))
     ref_lab <- ref_lab[ref_lab$y >= yr[1] & ref_lab$x >= xr[1], , drop = FALSE]
@@ -160,19 +178,16 @@ build_fig3 <- function(cities = discover_cities()) {
       lapply(ratios, function(r) geom_abline(slope = 1, intercept = log10(r), linetype = 2,
                                              color = "grey55")) +
       geom_text(data = ref_lab, aes(x, y, label = label), inherit.aes = FALSE,
-                hjust = 1.15, vjust = -0.2, size = 2.8, color = "grey40") +
-      geom_point(aes(color = climate_cluster, size = pop_k), alpha = 0.85) +
-      repel_city(top) +
-      scale_size_continuous(range = c(1.6, 6), guide = "none") +
-      cluster_scale() +
+                hjust = 1.2, vjust = -0.3, size = LABEL_SIZE, color = "grey40") +
+      class_points() +
+      repel_city(label_all(wc, top), size = LABEL_SIZE, point.size = 3.7) +
       scale_x_log10(labels = scales::label_number(accuracy = 0.1, drop0trailing = TRUE)) +
       scale_y_log10(labels = scales::label_number(accuracy = 0.1, drop0trailing = TRUE)) +
       coord_cartesian(xlim = xr, ylim = yr, expand = FALSE) +
       labs(tag = "c",
-           x = "Deaths avoided by greening (25y, log)",
-           y = "Deaths added by AC waste heat
-(25y, log)") +
-      theme_multicity()
+           x = "Deaths avoided by greening\nover 25 years",
+           y = "Deaths added by AC waste heat\nover 25 years") +
+      theme_multicity(base_size = FIG5_BASE)
   } else patchwork::plot_spacer()
 
   # Caption numbers (panel titles/subtitles removed -- caption-only style), printed
@@ -199,9 +214,17 @@ build_fig3 <- function(cities = discover_cities()) {
                     nrow(c_dat) - nrow(wc)))
   }
 
-  fig <- (pa | pb | pc) + patchwork::plot_layout(guides = "collect") &
-    theme(legend.position = "bottom")
-  save_item(fig, "fig3_synergies", width = 14.5, height = 4.7)
+  # a centred on the top row at 72% of the width, b and c side by side below
+  # (the user's layout): full width made the temperature scatter a thin strip.
+  top <- patchwork::plot_spacer() + pa + patchwork::plot_spacer() +
+    patchwork::plot_layout(widths = c(0.14, 0.72, 0.14))
+  fig <- top / (pb | pc) +
+    patchwork::plot_layout(heights = c(1.25, 1), guides = "collect") &
+    # Legend text at the axis-title size rather than the smaller theme default.
+    theme(legend.position = "bottom",
+          legend.title = element_text(size = rel(1.1)),
+          legend.text = element_text(size = rel(1)))
+  save_item(fig, "fig3_synergies", width = 11, height = 9.5)
 }
 
 if (!exists(".MULTICITY_NORUN")) build_fig3()

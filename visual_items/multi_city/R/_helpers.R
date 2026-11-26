@@ -596,8 +596,9 @@ standouts <- function(d, col, n_high = 3, n_low = 2) {
 # Shared label geom for the cross-city scatters. max.overlaps = Inf matters:
 # ggrepel silently DROPS labels past the default of 10, so a panel would quietly
 # lose the very cities it was meant to name.
-repel_city <- function(data, size = 2.7) {
-  ggrepel::geom_text_repel(data = data, aes(label = city_label), size = size,
+# `...` reaches geom_text_repel, e.g. point.size so labels clear large points.
+repel_city <- function(data, size = 2.7, ...) {
+  ggrepel::geom_text_repel(data = data, aes(label = city_label), size = size, ...,
                            color = "grey25", seed = 1, min.segment.length = 0,
                            box.padding = 0.35, point.padding = 0.2,
                            segment.color = "grey60", segment.size = 0.25,
