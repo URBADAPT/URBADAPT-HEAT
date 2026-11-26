@@ -53,14 +53,14 @@ build_si1 <- function(cities = discover_cities()) {
     b <- band(l, "discount_rate", "cpd", "pathway")
     ggplot(b, aes(discount_rate, med, color = pathway, fill = pathway)) +
       geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.16, color = NA) +
-      geom_line(linewidth = 0.9) + geom_point(size = 1.5) +
+      geom_line(linewidth = 1.2) + geom_point(size = 2.4) +
       scale_color_manual(values = PATHWAY_COLORS, labels = PATHWAY_LABELS, name = "Option") +
       scale_fill_manual(values = PATHWAY_COLORS, guide = "none") +
       scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
-      eur_log_scale("Cost per death avoided (€, log)") +
+      eur_log_scale("Cost per avoided death (€)") +
       labs(tag = "a",
            x = "Discount rate") +
-      theme_multicity()
+      theme_multicity(SI_BASE)
   } else patchwork::plot_spacer()
 
   # --- (b) what the greening cost assumptions are worth ----------------------
@@ -94,13 +94,13 @@ build_si1 <- function(cities = discover_cities()) {
     d <- ta[is.finite(ta$cost_per_death) & ta$cost_per_death > 0, , drop = FALSE]
     ggplot(d, aes(assumption, cost_per_death)) +
       geom_boxplot(outlier.shape = NA, width = 0.55, fill = "grey95", color = "grey55") +
-      geom_jitter(aes(color = climate_cluster), width = 0.13, height = 0,
-                  size = 1.8, alpha = 0.75) +
-      cluster_scale() +
-      eur_log_scale("Cost per death avoided (€, log)") +
+      class_point(position = position_jitter(width = 0.13, height = 0, seed = 1)) +
+      class_fill_scale() +
+      eur_log_scale("Cost per avoided death (€)") +
       labs(tag = "b",
            x = NULL) +
-      theme_multicity()
+      theme_multicity(SI_BASE) +
+      theme(axis.text.x = element_text(angle = 20, hjust = 1))
   } else patchwork::plot_spacer()
 
   # --- (c) greening ambition -------------------------------------------------
@@ -119,17 +119,16 @@ build_si1 <- function(cities = discover_cities()) {
     d <- ts[is.finite(ts$cost_per_death) & ts$cost_per_death > 0, , drop = FALSE]
     ggplot(d, aes(scenario, cost_per_death)) +
       geom_boxplot(outlier.shape = NA, width = 0.55, fill = "grey95", color = "grey55") +
-      geom_jitter(aes(color = climate_cluster), width = 0.13, height = 0,
-                  size = 1.8, alpha = 0.75) +
-      cluster_scale() +
-      eur_log_scale("Cost per death avoided (€, log)") +
+      class_point(position = position_jitter(width = 0.13, height = 0, seed = 1)) +
+      class_fill_scale() +
+      eur_log_scale("Cost per avoided death (€)") +
       labs(tag = "c",
            x = NULL) +
-      theme_multicity() +
+      theme_multicity(SI_BASE) +
       theme(axis.text.x = element_text(angle = 20, hjust = 1))
   } else blank_panel("c", "no city has <city>_trees_target_sensitivity.csv (interim/)")
 
-  fig <- (pa | pb | pc) &
+  fig <- (pa | pb | pc) + patchwork::plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
   save_item(fig, "si1_sensitivity", width = 14, height = 5.2)
 }

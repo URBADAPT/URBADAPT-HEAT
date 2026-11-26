@@ -54,7 +54,13 @@ PAWN_LABELS <- c(
   EWS_CF_EFF_LEVEL_IDX = "EWS efficacy, counterfactual", EWS_EFF_LT15_LEVEL_IDX = "EWS efficacy, <15",
   EWS_DISP_15_64_LEVEL_IDX = "EWS displacement, 15-64", EWS_DISP_LT15_LEVEL_IDX = "EWS displacement, <15")
 
-pawn_label <- function(p) ifelse(p %in% names(PAWN_LABELS), PAWN_LABELS[p], p)
+pawn_label <- function(p) gsub("\\bEWS\\b", "HHEWS",
+                               ifelse(p %in% names(PAWN_LABELS), PAWN_LABELS[p], p))
+# Panel titles in the manuscript's wording (the outcome keys stay as stored).
+PAWN_TITLES <- c("Annual heat mortality" = "Annual heat mortality",
+                 "AC cost per avoided death" = "AC cost per avoided death",
+                 "Tree cost per avoided death" = "Street-tree cost per avoided death",
+                 "EWS cost per avoided death" = "HHEWS cost per avoided death")
 
 pawn_campaign_dir <- function(tree, city, pattern) {
   runs <- file.path(tree, city, "tables", "uncertainty_runs")
@@ -68,12 +74,18 @@ pawn_campaign_dir <- function(tree, city, pattern) {
 build_si4 <- function(cities = discover_cities(), top_n = 8,
                       tree = Sys.getenv("PAWN_TREE"), campaign = Sys.getenv("PAWN_CAMPAIGN")) {
   banner("SI 4: PAWN sensitivity across cities")
-  if (!nzchar(tree) || !nzchar(campaign)) {
-    message("  PAWN_TREE / PAWN_CAMPAIGN not set -- skipping SI 4.")
+  cached <- file.path(TAB_DIR, "si4_pawn_long.csv")
+  from_cache <- !nzchar(tree) || !nzchar(campaign)
+  if (from_cache && !file.exists(cached)) {
+    message("  PAWN_TREE / PAWN_CAMPAIGN not set and no si4_pawn_long.csv -- skipping SI 4.")
     return(invisible(NULL))
   }
   meta <- load_city_meta()
-  long <- dplyr::bind_rows(lapply(cities, function(city) {
+  # Without the campaign folders, redraw from the scores this function saved last time.
+  long <- if (from_cache) {
+    message("  PAWN scores read from ", cached)
+    readr::read_csv(cached, show_col_types = FALSE)
+  } else dplyr::bind_rows(lapply(cities, function(city) {
     dir <- pawn_campaign_dir(tree, city, campaign)
     dplyr::bind_rows(lapply(PAWN_OUTCOMES, function(o) {
       d <- readr::read_csv(file.path(dir, sprintf("%s_%s_improved_fast.csv", o$file, city)),
@@ -85,7 +97,8 @@ build_si4 <- function(cities = discover_cities(), top_n = 8,
       data.frame(city = city, outcome = o$title, param = d$param, ks = as.numeric(d[[o$col]]))
     }))
   }))
-  long <- attach_meta(long, meta)
+  if (!from_cache) long <- attach_meta(long, meta)
+  long$climate_cluster <- factor(long$climate_cluster, levels = CLUSTER_LEVELS)
   long$outcome <- factor(long$outcome, levels = vapply(PAWN_OUTCOMES, `[[`, "", "title"))
 
   # The ten vulnerability coordinates do not enter mortality or costs, so their
@@ -101,17 +114,18 @@ build_si4 <- function(cities = discover_cities(), top_n = 8,
     ggplot(d, aes(ks, label)) +
       geom_vline(xintercept = floor_ks, linetype = "dashed", color = "grey50") +
       geom_boxplot(outlier.shape = NA, fill = "grey92", color = "grey45", width = 0.6) +
-      geom_point(aes(color = climate_cluster), size = 0.9, alpha = 0.65,
-                 position = position_jitter(height = 0.15, width = 0, seed = 1)) +
-      cluster_scale("Climate class") +
-      labs(title = o, x = "Median PAWN KS statistic", y = NULL) +
-      theme_multicity(10) + theme(panel.grid.major.y = element_blank())
+      class_point(size = 1.8, alpha = 0.75,
+                  position = position_jitter(height = 0.15, width = 0, seed = 1)) +
+      class_fill_scale() +
+      labs(title = PAWN_TITLES[[o]], x = "Median PAWN KS statistic", y = NULL) +
+      # Drawn 10 in wide and printed at text width (69%): base 11 prints at ~6-7.5 pt.
+      theme_multicity(11) + theme(panel.grid.major.y = element_blank())
   })
   p <- patchwork::wrap_plots(panels, ncol = 2, guides = "collect") +
     patchwork::plot_annotation(tag_levels = "a") &
     theme(legend.position = "bottom")
   save_item(p, "si4_pawn", width = 10, height = 8)
-  readr::write_csv(long, file.path(TAB_DIR, "si4_pawn_long.csv"))
+  if (!from_cache) readr::write_csv(long, file.path(TAB_DIR, "si4_pawn_long.csv"))
   invisible(long)
 }
 

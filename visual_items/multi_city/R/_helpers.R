@@ -295,6 +295,20 @@ option_ramp <- function(key) {
 }
 option_fill_gradient <- function(key, ...) scale_fill_gradientn(colours = option_ramp(key), ...)
 
+# SI figures are drawn about 14 in wide and printed at text width (about half
+# size), so their text is sized up like the main figures'.
+SI_BASE <- 15
+
+# Climate-class points with a dark rim (mustard and snow blue need one on white),
+# and the matching fill scale.
+class_point <- function(size = 2.6, alpha = 0.85, ...)
+  geom_point(aes(fill = climate_cluster), shape = 21, colour = CLUSTER_OUTLINE,
+             stroke = 0.3, size = size, alpha = alpha, ...)
+class_fill_scale <- function(name = "Climate class")
+  scale_fill_manual(values = CLUSTER_COLORS, name = name, drop = FALSE,
+                    guide = guide_legend(override.aes = list(shape = 21, size = 4, alpha = 1,
+                                                              colour = CLUSTER_OUTLINE)))
+
 # Display names for legends, matching the manuscript's wording.
 PATHWAY_LABELS <- c("Trees" = "Street trees", "AC" = "AC", "EWS" = "HHEWS")
 

@@ -83,19 +83,34 @@ build_si5 <- function(cities = discover_cities()) {
                kind = "Net of its own waste heat"))
   pa <- ggplot(dat, aes(100 * coverage, color = climate_cluster)) +
     geom_segment(aes(xend = 100 * coverage, y = net_pct, yend = gross_pct),
-                 linewidth = 0.5, alpha = 0.6, show.legend = FALSE) +
-    geom_point(data = pts, aes(y = pct, shape = kind), fill = "white", size = 2.2, stroke = 0.8) +
-    scale_shape_manual(values = c("Gross" = 21, "Net of its own waste heat" = 16), name = NULL) +
-    ggrepel::geom_text_repel(data = lab, aes(y = gross_pct, label = city_label), size = 2.6,
+                 linewidth = 0.7, alpha = 0.8, show.legend = FALSE) +
+    # Gross: open circle with a dark rim; net: filled in the class colour with a dark
+    # rim, so the light mustard and snow-blue cities stay visible on white.
+    geom_point(data = pts[pts$kind == "Gross", ], aes(y = pct, shape = kind), fill = "white",
+               colour = CLUSTER_OUTLINE, size = 2.8, stroke = 0.5) +
+    geom_point(data = pts[pts$kind != "Gross", ], aes(y = pct, shape = kind, fill = climate_cluster),
+               colour = CLUSTER_OUTLINE, size = 2.8, stroke = 0.3) +
+    scale_shape_manual(values = c("Gross" = 21, "Net of its own waste heat" = 21), name = NULL,
+                       guide = guide_legend(override.aes = list(fill = c("white", "grey55"),
+                                                                colour = CLUSTER_OUTLINE, size = 3.5))) +
+    # Every city goes to the repeller (blank label unless chosen), so labels steer
+    # clear of all points, not only the labelled ones.
+    ggrepel::geom_text_repel(data = rbind(
+                               data.frame(coverage = dat$coverage, pct = dat$gross_pct,
+                                          label = ifelse(dat$city %in% lab$city, dat$city_label, "")),
+                               data.frame(coverage = dat$coverage, pct = dat$net_pct, label = "")),
+                             aes(x = 100 * coverage, y = pct, label = label), inherit.aes = FALSE,
+                             size = 3.8, point.size = 2.8,
                              color = "grey25", seed = 1, min.segment.length = 0,
                              box.padding = 0.35, point.padding = 0.2, segment.color = "grey60",
                              segment.size = 0.25, max.overlaps = Inf, show.legend = FALSE) +
-    cluster_scale() +
+    scale_colour_manual(values = CLUSTER_COLORS, guide = "none", drop = FALSE) +
+    class_fill_scale() +
     scale_x_continuous(labels = scales::label_number(suffix = "%")) +
     scale_y_continuous(labels = scales::label_number(suffix = "%"), limits = c(0, NA)) +
     labs(tag = "a", x = sprintf("Current AC coverage, %d", EXISTING_AC_YEAR),
-         y = "No-AC heat deaths avoided by the existing stock") +
-    theme_multicity()
+         y = "No-AC heat deaths avoided\nby the existing stock") +
+    theme_multicity(14)
 
   # --- (b) pooled by cluster -------------------------------------------------
   pool <- dat |>
@@ -118,18 +133,21 @@ build_si5 <- function(cities = discover_cities()) {
   pb <- ggplot(long, aes(pct, group, fill = part)) +
     geom_col(width = 0.62) +
     geom_text(data = tot, aes(gross, group, label = sprintf("%.0f%% gross, %.0f%% net (n = %d)", gross, net, n)),
-              inherit.aes = FALSE, hjust = -0.05, size = 3, color = "grey25") +
-    scale_fill_manual(values = c("Net protection" = "grey30", "Offset by its own waste heat" = "grey75"),
+              inherit.aes = FALSE, hjust = -0.05, size = 4.2, color = "grey25") +
+    # AC-only quantity: solid AC blue for the net protection, a light AC-blue tint
+    # for the part its own waste heat takes back.
+    scale_fill_manual(values = c("Net protection" = PATHWAY_COLORS[["AC"]],
+                                 "Offset by its own waste heat" =
+                                   grDevices::colorRampPalette(c("white", PATHWAY_COLORS[["AC"]]))(10)[4]),
                       name = NULL, guide = guide_legend(reverse = TRUE)) +
     scale_x_continuous(labels = scales::label_number(suffix = "%"),
-                       expand = expansion(mult = c(0, 0.75))) +
+                       expand = expansion(mult = c(0, 1.05))) +
     labs(tag = "b", x = "Share of no-AC heat deaths, pooled", y = NULL) +
-    theme_multicity() +
+    theme_multicity(14) +
     theme(panel.grid.major.y = element_blank(), panel.grid.major.x = element_line(color = "grey90"))
 
   fig <- (pa | pb) + patchwork::plot_layout(widths = c(1.15, 1)) &
-    theme(legend.position = "bottom", legend.box = "vertical",
-          legend.text = element_text(size = rel(0.85)))
+    theme(legend.position = "bottom", legend.box = "vertical")
   save_item(fig, "si5_existing_ac", width = 12.5, height = 5.4)
 
   # --- table -----------------------------------------------------------------

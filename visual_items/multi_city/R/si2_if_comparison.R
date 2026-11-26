@@ -50,6 +50,16 @@ if_total_deaths <- function(city, family) {
   sum(as.matrix(d[, cols]), na.rm = TRUE)
 }
 
+# Tick labels as m x 10^e rather than R's '8e-07'.
+sci_labels <- function(v) {
+  as.expression(lapply(v, function(x) {
+    if (!is.finite(x)) return("")
+    if (x == 0) return(quote(0))
+    e <- floor(log10(abs(x))); m <- signif(x / 10^e, 2)
+    if (m == 1) bquote(10^.(e)) else bquote(.(m) %*% 10^.(e))
+  }))
+}
+
 build_si2 <- function(cities = discover_cities()) {
   banner("SI 2: exposure-response function sensitivity")
   meta <- load_city_meta()
@@ -73,16 +83,16 @@ build_si2 <- function(cities = discover_cities()) {
                        hi = quantile(mdd, 0.75), .groups = "drop")
     ggplot(b, aes(temperature_C, med, color = family, fill = family, linetype = family)) +
       geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.12, color = NA) +
-      geom_line(linewidth = 0.85) +
+      geom_line(linewidth = 1.1) +
       facet_wrap(~age_group, nrow = 1, scales = "free_y") +
-      scale_y_continuous(labels = scales::label_scientific(digits = 1)) +
+      scale_y_continuous(labels = sci_labels) +
       scale_color_manual(values = IF_COLORS, name = "Exposure-response function") +
       scale_linetype_manual(values = IF_LINETYPES, name = "Exposure-response function") +
       scale_fill_manual(values = IF_COLORS, guide = "none") +
       labs(tag = "a",
            x = "Daily mean temperature (°C)",
            y = "Marginal deaths per degree") +
-      theme_multicity() +
+      theme_multicity(SI_BASE) +
       guides(color = guide_legend(nrow = 2))
   } else patchwork::plot_spacer()
 
@@ -111,14 +121,14 @@ build_si2 <- function(cities = discover_cities()) {
     ggplot(d[is.finite(d$ratio) & d$ratio > 0, ], aes(family, ratio)) +
       geom_hline(yintercept = 1, linetype = 2, color = "grey55") +
       geom_boxplot(outlier.shape = NA, width = 0.5, fill = "grey95", color = "grey55") +
-      geom_jitter(aes(color = climate_cluster), width = 0.13, height = 0,
-                  size = 1.9, alpha = 0.75) +
-      cluster_scale() +
-      scale_y_log10(labels = scales::label_number(accuracy = 0.1, suffix = "x")) +
+      class_point(position = position_jitter(width = 0.13, height = 0, seed = 1)) +
+      class_fill_scale() +
+      scale_y_log10(labels = function(v) vapply(v, function(x) if (is.na(x)) "" else
+        paste0(format(x, scientific = FALSE, drop0trailing = TRUE), "\u00d7"), "")) +
+      scale_x_discrete(labels = function(x) sub(", ", ",\n", x, fixed = TRUE)) +
       labs(tag = "b",
-           x = NULL, y = "Baseline heat deaths (ratio, log)") +
-      theme_multicity() +
-      theme(axis.text.x = element_text(angle = 15, hjust = 1))
+           x = NULL, y = "Baseline heat deaths,\nratio to Masselot (main)") +
+      theme_multicity(SI_BASE)
   } else patchwork::plot_spacer()
 
   # Caption number (panel titles/subtitles removed -- caption-only style).
@@ -126,8 +136,9 @@ build_si2 <- function(cities = discover_cities()) {
   message(sprintf(paste0("  [caption] the masselot tail extension binds in %d of ",
                          "%d cities (max %.1f%%)"), n_bind, nrow(tl), max_bind))
 
-  fig <- (pa | pb) + patchwork::plot_layout(widths = c(2.1, 1)) &
-    theme(legend.position = "bottom")
+  # Legends stacked under the whole figure: side by side they ran past its edge.
+  fig <- (pa | pb) + patchwork::plot_layout(widths = c(2.1, 1), guides = "collect") &
+    theme(legend.position = "bottom", legend.box = "vertical")
   save_item(fig, "si2_if_comparison", width = 14, height = 5.2)
 }
 

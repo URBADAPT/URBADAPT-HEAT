@@ -45,10 +45,10 @@ ARM_PATHS = {
     "both": r"C:\Users\giaco\OneDrive - IIASA\Documents\juno\corrected40",
 }
 ARM_LABEL = {
-    "none": "not calibrated",
-    "variance": "variance only",
-    "era5": "ERA5 only",
-    "both": "both corrections",
+    "none": "Not calibrated",
+    "variance": "Variance correction only",
+    "era5": "ERA5-Land correction only",
+    "both": "Both corrections",
 }
 # Cities worth naming: the ones the conclusions turn on. Deliberately short - in the
 # uncorrected panels the cloud is dense enough that five labels collide, and a label
@@ -62,8 +62,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 from modelled_population import modelled_population  # noqa: E402
-INK, INK2, MUT = "#1a1a18", "#55554f", "#8d8d86"
-ACCENT, REF = "#1f6f4a", "#b9b8b2"
+INK, INK2, MUT = "#1a1a18", "#55554f", "#6b6b66"
+REF = "#b9b8b2"
+# The paper's climate-class colours and point rim (visual_items/multi_city/R/_helpers.R).
+CLASS_COLORS = {"Hot": "#9E1B32", "Temperate": "#D1A834", "Cool": "#A7BACB"}
+OUTLINE = "#404040"
+CITY_META = os.path.join(ROOT, "..", "visual_items", "multi_city", "compare", "v3c", "tables",
+                         "city_metadata.csv")
+# Font sizes for a figure drawn about 11.7 in wide and printed at text width (59%):
+# ticks and notes print at about 6 pt, axis titles at about 7 pt, column titles at 8 pt.
+FS_TICK, FS_AXIS, FS_TITLE, FS_NOTE = 10.5, 12, 13.5, 10.5
 
 
 def arm_frame(base: str, geo: pd.DataFrame, mas: pd.DataFrame) -> pd.DataFrame:
@@ -96,44 +104,50 @@ def arm_frame(base: str, geo: pd.DataFrame, mas: pd.DataFrame) -> pd.DataFrame:
     return t
 
 
-def panel(ax, x, y, labels, xlabel, ylabel, title, note):
+def panel(ax, x, y, labels, classes, names, xlabel, ylabel, title, note):
     import matplotlib.pyplot as plt  # noqa: F401
+    from matplotlib import patheffects
 
     good = np.isfinite(x) & np.isfinite(y) & (x > 0) & (y > 0)
-    x, y, labels = x[good], y[good], [l for l, k in zip(labels, good) if k]
+    x, y = x[good], y[good]
+    labels = [l for l, k in zip(labels, good) if k]
+    classes = [c for c, k in zip(classes, good) if k]
+    names = [n for n, k in zip(names, good) if k]
     lo = min(x.min(), y.min()) * 0.55
     hi = max(x.max(), y.max()) * 1.8
     ax.plot([lo, hi], [lo, hi], color=REF, lw=2, zorder=1, solid_capstyle="round")
     for f, ls in ((2.0, (0, (4, 3))), (0.5, (0, (4, 3)))):
         ax.plot([lo, hi], [lo * f, hi * f], color=REF, lw=1, ls=ls, zorder=1)
-    ax.scatter(x, y, s=44, facecolor=ACCENT, edgecolor="white", linewidth=1.1,
-               alpha=0.9, zorder=3)
-    for xi, yi, li in zip(x, y, labels):
+    # Points in the climate-class colours with a dark rim, as in the paper's other figures.
+    ax.scatter(x, y, s=46, facecolor=[CLASS_COLORS.get(c, "#999999") for c in classes],
+               edgecolor=OUTLINE, linewidth=0.5, alpha=0.9, zorder=3)
+    for xi, yi, li, ni in zip(x, y, labels, names):
         if li in ANNOTATE:
-            ax.annotate(li, (xi, yi), textcoords="offset points", xytext=(7, 3),
-                        fontsize=8, color=INK2, zorder=4)
+            ax.annotate(ni, (xi, yi), textcoords="offset points", xytext=(7, 3),
+                        fontsize=FS_NOTE, color=INK2, zorder=4,
+                        path_effects=[patheffects.withStroke(linewidth=2.5, foreground="white")])
     ax.set_xscale("log"); ax.set_yscale("log")
     ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
     ax.set_aspect("equal", adjustable="box")
-    ax.set_title(title, fontsize=11, color=INK, pad=8, loc="left")
-    ax.set_xlabel(xlabel, fontsize=9, color=MUT)
-    ax.set_ylabel(ylabel, fontsize=9, color=MUT)
-    ax.tick_params(labelsize=8, colors=MUT, length=3)
+    ax.set_title(title, fontsize=FS_TITLE, color=INK, pad=8, loc="left", fontweight="bold")
+    ax.set_xlabel(xlabel, fontsize=FS_AXIS, color=INK2)
+    ax.set_ylabel(ylabel, fontsize=FS_AXIS, color=INK2)
+    ax.tick_params(labelsize=FS_TICK, colors=INK2, length=3)
     ax.grid(True, which="major", color=REF, lw=0.6, alpha=0.5)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
     for sp in ("left", "bottom"):
         ax.spines[sp].set_color(REF)
     ax.annotate(note, xy=(0.035, 0.965), xycoords="axes fraction", va="top",
-                fontsize=8.5, color=INK2)
+                fontsize=FS_NOTE, color=INK2)
 
 
 def stats(x, y):
     good = np.isfinite(x) & np.isfinite(y) & (x > 0) & (y > 0)
     r = y[good] / x[good]
-    return (f"n={good.sum()}  median {np.median(r):.2f}\n"
-            f"within 2x: {int(((r > .5) & (r < 2)).sum())}/{good.sum()}\n"
-            f"spread {r.max()/r.min():.0f}x")
+    return (f"n = {good.sum()}, median ratio {np.median(r):.2f}\n"
+            f"within a factor of 2: {int(((r > .5) & (r < 2)).sum())}/{good.sum()}\n"
+            f"spread {r.max()/r.min():.0f}\u00d7")
 
 
 def main() -> int:
@@ -151,6 +165,13 @@ def main() -> int:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib import font_manager
+    from matplotlib.lines import Line2D
+    if any(f.name == "Arial" for f in font_manager.fontManager.ttflist):
+        matplotlib.rcParams["font.family"] = "Arial"   # the R figures' sans on Windows
+    meta = pd.read_csv(CITY_META)[["city", "city_label", "climate_cluster"]]
+    cls = dict(zip(meta.city, meta.climate_cluster))
+    nice = dict(zip(meta.city, meta.city_label))
 
     geo = pd.read_csv(os.path.join(HERE, "reference_geographies.csv"), dtype=str)
     mas = pd.read_csv(os.path.join(ROOT, "10288665", "results", "city.csv"))[
@@ -200,29 +221,33 @@ def main() -> int:
     fig.patch.set_facecolor("white")
     for j, arm in enumerate(arms):
         t = frames[arm]
+        slugs = list(t.slug)
+        classes = [cls.get(c) for c in slugs]
+        names = [nice.get(c, c) for c in slugs]
         panel(axes[0][j], t.mas_deaths.to_numpy(float), t.deaths.to_numpy(float),
-              list(t.slug), "Masselot estimate (deaths/yr)", "modelled (deaths/yr)",
+              slugs, classes, names, "Masselot estimate (deaths per year)", "Modelled (deaths per year)",
               f"{ARM_LABEL[arm]}", stats(t.mas_deaths.to_numpy(float), t.deaths.to_numpy(float)))
         panel(axes[1][j], t.mas_rate.to_numpy(float), t.rate.to_numpy(float),
-              list(t.slug), "Masselot estimate (per 100k)", "modelled (per 100k)",
+              slugs, classes, names, "Masselot estimate (per 100,000)", "Modelled (per 100,000)",
               "", stats(t.mas_rate.to_numpy(float), t.rate.to_numpy(float)))
-    axes[0][0].set_ylabel("TOTAL DEATHS\n\nmodelled (deaths/yr)", fontsize=9, color=INK)
-    axes[1][0].set_ylabel("PER CAPITA\n\nmodelled (per 100k)", fontsize=9, color=INK)
+    axes[0][0].set_ylabel("Total deaths\n\nModelled (deaths per year)", fontsize=FS_AXIS, color=INK)
+    axes[1][0].set_ylabel("Deaths per 100,000\n\nModelled (per 100,000)", fontsize=FS_AXIS, color=INK)
     ncity = len(frames[arms[0]])
     scope = (f"common sample of {ncity} cities" if args.restrict == "common"
              else f"each arm on its own sample ({', '.join(f'{a} n={len(frames[a])}' for a in arms)})")
-    fig.suptitle("Modelled vs Masselot-estimated heat deaths, by calibration arm",
-                 fontsize=13, color=INK, x=0.012, ha="left", y=0.985)
-    fig.text(0.012, 0.945,
-             "Solid line 1:1; dashed lines a factor of 2 either side. Log-log. "
-             f"2020 baseline. {scope}.",
-             fontsize=9, color=MUT, ha="left")
-    fig.tight_layout(rect=(0, 0, 1, 0.925))
+    # No in-figure title: the caption carries the description, the line key and the
+    # sample. One climate-class legend at the foot, as in the paper's other figures.
+    print(f"[scope] {scope}")
+    handles = [Line2D([], [], marker="o", linestyle="", markersize=8, markerfacecolor=CLASS_COLORS[k],
+                      markeredgecolor=OUTLINE, markeredgewidth=0.5, label=k) for k in CLASS_COLORS]
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False, fontsize=FS_AXIS,
+               title="Climate class", title_fontsize=FS_AXIS, bbox_to_anchor=(0.5, 0.0))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
 
     os.makedirs(args.out_dir, exist_ok=True)
     for ext in ("png", "pdf"):
         p = os.path.join(args.out_dir, f"calibration_arms{args.suffix}.{ext}")
-        fig.savefig(p, dpi=190 if ext == "png" else None, facecolor="white")
+        fig.savefig(p, dpi=300 if ext == "png" else None, facecolor="white")
         print(f"[write] {p}")
 
     rows = []

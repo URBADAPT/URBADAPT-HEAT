@@ -23,15 +23,15 @@ if (!exists("REPO_ROOT")) {
 SVI_SWEEP_TREE <- Sys.getenv("SVI_SWEEP_TREE",
   "C:/Users/giaco/OneDrive - IIASA/Documents/juno/svi_40")
 
-SERIES <- c(ac_svi = "AC", trees_svi_abs = "Trees, ceiling GVI 35",
-            trees_svi = "Trees, city ceiling")
+SERIES <- c(ac_svi = "AC", trees_svi_abs = "Street trees, ceiling GVI 35",
+            trees_svi = "Street trees, city ceiling")
 SERIES_COLORS <- c("AC" = PATHWAY_COLORS[["AC"]],
-                   "Trees, ceiling GVI 35" = PATHWAY_COLORS[["Trees"]],
-                   "Trees, city ceiling" = PATHWAY_COLORS[["Trees"]])
-SERIES_LINES  <- c("AC" = "solid", "Trees, ceiling GVI 35" = "solid", "Trees, city ceiling" = "22")
-SERIES_SHAPES <- c("AC" = 16, "Trees, ceiling GVI 35" = 17, "Trees, city ceiling" = 2)
+                   "Street trees, ceiling GVI 35" = PATHWAY_COLORS[["Trees"]],
+                   "Street trees, city ceiling" = PATHWAY_COLORS[["Trees"]])
+SERIES_LINES  <- c("AC" = "solid", "Street trees, ceiling GVI 35" = "solid", "Street trees, city ceiling" = "22")
+SERIES_SHAPES <- c("AC" = 16, "Street trees, ceiling GVI 35" = 17, "Street trees, city ceiling" = 2)
 GAIN <- c("AC: SVI vs income priority" = PATHWAY_COLORS[["AC"]],
-          "Trees: SVI vs greenness-deficit priority" = PATHWAY_COLORS[["Trees"]])
+          "Street trees: SVI vs greenness-deficit priority" = PATHWAY_COLORS[["Trees"]])
 
 read_sweep <- function() {
   f <- list.files(SVI_SWEEP_TREE, pattern = "^svi_budget_sweep_[a-z]+\\.csv$",
@@ -55,9 +55,12 @@ band <- function(df, y, positive = TRUE) {
 }
 
 budget_scale <- function() {
-  scale_x_log10(name = "Budget per resident (€, present value, log)",
+  scale_x_log10(name = "Budget per resident (present value)",
                 breaks = c(25, 100, 400, 1600), labels = function(v) paste0("€", scales::comma(v)))
 }
+
+# Drawn 11 in wide and printed at text width (63%): base 12 prints at ~6-7.5 pt.
+SI6_BASE <- 12
 
 build_si6 <- function() {
   banner("SI 6: equal budgets for AC and trees, allocated by social vulnerability")
@@ -69,28 +72,29 @@ build_si6 <- function() {
 
   line_layers <- list(
     geom_ribbon(aes(ymin = lo, ymax = hi, fill = series), alpha = 0.14, color = NA),
-    geom_line(aes(linetype = series), linewidth = 0.8),
-    geom_point(aes(shape = series), size = 1.9),
+    geom_line(aes(linetype = series), linewidth = 1.0),
+    geom_point(aes(shape = series), size = 2.4),
     scale_color_manual(values = SERIES_COLORS, name = NULL),
     scale_fill_manual(values = SERIES_COLORS, guide = "none"),
     scale_linetype_manual(values = SERIES_LINES, name = NULL),
     scale_shape_manual(values = SERIES_SHAPES, name = NULL),
     facet_wrap(~climate_cluster, nrow = 1),
-    budget_scale(), theme_multicity())
+    budget_scale(), theme_multicity(SI6_BASE))
 
   # The city-ceiling trees only carry their own ribbon-free line; one band per pathway.
   ba <- band(s, "cost_per_death_eur")
-  ba$lo[ba$series == "Trees, city ceiling"] <- NA
-  ba$hi[ba$series == "Trees, city ceiling"] <- NA
+  ba$lo[ba$series == "Street trees, city ceiling"] <- NA
+  ba$hi[ba$series == "Street trees, city ceiling"] <- NA
   pa <- ggplot(ba, aes(budget_pc_eur, med, color = series, group = series)) + line_layers +
-    eur_log_scale("Cost per death avoided (€, log)") + labs(tag = "a")
+    eur_log_scale("Cost per avoided death (€)") + labs(tag = "a")
 
   bb <- band(s, "q45_100k")
-  bb$lo[bb$series == "Trees, city ceiling"] <- NA
-  bb$hi[bb$series == "Trees, city ceiling"] <- NA
+  bb$lo[bb$series == "Street trees, city ceiling"] <- NA
+  bb$hi[bb$series == "Street trees, city ceiling"] <- NA
   pb <- ggplot(bb, aes(budget_pc_eur, med, color = series, group = series)) + line_layers +
-    scale_y_log10(name = "Deaths avoided in the two most\nvulnerable quintiles per 100k (log)",
-                  labels = scales::label_number(accuracy = 0.1)) + labs(tag = "b")
+    scale_y_log10(name = "Deaths avoided in the two most\nvulnerable quintiles per 100,000",
+                  labels = function(v) vapply(v, function(x) if (is.na(x)) "" else
+                    format(x, scientific = FALSE, drop0trailing = TRUE), "")) + labs(tag = "b")
 
   g <- function(a, b, lab) {
     x <- d[d$strategy == a, c("city", "climate_cluster", "budget_pc_eur", "q45")]
@@ -107,13 +111,13 @@ build_si6 <- function() {
   pc <- ggplot(bc, aes(budget_pc_eur, med, color = series, fill = series, group = series)) +
     geom_hline(yintercept = 0, color = "grey60", linewidth = 0.4) +
     geom_ribbon(aes(ymin = lo, ymax = hi), alpha = 0.14, color = NA) +
-    geom_line(linewidth = 0.8) + geom_point(aes(shape = series), size = 1.9) +
+    geom_line(linewidth = 1.0) + geom_point(aes(shape = series), size = 2.4) +
     scale_color_manual(values = GAIN, name = NULL) +
     scale_fill_manual(values = GAIN, guide = "none") +
     scale_shape_manual(values = c(16, 17), name = NULL) +
     facet_wrap(~climate_cluster, nrow = 1) + budget_scale() +
     scale_y_continuous("Gain in their share of the\nbenefit (percentage points)") +
-    labs(tag = "c") + theme_multicity()
+    labs(tag = "c") + theme_multicity(SI6_BASE)
 
   # Rows a and b share series and the budget axis: one legend under b, one axis title at the bottom.
   fig <- (pa + theme(legend.position = "none", axis.title.x = element_blank())) /
