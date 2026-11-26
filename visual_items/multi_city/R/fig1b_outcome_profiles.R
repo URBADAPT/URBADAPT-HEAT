@@ -86,10 +86,26 @@ build_fig1b <- function(cities = discover_cities()) {
   zl$z <- ifelse(zl$worse_high, zl$z, -zl$z)
 
   zl$city_f <- factor(zl$city_label, levels = levels(arch$city_f))
-  zl$group <- factor(zl$group, levels = PROFILE_GROUP_LEVELS)
+  # Display wording follows the manuscript; the PROFILE_FEATURES labels stay as
+  # they are because 01_city_profiles.R uses them too. Long group titles wrap
+  # onto two lines rather than shrinking.
+  DISPLAY_GROUP <- c("Risk" = "Risk",
+                     "% reduction" = "Heat deaths\navoided (%)",
+                     "Avoided/100k" = "Deaths avoided\nper 100,000",
+                     "Cost/capita" = "Cost per\ncapita",
+                     "Cost/death" = "Cost per\navoided death",
+                     "Cost share & offset" = "Private share and\nwaste-heat offset")
+  DISPLAY_LABEL <- c("Baseline deaths" = "Heat deaths per 100,000",
+                     "Trees" = "Street trees", "AC" = "AC", "EWS" = "HHEWS",
+                     "Private cost share" = "Private cost share",
+                     "AC waste heat" = "AC waste-heat offset")
+  zl$group <- factor(unname(DISPLAY_GROUP[as.character(zl$group)]),
+                     levels = unname(DISPLAY_GROUP[PROFILE_GROUP_LEVELS]))
   # Variables share short labels across groups ("Trees" appears four times), so
   # order the x axis by the PROFILE_FEATURES row order within each group facet.
-  zl$label <- factor(zl$label, levels = unique(PROFILE_FEATURES$label))
+  lv <- unique(PROFILE_FEATURES$label)
+  zl$label <- factor(unname(DISPLAY_LABEL[as.character(zl$label)]),
+                     levels = unname(DISPLAY_LABEL[lv]))
 
   # Standing alone, the figure has the room the panel never had: city names and
   # column headers go back to full size and the tiles stop being cramped.
@@ -104,41 +120,54 @@ build_fig1b <- function(cities = discover_cities()) {
                          midpoint = 0, limits = Z_LIMITS,
                          oob = scales::squish, na.value = "white",
                          name = "Oriented z-score",
-                         breaks = c(-2, -1, 0, 1, 2),
+                         # End labels at the saturation points say which way is
+                         # unfavourable, so the figure reads without the caption.
+                         breaks = c(-2.5, -1, 0, 1, 2.5),
+                         labels = c("-2.5\nMore favourable", "-1", "0", "1",
+                                    "2.5\nLess favourable"),
                          guide = guide_colorbar(barheight = unit(0.35, "cm"),
-                                                barwidth = unit(4.2, "cm"),
+                                                barwidth = unit(6.5, "cm"),
                                                 title.position = "top")) +
+    scale_x_discrete(position = "top") +
+    labs(x = NULL, y = NULL) +
+    theme_multicity() +
+    # City names sit on the climate strip to the left, so none here.
+    theme(axis.text.y = element_blank(),
+          axis.text.x.top = element_text(size = rel(0.85), angle = 45,
+                                         hjust = 0, vjust = 0),
+          strip.text.x = element_text(size = rel(0.9), lineheight = 0.9),
+          strip.text.y = element_blank(),
+          # Group titles above the rotated column headers, not between them and
+          # the tiles; the right margin keeps the last rotated header inside.
+          strip.placement = "outside",
+          plot.margin = margin(8, 80, 8, 2),
+          panel.spacing = unit(3, "pt"),
+          panel.grid = element_blank(),
+          legend.position = "bottom")
+
+  # Climate class: an external descriptor, drawn in the shared class palette
+  # between the city names and the heatmap, with its own legend.
+  b2 <- ggplot(arch, aes(x = "Climate class", y = city_f, fill = climate_cluster)) +
+    geom_tile(color = "white", linewidth = 0.25) +
+    scale_fill_manual(values = CLUSTER_COLORS, na.value = "grey90", drop = FALSE,
+                      name = "Climate class",
+                      guide = guide_legend(title.position = "top", nrow = 1)) +
     scale_x_discrete(position = "top") +
     labs(x = NULL, y = NULL) +
     theme_multicity() +
     theme(axis.text.y = element_text(size = rel(0.85)),
           axis.text.x.top = element_text(size = rel(0.85), angle = 45,
                                          hjust = 0, vjust = 0),
-          strip.text.x = element_text(size = rel(0.9)),
-          strip.text.y = element_blank(),
-          panel.spacing = unit(3, "pt"),
           panel.grid = element_blank(),
           legend.position = "bottom")
-
-  # Climate class: an external descriptor, drawn in the shared cluster palette
-  # so the eye can read the profile against the climate gradient without a
-  # second legend.
-  b2 <- ggplot(arch, aes(x = "Climate", y = city_f, fill = climate_cluster)) +
-    geom_tile(color = "white", linewidth = 0.25) +
-    scale_fill_manual(values = CLUSTER_COLORS, na.value = "grey90",
-                      guide = "none", drop = FALSE) +
-    scale_x_discrete(position = "top") +
-    labs(x = NULL, y = NULL) +
-    theme_multicity() +
-    theme(axis.text.y = element_blank(),
-          axis.text.x.top = element_text(size = rel(0.85), angle = 45,
-                                         hjust = 0, vjust = 0))
 
   # The LCZ / coefficient-coverage descriptor strip that used to sit here was
   # removed: four more columns of grey on top of a 40-row heatmap was more
   # information than one figure can carry. That per-city characterisation is now
   # tab_city_characteristics, an SI longtable.
-  fig <- (b1 | b2) + patchwork::plot_layout(widths = c(1, 0.05))
+  fig <- (b2 | b1) +
+    patchwork::plot_layout(widths = c(0.05, 1), guides = "collect") &
+    theme(legend.position = "bottom")
 
   # Caption numbers, printed so a rebuild on new data shows immediately when the
   # caption has drifted.
